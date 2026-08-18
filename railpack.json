@@ -2,13 +2,15 @@
   "$schema": "https://schema.railpack.com",
   "steps": {
     "install": {
-      "inputs": [
-        {
-          "local": true,
-          "include": ["package.json", "package-lock.json"]
-        }
-      ],
-      "commands": ["npm ci"]
+      // node_modules reaches the final image via the build step anyway,
+      // so don't duplicate install's output into deploy
+      "deployOutputs": [],
+      "commands": [
+        { "path": "/app/node_modules/.bin" },
+        { "src": "package-lock.json", "dest": "package-lock.json" },
+        { "src": "package.json", "dest": "package.json" },
+        "npm ci"
+      ]
     }
   }
 }
