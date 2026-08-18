@@ -3,7 +3,7 @@
 import * as React from "react"
 import { PlusIcon, WorkflowIcon } from "lucide-react"
 
-import { Workflow } from "@/lib/workflows"
+import type { Workflow } from "@/db"
 import { cn } from "@/lib/utils"
 import {
   Popover,

@@ -1,10 +1,10 @@
-import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core"
+import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core"
 
 export const workflows = pgTable("workflows", {
   id: uuid("id").primaryKey().defaultRandom(),
+  orgId: text("org_id").notNull(),
   name: text("name").notNull(),
-  userId: text("user_id"),
-  orgId: text("org_id"),
+  graph: jsonb("graph"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

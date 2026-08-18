@@ -1,15 +1,13 @@
 import { neon } from "@neondatabase/serverless"
 import { drizzle } from "drizzle-orm/neon-http"
+import { parseEnv } from "@neon/env"
 
+import neonConfig from "../neon"
 import * as schema from "./schema"
 
-const connectionString = process.env.DATABASE_URL
+const { postgres } = parseEnv(neonConfig, ["DATABASE_URL"])
 
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not set in environment variables")
-}
-
-const client = neon(connectionString)
+const client = neon(postgres.databaseUrl)
 
 export const db = drizzle(client, { schema })
 export * from "./schema"
