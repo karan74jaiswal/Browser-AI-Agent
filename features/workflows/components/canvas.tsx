@@ -3,54 +3,34 @@
 import * as React from "react"
 import {
   ReactFlow,
-  Background,
   Controls,
   addEdge,
   useNodesState,
   useEdgesState,
   type Connection,
   type Edge,
-  type Node,
   type ColorMode,
   ConnectionLineType,
+  NodeTypes,
 } from "@xyflow/react"
 import { useTheme } from "next-themes"
-
+import { StepNode } from "@/features/workflows/components/step-node"
+import { type StepNodeType } from "@/features/workflows/nodes/node-registry"
 import "@xyflow/react/dist/style.css"
 
 const emptySubscribe = () => () => {}
 
-const initialNodes: Node[] = [
+const nodeTypes: NodeTypes = { step: StepNode }
+const initialNodes: StepNodeType[] = [
   {
     id: "1",
-    type: "input",
-    data: { label: "Trigger: Workflow Start" },
+    type: "step",
+    data: { kind: "trigger", title: "Start", type: "start", values: {} },
     position: { x: 0, y: 0 },
   },
-  {
-    id: "2",
-    data: { label: "Action: Process Data" },
-    position: { x: 250, y: 0 },
-  },
-  {
-    id: "3",
-    data: { label: "Action: Browser Automation" },
-    position: { x: 500, y: 0 },
-  },
-  {
-    id: "4",
-    type: "output",
-    data: { label: "Result: Finished" },
-    position: { x: 700, y: 0 },
-  },
 ]
 
-const initialEdges: Edge[] = [
-  { id: "e1-2", source: "1", target: "2", animated: true },
-  { id: "e2-3", source: "2", target: "3" },
-
-  { id: "e3-4", source: "3", target: "4" },
-]
+const initialEdges: Edge[] = []
 
 interface CanvasProps {
   workflowId?: string
@@ -83,6 +63,7 @@ export function Canvas({ workflowId: _workflowId }: CanvasProps = {}) {
   return (
     <div className="size-full">
       <ReactFlow
+        nodeTypes={nodeTypes}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -104,8 +85,10 @@ export function Canvas({ workflowId: _workflowId }: CanvasProps = {}) {
           } as React.CSSProperties
         }
         maxZoom={1}
+        proOptions={{
+          hideAttribution: true,
+        }}
       >
-        {/* <Background gap={16} size={1} /> */}
         <Controls />
         {/* <MiniMap /> */}
       </ReactFlow>
