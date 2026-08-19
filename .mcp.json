@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "trigger": {
+      "args": [
+        "trigger.dev@latest",
+        "mcp",
+        "--dev-only",
+        "--project-ref",
+        "proj_efmoptoytyokevhuanyp"
+      ],
+      "command": "npx"
+    }
+  }
+}
