@@ -10,9 +10,10 @@ export function listWorkflows(orgId: string) {
     .orderBy(desc(workflows.createdAt))
 }
 
-export async function createWorkflow(
-  params: { orgId: string; name: string }
-): Promise<Workflow>
+export async function createWorkflow(params: {
+  orgId: string
+  name: string
+}): Promise<Workflow>
 export async function createWorkflow(
   orgId: string,
   name: string
@@ -23,8 +24,7 @@ export async function createWorkflow(
 ): Promise<Workflow> {
   const orgId =
     typeof paramOrOrgId === "object" ? paramOrOrgId.orgId : paramOrOrgId
-  const name =
-    typeof paramOrOrgId === "object" ? paramOrOrgId.name : maybeName!
+  const name = typeof paramOrOrgId === "object" ? paramOrOrgId.name : maybeName!
 
   const [workflow] = await db
     .insert(workflows)
@@ -36,4 +36,3 @@ export async function createWorkflow(
 
   return workflow
 }
-

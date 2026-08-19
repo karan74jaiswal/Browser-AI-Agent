@@ -1,17 +1,16 @@
-// "use client"
-
-// import * as React from "react"
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
+import { RightSidebar } from "./right-sidebar"
 
 interface WorkflowShellProps {
   workflowId: string
 }
 
 export function WorkflowShell({ workflowId: _workflowId }: WorkflowShellProps) {
+  // void _workflowId
   return (
     <ResizablePanelGroup orientation="horizontal" className="size-full">
       <ResizablePanel minSize="30rem">
@@ -35,11 +34,7 @@ export function WorkflowShell({ workflowId: _workflowId }: WorkflowShellProps) {
       </ResizablePanel>
       <ResizableHandle />
       <ResizablePanel defaultSize="16rem" minSize="14rem" maxSize="36rem">
-        <div className="flex h-full items-center justify-center p-4">
-          <span className="text-sm font-medium text-muted-foreground">
-            Inspector
-          </span>
-        </div>
+        <RightSidebar />
       </ResizablePanel>
     </ResizablePanelGroup>
   )

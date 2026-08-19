@@ -66,7 +66,7 @@ export function WorkflowsPopover({
           </SidebarMenuItem>
         </SidebarMenu>
 
-        <SidebarSeparator className="my-1.5 mx-0" />
+        <SidebarSeparator className="mx-0 my-1.5" />
 
         <div className="flex max-h-[calc(100vh-14rem)] flex-col overflow-y-auto">
           <SidebarMenu className="gap-y-0.5">

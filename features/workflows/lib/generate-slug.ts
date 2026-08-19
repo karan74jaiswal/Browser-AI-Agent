@@ -1,4 +1,8 @@
-import { adjectives, animals, uniqueNamesGenerator } from "unique-names-generator"
+import {
+  adjectives,
+  animals,
+  uniqueNamesGenerator,
+} from "unique-names-generator"
 
 /**
  * Generates a random hyphenated slug composed of an adjective and an animal.

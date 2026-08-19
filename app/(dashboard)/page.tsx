@@ -25,7 +25,8 @@ export default function Page() {
             No workflow selected
           </EmptyTitle>
           <EmptyDescription className="max-w-xs text-sm text-muted-foreground">
-            Select a workflow from the sidebar or create a new one to get started.
+            Select a workflow from the sidebar or create a new one to get
+            started.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="mt-2">

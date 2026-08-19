@@ -37,7 +37,8 @@ export default function Error({ error, reset }: ErrorProps) {
             Something went wrong
           </EmptyTitle>
           <EmptyDescription className="max-w-xs text-sm text-muted-foreground">
-            {error.message || "An unexpected error occurred while loading the workflow."}
+            {error.message ||
+              "An unexpected error occurred while loading the workflow."}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="mt-2">

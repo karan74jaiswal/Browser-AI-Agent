@@ -12,7 +12,9 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 
-export async function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export async function AppSidebar({
+  ...props
+}: React.ComponentProps<typeof Sidebar>) {
   const { orgId } = await auth()
   const workflows = orgId ? await listWorkflows(orgId) : []
 
