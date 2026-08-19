@@ -4,10 +4,6 @@ import * as React from "react"
 import {
   ReactFlow,
   Controls,
-  addEdge,
-  useNodesState,
-  useEdgesState,
-  type Connection,
   type Edge,
   type ColorMode,
   ConnectionLineType,
@@ -16,7 +12,10 @@ import {
 import { useTheme } from "next-themes"
 import { StepNode } from "@/features/workflows/components/step-node"
 import { type StepNodeType } from "@/features/workflows/nodes/node-registry"
+import { useLiveblocksFlow, Cursors } from "@liveblocks/react-flow"
 import "@xyflow/react/dist/style.css"
+import "@liveblocks/react-ui/styles.css"
+import "@liveblocks/react-flow/styles.css"
 
 const emptySubscribe = () => () => {}
 
@@ -36,22 +35,25 @@ interface CanvasProps {
   workflowId?: string
 }
 
-export function Canvas({ workflowId: _workflowId }: CanvasProps = {}) {
+export function Canvas({ workflowId }: CanvasProps) {
+  // console.log(workflowId)
   const { resolvedTheme } = useTheme()
   const isMounted = React.useSyncExternalStore(
     emptySubscribe,
     () => true,
     () => false
   )
-  const [nodes, , onNodesChange] = useNodesState(initialNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
 
-  const onConnect = React.useCallback(
-    (connection: Connection) => {
-      setEdges((eds) => addEdge(connection, eds))
-    },
-    [setEdges]
-  )
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } =
+    useLiveblocksFlow({
+      suspense: true,
+      nodes: {
+        initial: initialNodes,
+      },
+      edges: {
+        initial: initialEdges,
+      },
+    })
 
   const colorMode: ColorMode = React.useMemo(() => {
     if (!isMounted) return "light"
@@ -68,6 +70,7 @@ export function Canvas({ workflowId: _workflowId }: CanvasProps = {}) {
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onDelete={onDelete}
         onConnect={onConnect}
         colorMode={colorMode}
         fitView
@@ -89,8 +92,8 @@ export function Canvas({ workflowId: _workflowId }: CanvasProps = {}) {
           hideAttribution: true,
         }}
       >
+        <Cursors />
         <Controls />
-        {/* <MiniMap /> */}
       </ReactFlow>
     </div>
   )

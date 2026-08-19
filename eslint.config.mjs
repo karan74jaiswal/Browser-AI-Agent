@@ -26,6 +26,8 @@ const eslintConfig = defineConfig([
       ],
 
       "react-hooks/set-state-in-effect": "warn",
+
+      "@typescript-eslint/no-empty-object-type": "warn",
     },
   },
 ])
