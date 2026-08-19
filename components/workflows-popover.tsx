@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { PlusIcon, WorkflowIcon } from "lucide-react"
 
 import type { Workflow } from "@/db"
@@ -72,11 +73,14 @@ export function WorkflowsPopover({
             {workflows.map((workflow) => (
               <SidebarMenuItem key={workflow.id}>
                 <SidebarMenuButton
+                  asChild
                   isActive={activeWorkflowId === workflow.id}
                   onClick={() => onSelectWorkflow?.(workflow.id)}
                   className="h-9 px-3 text-sm font-normal data-[active=true]:bg-accent data-[active=true]:font-medium data-[active=true]:text-accent-foreground"
                 >
-                  <span className="truncate">{workflow.name}</span>
+                  <Link href={`/workflows/${workflow.id}`}>
+                    <span className="truncate">{workflow.name}</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}

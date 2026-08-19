@@ -1,6 +1,8 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { PlusIcon } from "lucide-react"
 
 import type { Workflow } from "@/db"
@@ -27,9 +29,14 @@ export function SidebarWorkflows({
   workflows,
   createWorkflowAction = defaultCreateWorkflowAction,
 }: SidebarWorkflowsProps) {
+  const pathname = usePathname()
   const { state, isMobile } = useSidebar()
   const isCollapsed = state === "collapsed" && !isMobile
   const [isPending, startTransition] = React.useTransition()
+
+  const activeWorkflowId = pathname?.startsWith("/workflows/")
+    ? pathname.split("/")[2]
+    : undefined
 
   const handleCreateWorkflow = () => {
     const name = generateSlug()
@@ -43,6 +50,7 @@ export function SidebarWorkflows({
       <div className="flex flex-col items-center p-2">
         <WorkflowsPopover
           workflows={workflows}
+          activeWorkflowId={activeWorkflowId}
           onNewWorkflow={handleCreateWorkflow}
         />
       </div>
@@ -64,13 +72,22 @@ export function SidebarWorkflows({
       </SidebarGroupAction>
       <SidebarGroupContent className="mt-1">
         <SidebarMenu className="gap-y-0.5">
-          {workflows.map((workflow) => (
-            <SidebarMenuItem key={workflow.id}>
-              <SidebarMenuButton className="h-9 px-3 text-sm font-normal data-[active=true]:bg-accent data-[active=true]:font-medium data-[active=true]:text-accent-foreground">
-                <span className="truncate">{workflow.name}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {workflows.map((workflow) => {
+            const isActive = activeWorkflowId === workflow.id
+            return (
+              <SidebarMenuItem key={workflow.id}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive}
+                  className="h-9 px-3 text-sm font-normal data-[active=true]:bg-accent data-[active=true]:font-medium data-[active=true]:text-accent-foreground"
+                >
+                  <Link href={`/workflows/${workflow.id}`}>
+                    <span className="truncate">{workflow.name}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
