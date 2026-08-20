@@ -14,7 +14,25 @@ interface RoomProps extends PropsWithChildren {
 
 export function Room({ roomId, children }: RoomProps) {
   return (
-    <LiveblocksProvider authEndpoint="/api/liveblocks/auth" throttle={16}>
+    <LiveblocksProvider
+      authEndpoint="/api/liveblocks/auth"
+      resolveUsers={async ({ userIds }) => {
+        const response = await fetch("/api/liveblocks/users", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userIds }),
+        })
+
+        if (!response.ok) {
+          return undefined
+        }
+
+        return await response.json()
+      }}
+      throttle={16}
+    >
       <RoomProvider key={roomId} id={roomId}>
         <ClientSideSuspense
           fallback={
