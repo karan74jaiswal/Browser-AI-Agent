@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useReactFlow, useStore } from "@xyflow/react"
+import { useCallback, useState } from "react"
+import { useOnSelectionChange, useReactFlow, useStore } from "@xyflow/react"
 import { MoreHorizontal, Play, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { ResizablePanel } from "@/components/ui/resizable"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -94,7 +95,18 @@ function FieldInput({
   value: string
   onChange: (value: string) => void
 }) {
-  // TODO: support a multiline field variant (textarea).
+  if (field.multiline) {
+    return (
+      <Textarea
+        id={field.key}
+        value={value}
+        placeholder={field.placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="min-h-24 resize-y text-xs"
+      />
+    )
+  }
+
   return (
     <Input
       id={field.key}
@@ -129,6 +141,7 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
             <div key={field.key} className="flex flex-col gap-1.5">
               <Label htmlFor={field.key} className="text-xs">
                 {field.label}
+                {field.required && <span className="text-destructive">*</span>}
               </Label>
               <FieldInput
                 field={field}
@@ -138,7 +151,6 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
                   updateNodeData(node.id, {
                     values: { ...values, [field.key]: value },
                   })
-                  // void value
                 }}
               />
             </div>
@@ -297,11 +309,18 @@ function RunButton() {
 export function RightSidebar() {
   const [tab, setTab] = useState("toolbar")
 
-  // TODO: read the currently selected node from React Flow.
+  // Read the currently selected node from React Flow.
   const selected = useStore((s) => s.nodes.find((node) => node.selected)) as
     StepNodeType | undefined
 
-  // TODO: auto-switch to the Editor tab when the selection changes.
+  // Auto-switch to the Editor tab when the selection changes.
+  useOnSelectionChange({
+    onChange: useCallback(({ nodes }) => {
+      if (nodes.length == 1) {
+        setTab("editor")
+      }
+    }, []),
+  })
 
   return (
     <ResizablePanel
