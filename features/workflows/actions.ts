@@ -6,7 +6,8 @@ import { redirect } from "next/navigation"
 import { auth as triggerAuth, tasks } from "@trigger.dev/sdk"
 import type { helloWorldTask } from "@/trigger/example"
 
-import { createWorkflow, getWorkflow } from "@/features/workflows/data"
+import { createWorkflow, deleteWorkflow, getWorkflow } from "@/features/workflows/data"
+import { liveblocks } from "@/lib/liveblocks"
 
 export async function getWorkflowAction(id: string) {
   const { orgId } = await auth()
@@ -63,4 +64,32 @@ export async function runWorkflowAction() {
     runId: handle.id,
     publicAccessToken,
   }
+}
+
+export async function deleteWorkflowAction(id: string) {
+  const { orgId } = await auth()
+
+  if (!orgId) {
+    throw new Error("Unauthorized: No active organization found")
+  }
+
+  if (!id || typeof id !== "string") {
+    throw new Error("Workflow ID is required")
+  }
+
+  const workflow = await deleteWorkflow(orgId, id)
+
+  if (!workflow) {
+    throw new Error("Workflow not found")
+  }
+
+  try {
+    await liveblocks.deleteRoom(id)
+  } catch (error) {
+    console.error("Failed to delete Liveblocks room:", error)
+  }
+
+  revalidatePath("/workflows", "layout")
+  revalidatePath("/", "layout")
+  return { success: true }
 }

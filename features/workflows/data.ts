@@ -60,3 +60,27 @@ export async function createWorkflow(
 
   return workflow
 }
+
+export async function deleteWorkflow(params: {
+  orgId: string
+  id: string
+}): Promise<Workflow | undefined>
+export async function deleteWorkflow(
+  orgId: string,
+  id: string
+): Promise<Workflow | undefined>
+export async function deleteWorkflow(
+  paramOrOrgId: string | { orgId: string; id: string },
+  maybeId?: string
+): Promise<Workflow | undefined> {
+  const orgId =
+    typeof paramOrOrgId === "object" ? paramOrOrgId.orgId : paramOrOrgId
+  const id = typeof paramOrOrgId === "object" ? paramOrOrgId.id : maybeId!
+
+  const [workflow] = await db
+    .delete(workflows)
+    .where(and(eq(workflows.orgId, orgId), eq(workflows.id, id)))
+    .returning()
+
+  return workflow
+}
