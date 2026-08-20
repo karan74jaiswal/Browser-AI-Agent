@@ -107,6 +107,7 @@ function FieldInput({
 
 // The Editor tab: one input per field on the selected node, or an empty state.
 function Inspector({ node }: { node: StepNodeType | undefined }) {
+  const { updateNodeData } = useReactFlow<StepNodeType>()
   if (!node) {
     return (
       <Section title="Editor">
@@ -134,7 +135,10 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
                 value={values[field.key] ?? ""}
                 onChange={(value) => {
                   // TODO: save the edit back onto the selected node.
-                  void value
+                  updateNodeData(node.id, {
+                    values: { ...values, [field.key]: value },
+                  })
+                  // void value
                 }}
               />
             </div>
@@ -178,18 +182,7 @@ function Palette() {
       return
     }
 
-    // 2. Collision-safe numbering
-    const matchingNodes = nodes.filter((node) => node.data?.type === type)
-    let title = def.label
-    if (def.kind !== "trigger") {
-      let count = matchingNodes.length + 1
-      while (
-        matchingNodes.some((n) => n.data?.title === `${def.label} ${count}`)
-      )
-        count++
-
-      title = `${def.label} ${count}`
-    }
+    const title = def.label
 
     const { x, y, zoom } = getViewport()
 
@@ -305,7 +298,8 @@ export function RightSidebar() {
   const [tab, setTab] = useState("toolbar")
 
   // TODO: read the currently selected node from React Flow.
-  const selected: StepNodeType | undefined = undefined
+  const selected = useStore((s) => s.nodes.find((node) => node.selected)) as
+    StepNodeType | undefined
 
   // TODO: auto-switch to the Editor tab when the selection changes.
 
