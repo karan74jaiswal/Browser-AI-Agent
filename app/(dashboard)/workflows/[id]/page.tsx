@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import { ReactFlowProvider } from "@xyflow/react"
 import { getWorkflowAction } from "@/features/workflows/actions"
 import { WorkflowShell } from "@/features/workflows/components/workflow-shell"
 import { Room } from "@/features/workflows/components/room"
@@ -31,7 +32,9 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <Room roomId={workflow.id}>
-      <WorkflowShell workflowId={workflow.id} />
+      <ReactFlowProvider>
+        <WorkflowShell workflowId={workflow.id} />
+      </ReactFlowProvider>
     </Room>
   )
 }
