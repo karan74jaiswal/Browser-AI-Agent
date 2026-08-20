@@ -6,7 +6,23 @@ import { redirect } from "next/navigation"
 import { auth as triggerAuth, tasks } from "@trigger.dev/sdk"
 import type { helloWorldTask } from "@/trigger/example"
 
-import { createWorkflow } from "@/features/workflows/data"
+import { createWorkflow, getWorkflow } from "@/features/workflows/data"
+
+export async function getWorkflowAction(id: string) {
+  const { orgId } = await auth()
+
+  if (!orgId) {
+    return null
+  }
+
+  if (!id || typeof id !== "string") {
+    return null
+  }
+
+  const workflow = await getWorkflow(orgId, id)
+
+  return workflow ?? null
+}
 
 export async function createWorkflowAction(name: string) {
   const { orgId } = await auth()

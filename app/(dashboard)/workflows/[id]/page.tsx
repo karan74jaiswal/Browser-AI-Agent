@@ -1,5 +1,9 @@
+import { notFound } from "next/navigation"
+import { getWorkflowAction } from "@/features/workflows/actions"
 import { WorkflowShell } from "@/features/workflows/components/workflow-shell"
 import { Room } from "@/features/workflows/components/room"
+import { liveblocks } from "@/lib/liveblocks"
+
 interface PageProps {
   params: Promise<{
     id: string
@@ -8,10 +12,25 @@ interface PageProps {
 
 export default async function Page({ params }: PageProps) {
   const { id } = await params
-  console.log(id)
+  const workflow = await getWorkflowAction(id)
+
+  if (!workflow) {
+    notFound()
+  }
+
+  await liveblocks.getOrCreateRoom(workflow.id, {
+    defaultAccesses: [],
+    groupsAccesses: {
+      [workflow.orgId]: ["room:write"],
+    },
+    metadata: {
+      title: workflow.name,
+    },
+  })
+
   return (
-    <Room roomId={id}>
-      <WorkflowShell workflowId={id} />
+    <Room roomId={workflow.id}>
+      <WorkflowShell workflowId={workflow.id} />
     </Room>
   )
 }

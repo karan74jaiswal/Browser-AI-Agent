@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm"
-import { db, workflows } from "@/db"
-import type { Workflow } from "@/db"
+import { db, workflows } from "@/lib/db"
+import type { Workflow } from "@/lib/db"
 
 export function listWorkflows(orgId: string) {
   return db

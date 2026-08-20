@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { PlusIcon, WorkflowIcon } from "lucide-react"
 
-import type { Workflow } from "@/db"
+import type { Workflow } from "@/lib/db"
 import { cn } from "@/lib/utils"
 import {
   Popover,

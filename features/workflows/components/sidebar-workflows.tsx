@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { PlusIcon } from "lucide-react"
 
-import type { Workflow } from "@/db"
+import type { Workflow } from "@/lib/db"
 import { WorkflowsPopover } from "@/components/workflows-popover"
 import {
   SidebarGroup,

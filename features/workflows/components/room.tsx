@@ -14,10 +14,7 @@ interface RoomProps extends PropsWithChildren {
 
 export function Room({ roomId, children }: RoomProps) {
   return (
-    <LiveblocksProvider
-      publicApiKey={process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY!}
-      throttle={16}
-    >
+    <LiveblocksProvider authEndpoint="/api/liveblocks/auth" throttle={16}>
       <RoomProvider key={roomId} id={roomId}>
         <ClientSideSuspense
           fallback={
