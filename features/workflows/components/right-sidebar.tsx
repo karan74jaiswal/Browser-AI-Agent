@@ -298,11 +298,7 @@ function ActionsMenu({ workflowId }: { workflowId: string }) {
             handleDelete()
           }}
         >
-          {isDeleting ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <Trash2 />
-          )}
+          {isDeleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
           Delete workflow
         </DropdownMenuItem>
       </DropdownMenuContent>
