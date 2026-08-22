@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "browse": {
+      "source": "../../.nvm/versions/node/v24.19.0/lib/node_modules/browse/skills/browse",
+      "sourceType": "local",
+      "computedHash": "e4c08efeb6419ccea6086f3d55d98e6b8c88c26ce5013cc5d2231c29db737b49"
+    },
     "clerk": {
       "source": "clerk/skills",
       "sourceType": "github",
