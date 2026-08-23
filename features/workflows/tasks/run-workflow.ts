@@ -1,6 +1,8 @@
 import toposort from "toposort"
-import { logger, task, wait } from "@trigger.dev/sdk"
+import { logger, task } from "@trigger.dev/sdk"
 import { getWorkflow } from "@/features/workflows/data"
+import { browserbase, localBrowser, Stagehand } from "@browserbasehq/stagehand"
+import { nodeExecutors } from "../nodes/node-executors"
 
 export const runWorkflowTask = task({
   id: "run-workflow",
@@ -24,10 +26,66 @@ export const runWorkflowTask = task({
       .filter((id) => connected.has(id))
     logger.log(`Running Workflow ${workflow.name}`, { steps: order.length })
 
-    for (const id of order) {
-      const node = byId.get(id)
+    let stagehand: Stagehand | undefined
+    let browser:
+      | Awaited<ReturnType<typeof browserbase.launch>>
+      | Awaited<ReturnType<typeof localBrowser.launch>>
+      | undefined
 
-      logger.log(`Running step: ${node?.data.title}`)
+    const getStagehand = async (): Promise<Stagehand> => {
+      if (stagehand) return stagehand
+
+      browser = process.env.BROWSERBASE_API_KEY
+        ? await browserbase.launch({
+            apiKey: process.env.BROWSERBASE_API_KEY,
+          })
+        : await localBrowser.launch({ headless: true })
+
+      stagehand = await Stagehand.create({
+        browser,
+        ...(process.env.OPENAI_API_KEY
+          ? {
+              model: {
+                modelName: "openai/gpt-5.4-mini",
+                apiKey: process.env.OPENAI_API_KEY,
+              },
+            }
+          : {
+              modelName: "openai/gpt-5.4-mini",
+            }),
+
+        logging: {
+          level: "off",
+        },
+      })
+
+      return stagehand
+    }
+
+    try {
+      for (const id of order) {
+        const node = byId.get(id)
+        if (!node) continue
+
+        logger.log(`Running step: ${node.data.title}`)
+
+        const executor = nodeExecutors[node.data.type]
+        if (executor)
+          await executor({
+            values: node.data.values,
+            getStagehand,
+          })
+      }
+    } finally {
+      try {
+        if (stagehand) {
+          await stagehand.close()
+        }
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
     }
   },
 })
