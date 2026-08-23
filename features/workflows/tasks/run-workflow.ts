@@ -3,6 +3,7 @@ import { logger, task } from "@trigger.dev/sdk"
 import { getWorkflow } from "@/features/workflows/data"
 import { browserbase, localBrowser, Stagehand } from "@browserbasehq/stagehand"
 import { nodeExecutors } from "../nodes/node-executors"
+import { interpolate } from "../lib"
 
 export const runWorkflowTask = task({
   id: "run-workflow",
@@ -72,6 +73,8 @@ export const runWorkflowTask = task({
       }
     }
 
+    const results: Record<string, unknown> = {}
+
     try {
       for (const id of order) {
         const node = byId.get(id)
@@ -79,21 +82,36 @@ export const runWorkflowTask = task({
 
         logger.log(`Running step: ${node.data.title}`)
 
+        const interpolatedValues = Object.fromEntries(
+          Object.entries(node.data.values ?? {}).map(([key, value]) => [
+            key,
+            interpolate(value, results),
+          ])
+        )
+
         const executor = nodeExecutors[node.data.type]
-        if (executor)
-          await executor({
-            values: node.data.values,
+        if (executor) {
+          const result = await executor({
+            values: interpolatedValues,
             getStagehand,
           })
+          results[id] = result
+        }
       }
     } finally {
       try {
         if (stagehand) {
           await stagehand.close()
         }
+      } catch (err) {
+        logger.warn("Stagehand close error (ignored)", { error: String(err) })
       } finally {
-        if (browser) {
-          await browser.close()
+        try {
+          if (browser) {
+            await browser.close()
+          }
+        } catch (err) {
+          logger.warn("Browser close error (ignored)", { error: String(err) })
         }
       }
     }

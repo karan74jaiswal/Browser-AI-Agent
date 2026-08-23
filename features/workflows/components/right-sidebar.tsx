@@ -8,8 +8,8 @@ import { toast } from "sonner"
 import {
   deleteWorkflowAction,
   runWorkflowAction,
-  cancelWorkflowAction,
 } from "@/features/workflows/actions"
+import { useUpstreamConnections } from "@/features/workflows/hooks"
 
 import {
   Accordion,
@@ -97,10 +97,12 @@ function FieldInput({
   field,
   value,
   onChange,
+  onFocus,
 }: {
   field: NodeField
   value: string
   onChange: (value: string) => void
+  onFocus?: () => void
 }) {
   if (field.multiline) {
     return (
@@ -109,6 +111,7 @@ function FieldInput({
         value={value}
         placeholder={field.placeholder}
         onChange={(e) => onChange(e.target.value)}
+        onFocus={onFocus}
         className="min-h-24 resize-y text-xs"
       />
     )
@@ -120,6 +123,7 @@ function FieldInput({
       value={value}
       placeholder={field.placeholder}
       onChange={(e) => onChange(e.target.value)}
+      onFocus={onFocus}
     />
   )
 }
@@ -127,6 +131,9 @@ function FieldInput({
 // The Editor tab: one input per field on the selected node, or an empty state.
 function Inspector({ node }: { node: StepNodeType | undefined }) {
   const { updateNodeData } = useReactFlow<StepNodeType>()
+  const connections = useUpstreamConnections(node)
+  const [activeFieldKey, setActiveFieldKey] = useState<string | null>(null)
+
   if (!node) {
     return (
       <Section title="Editor">
@@ -137,6 +144,20 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
 
   const { type, title, values } = node.data
   const def: NodeDefinition = nodeRegistry[type]
+
+  const handleInsertToken = (token: string) => {
+    const targetKey =
+      activeFieldKey && def.fields.some((f) => f.key === activeFieldKey)
+        ? activeFieldKey
+        : def.fields[0]?.key
+
+    if (!targetKey) return
+
+    setActiveFieldKey(targetKey)
+    updateNodeData(node.id, {
+      values: { ...values, [targetKey]: token },
+    })
+  }
 
   return (
     <Section title={title} icon={<NodeIcon type={type} />}>
@@ -153,8 +174,9 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
               <FieldInput
                 field={field}
                 value={values[field.key] ?? ""}
+                onFocus={() => setActiveFieldKey(field.key)}
                 onChange={(value) => {
-                  // TODO: save the edit back onto the selected node.
+                  setActiveFieldKey(field.key)
                   updateNodeData(node.id, {
                     values: { ...values, [field.key]: value },
                   })
@@ -162,6 +184,30 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
               />
             </div>
           ))
+        )}
+
+
+        {connections.length > 0 && (
+          <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+            <Label className="text-xs text-muted-foreground">Connections</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {connections.map((conn) => (
+                <button
+                  key={`${conn.nodeId}-${conn.path}`}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleInsertToken(conn.token)}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <NodeIcon
+                    type={conn.type}
+                    className="size-4 rounded-xs [&_svg]:size-2.5"
+                  />
+                  <span>{conn.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </Section>
@@ -395,7 +441,7 @@ export function RightSidebar({ workflowId }: RightSidebarProps) {
           <Palette />
         </TabsContent>
         <TabsContent value="editor" className="flex min-h-0 flex-col">
-          <Inspector node={selected} />
+          <Inspector key={selected?.id} node={selected} />
         </TabsContent>
       </Tabs>
     </ResizablePanel>
