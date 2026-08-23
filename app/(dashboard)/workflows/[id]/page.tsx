@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation"
 import { ReactFlowProvider } from "@xyflow/react"
+import { auth } from "@trigger.dev/sdk"
 import { getWorkflowAction } from "@/features/workflows/actions"
 import { WorkflowShell } from "@/features/workflows/components/workflow-shell"
+import { WorkflowRunsProvider } from "@/features/workflows/components/workflow-runs-provider"
 import { Room } from "@/features/workflows/components/room"
 import { liveblocks } from "@/lib/liveblocks"
 
@@ -19,6 +21,15 @@ export default async function Page({ params }: PageProps) {
     notFound()
   }
 
+  const publicAccessToken = await auth.createPublicToken({
+    scopes: {
+      read: {
+        tags: [`workflow:${workflow.id}`],
+      },
+    },
+    expirationTime: "1h",
+  })
+
   await liveblocks.getOrCreateRoom(workflow.id, {
     organizationId: workflow.orgId,
     defaultAccesses: [],
@@ -33,7 +44,12 @@ export default async function Page({ params }: PageProps) {
   return (
     <Room roomId={workflow.id}>
       <ReactFlowProvider>
-        <WorkflowShell workflowId={workflow.id} />
+        <WorkflowRunsProvider
+          workflowId={workflow.id}
+          publicAccessToken={publicAccessToken}
+        >
+          <WorkflowShell workflowId={workflow.id} />
+        </WorkflowRunsProvider>
       </ReactFlowProvider>
     </Room>
   )

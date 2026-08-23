@@ -1,9 +1,14 @@
 import toposort from "toposort"
-import { logger, task } from "@trigger.dev/sdk"
+import { logger, metadata, task } from "@trigger.dev/sdk"
 import { getWorkflow } from "@/features/workflows/data"
 import { browserbase, localBrowser, Stagehand } from "@browserbasehq/stagehand"
 import { nodeExecutors } from "../nodes/node-executors"
 import { interpolate } from "../lib"
+
+export type RunStep = {
+  id: string
+  status: "pending" | "running" | "done" | "failed"
+}
 
 export const runWorkflowTask = task({
   id: "run-workflow",
@@ -32,6 +37,12 @@ export const runWorkflowTask = task({
       )
       .filter((id) => connected.has(id))
     logger.log(`Running Workflow ${workflow.name}`, { steps: order.length })
+
+    const steps: RunStep[] = order.map((id) => ({
+      id,
+      status: "pending",
+    }))
+    metadata.set("steps", steps)
 
     let stagehand: Stagehand | undefined
     let browser:
@@ -82,20 +93,41 @@ export const runWorkflowTask = task({
 
         logger.log(`Running step: ${node.data.title}`)
 
-        const interpolatedValues = Object.fromEntries(
-          Object.entries(node.data.values ?? {}).map(([key, value]) => [
-            key,
-            interpolate(value, results),
-          ])
-        )
+        const step = steps.find((s) => s.id === id)
+        if (step) {
+          step.status = "running"
+          metadata.set("steps", steps)
+          await metadata.flush()
+        }
 
-        const executor = nodeExecutors[node.data.type]
-        if (executor) {
-          const result = await executor({
-            values: interpolatedValues,
-            getStagehand,
-          })
-          results[id] = result
+        try {
+          const interpolatedValues = Object.fromEntries(
+            Object.entries(node.data.values ?? {}).map(([key, value]) => [
+              key,
+              interpolate(value, results),
+            ])
+          )
+
+          const executor = nodeExecutors[node.data.type]
+          if (executor) {
+            const result = await executor({
+              values: interpolatedValues,
+              getStagehand,
+            })
+            results[id] = result
+          }
+
+          if (step) {
+            step.status = "done"
+            metadata.set("steps", steps)
+          }
+        } catch (error) {
+          if (step) {
+            step.status = "failed"
+            metadata.set("steps", steps)
+            await metadata.flush()
+          }
+          throw error
         }
       }
     } finally {
@@ -115,5 +147,7 @@ export const runWorkflowTask = task({
         }
       }
     }
+
+    return { steps }
   },
 })
