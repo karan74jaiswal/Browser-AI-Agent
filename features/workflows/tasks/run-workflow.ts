@@ -6,6 +6,12 @@ import { nodeExecutors } from "../nodes/node-executors"
 
 export const runWorkflowTask = task({
   id: "run-workflow",
+  queue: {
+    concurrencyLimit: 3, // Matches your Browserbase plan limit
+  },
+  retry: {
+    maxAttempts: 2,
+  },
   run: async ({ workflowId, orgId }: { workflowId: string; orgId: string }) => {
     const workflow = await getWorkflow(orgId, workflowId)
 
@@ -34,32 +40,36 @@ export const runWorkflowTask = task({
 
     const getStagehand = async (): Promise<Stagehand> => {
       if (stagehand) return stagehand
+      try {
+        browser = process.env.BROWSERBASE_API_KEY
+          ? await browserbase.launch({
+              apiKey: process.env.BROWSERBASE_API_KEY,
+            })
+          : await localBrowser.launch({ headless: true })
 
-      browser = process.env.BROWSERBASE_API_KEY
-        ? await browserbase.launch({
-            apiKey: process.env.BROWSERBASE_API_KEY,
-          })
-        : await localBrowser.launch({ headless: true })
+        stagehand = await Stagehand.create({
+          browser,
+          ...(process.env.OPENAI_API_KEY
+            ? {
+                model: {
+                  modelName: "openai/gpt-5.4-mini",
+                  apiKey: process.env.OPENAI_API_KEY,
+                },
+              }
+            : {}),
+          logging: {
+            level: "off",
+          },
+        })
 
-      stagehand = await Stagehand.create({
-        browser,
-        ...(process.env.OPENAI_API_KEY
-          ? {
-              model: {
-                modelName: "openai/gpt-5.4-mini",
-                apiKey: process.env.OPENAI_API_KEY,
-              },
-            }
-          : {
-              modelName: "openai/gpt-5.4-mini",
-            }),
-
-        logging: {
-          level: "off",
-        },
-      })
-
-      return stagehand
+        return stagehand
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err))
+        logger.error("Failed to initialize browser session", {
+          error: error.message,
+        })
+        throw error
+      }
     }
 
     try {

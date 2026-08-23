@@ -19,4 +19,7 @@ export default defineConfig({
     },
   },
   dirs: ["features"],
+  build: {
+    external: ["@browserbasehq/stagehand", "@browserbasehq/sdk"],
+  },
 })
