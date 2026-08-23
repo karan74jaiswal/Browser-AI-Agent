@@ -201,7 +201,8 @@ function Palette() {
       return
     }
 
-    const title = def.label
+    const count = nodes.filter((n) => n.data.type === type).length
+    const title = `${def.label} ${count + 1}`
 
     const { x, y, zoom } = getViewport()
 
