@@ -2,8 +2,8 @@
 
 import { useCallback, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { useOnSelectionChange, useReactFlow, useStore } from "@xyflow/react"
-import { Loader2, MoreHorizontal, Play, Trash2 } from "lucide-react"
+import { useNodes, useOnSelectionChange, useReactFlow, useStore } from "@xyflow/react"
+import { Loader2, MoreHorizontal, Play, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import {
   deleteWorkflowAction,
@@ -30,7 +30,7 @@ import { Label } from "@/components/ui/label"
 import { ResizablePanel } from "@/components/ui/resizable"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
-import { validateGraph } from "../lib/validate-graph"
+import { parseTokenReference, validateGraph } from "../lib"
 
 import {
   nodeRegistry,
@@ -88,6 +88,7 @@ function Section({
   )
 }
 
+
 // ---------------------------------------------------------------------------
 // Editor tab — edits the fields of the selected node.
 // ---------------------------------------------------------------------------
@@ -104,6 +105,40 @@ function FieldInput({
   onChange: (value: string) => void
   onFocus?: () => void
 }) {
+  const nodes = useNodes<StepNodeType>()
+  const tokenRef = parseTokenReference(value)
+
+  if (tokenRef) {
+    const sourceNode = nodes.find((n) => n.id === tokenRef.nodeId)
+    const sourceDef = sourceNode ? nodeRegistry[sourceNode.data.type] : null
+    const outputDef = sourceDef?.outputs?.find((o) => o.path === tokenRef.path)
+    const label = sourceNode
+      ? `${sourceNode.data.title} · ${outputDef?.label ?? tokenRef.path}`
+      : `Node (${tokenRef.nodeId.slice(0, 8)}) · ${tokenRef.path}`
+
+    return (
+      <div className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-card px-2.5 py-1 text-xs shadow-xs">
+        <div className="flex items-center gap-2 overflow-hidden">
+          {sourceDef && (
+            <NodeIcon
+              type={sourceDef.type as NodeType}
+              className="size-4 rounded-xs [&_svg]:size-2.5"
+            />
+          )}
+          <span className="truncate font-medium text-foreground">{label}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          className="ml-2 rounded-xs p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground cursor-pointer"
+          title="Clear connection"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+    )
+  }
+
   if (field.multiline) {
     return (
       <Textarea
@@ -127,6 +162,7 @@ function FieldInput({
     />
   )
 }
+
 
 // The Editor tab: one input per field on the selected node, or an empty state.
 function Inspector({ node }: { node: StepNodeType | undefined }) {
