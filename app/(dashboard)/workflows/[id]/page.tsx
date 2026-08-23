@@ -48,7 +48,10 @@ export default async function Page({ params }: PageProps) {
           workflowId={workflow.id}
           publicAccessToken={publicAccessToken}
         >
-          <WorkflowShell workflowId={workflow.id} />
+          <WorkflowShell
+            workflowId={workflow.id}
+            workflowName={workflow.name}
+          />
         </WorkflowRunsProvider>
       </ReactFlowProvider>
     </Room>

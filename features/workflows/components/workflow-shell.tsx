@@ -8,9 +8,13 @@ import { RightSidebar } from "./right-sidebar"
 
 interface WorkflowShellProps {
   workflowId: string
+  workflowName?: string
 }
 
-export function WorkflowShell({ workflowId }: WorkflowShellProps) {
+export function WorkflowShell({
+  workflowId,
+  workflowName,
+}: WorkflowShellProps) {
   return (
     <ResizablePanelGroup orientation="horizontal" className="size-full">
       <ResizablePanel minSize="30rem">
@@ -30,7 +34,10 @@ export function WorkflowShell({ workflowId }: WorkflowShellProps) {
       </ResizablePanel>
       <ResizableHandle />
       <ResizablePanel defaultSize="16rem" minSize="14rem" maxSize="36rem">
-        <RightSidebar workflowId={workflowId} />
+        <RightSidebar
+          workflowId={workflowId}
+          workflowName={workflowName}
+        />
       </ResizablePanel>
     </ResizablePanelGroup>
   )

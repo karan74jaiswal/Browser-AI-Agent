@@ -1,38 +1,29 @@
 "use client"
 
 import * as React from "react"
-import { Loader2, PlusIcon } from "lucide-react"
+import { PlusIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { createWorkflowAction } from "@/features/workflows/actions"
-import { generateSlug } from "@/features/workflows/lib/generate-slug"
+import { CreateWorkflowDialog } from "./create-workflow-dialog"
 
 export function CreateWorkflowButton({
   children,
   className,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const [isPending, startTransition] = React.useTransition()
-
-  const handleCreate = () => {
-    const name = generateSlug()
-    startTransition(async () => {
-      await createWorkflowAction(name)
-    })
-  }
+  const [open, setOpen] = React.useState(false)
 
   return (
-    <Button
-      onClick={handleCreate}
-      disabled={isPending}
-      className={className}
-      {...props}
-    >
-      {isPending ? (
-        <Loader2 className="size-4 animate-spin" />
-      ) : (
+    <>
+      <Button
+        onClick={() => setOpen(true)}
+        className={className}
+        {...props}
+      >
         <PlusIcon className="size-4" />
-      )}
-      {children ?? "New workflow"}
-    </Button>
+        {children ?? "New workflow"}
+      </Button>
+      <CreateWorkflowDialog open={open} onOpenChange={setOpen} />
+    </>
   )
 }
+

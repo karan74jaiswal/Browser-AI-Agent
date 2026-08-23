@@ -118,3 +118,35 @@ export async function saveWorkflowGraph(
     })
     .where(and(eq(workflows.orgId, orgId), eq(workflows.id, id)))
 }
+
+export async function updateWorkflowName(params: {
+  id: string
+  orgId: string
+  name: string
+}): Promise<Workflow | undefined>
+export async function updateWorkflowName(
+  id: string,
+  orgId: string,
+  name: string
+): Promise<Workflow | undefined>
+export async function updateWorkflowName(
+  paramOrId: string | { id: string; orgId: string; name: string },
+  maybeOrgId?: string,
+  maybeName?: string
+): Promise<Workflow | undefined> {
+  const id = typeof paramOrId === "object" ? paramOrId.id : paramOrId
+  const orgId = typeof paramOrId === "object" ? paramOrId.orgId : maybeOrgId!
+  const name = typeof paramOrId === "object" ? paramOrId.name : maybeName!
+
+  const [workflow] = await db
+    .update(workflows)
+    .set({
+      name,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(workflows.orgId, orgId), eq(workflows.id, id)))
+    .returning()
+
+  return workflow
+}
+

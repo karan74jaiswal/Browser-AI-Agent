@@ -1,6 +1,6 @@
 import { memo } from "react"
 import { Handle, Position, type NodeProps } from "@xyflow/react"
-import { Loader2 } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
 
 import {
   nodeRegistry,
@@ -49,7 +49,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
           )}
         >
           {isRunning ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner className="size-4" />
           ) : (
             <Icon className="size-4" />
           )}
@@ -87,4 +87,3 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
 }
 
 export const StepNode = memo(StepNodeComponent)
-

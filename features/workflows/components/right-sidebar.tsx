@@ -1,16 +1,18 @@
 "use client"
 
 import { useCallback, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
-import { useNodes, useOnSelectionChange, useReactFlow, useStore } from "@xyflow/react"
-import { Loader2, MoreHorizontal, Play, Trash2, X } from "lucide-react"
-import { toast } from "sonner"
 import {
-  deleteWorkflowAction,
-  runWorkflowAction,
-} from "@/features/workflows/actions"
+  useNodes,
+  useOnSelectionChange,
+  useReactFlow,
+  useStore,
+} from "@xyflow/react"
+import { Pencil, Play, Trash2, X } from "lucide-react"
+import { toast } from "sonner"
+import { runWorkflowAction } from "@/features/workflows/actions"
 import { useUpstreamConnections } from "@/features/workflows/hooks"
-
+import { EditWorkflowDialog } from "./edit-workflow-dialog"
+import { DeleteWorkflowDialog } from "./delete-workflow-dialog"
 import {
   Accordion,
   AccordionContent,
@@ -18,12 +20,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -351,49 +347,6 @@ function Palette() {
 // Header — workflow-level actions shown above the tabs.
 // ---------------------------------------------------------------------------
 
-// The "..." menu for workflow-level actions.
-function ActionsMenu({ workflowId }: { workflowId: string }) {
-  const router = useRouter()
-  const [isDeleting, startTransition] = useTransition()
-
-  const handleDelete = () => {
-    startTransition(async () => {
-      try {
-        await deleteWorkflowAction(workflowId)
-        toast.success("Workflow deleted")
-        router.push("/")
-      } catch (error) {
-        console.error("Failed to delete workflow:", error)
-        toast.error("Failed to delete workflow")
-      }
-    })
-  }
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button size="icon" variant="ghost" disabled={isDeleting}>
-          <MoreHorizontal />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-48">
-        <DropdownMenuItem
-          variant="destructive"
-          disabled={isDeleting}
-          className="text-xs [&_svg:not([class*='size-'])]:size-3.5"
-          onSelect={(e) => {
-            e.preventDefault()
-            handleDelete()
-          }}
-        >
-          {isDeleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
-          Delete workflow
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 // Kicks off a run of the current workflow.
 function RunButton({ workflowId }: { workflowId: string }) {
   const { getNodes, getEdges } = useReactFlow<StepNodeType>()
@@ -428,10 +381,16 @@ function RunButton({ workflowId }: { workflowId: string }) {
 
 interface RightSidebarProps {
   workflowId: string
+  workflowName?: string
 }
 
-export function RightSidebar({ workflowId }: RightSidebarProps) {
+export function RightSidebar({
+  workflowId,
+  workflowName = "",
+}: RightSidebarProps) {
   const [tab, setTab] = useState("toolbar")
+  const [isRenameOpen, setIsRenameOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
   // Read the currently selected node from React Flow.
   const selected = useStore((s) => s.nodes.find((node) => node.selected)) as
@@ -456,7 +415,27 @@ export function RightSidebar({ workflowId }: RightSidebarProps) {
     >
       <Tabs value={tab} onValueChange={setTab} className="size-full gap-0">
         <div className="flex items-center justify-between border-b border-border p-2">
-          <ActionsMenu workflowId={workflowId} />
+          <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              title="Rename workflow"
+              onClick={() => setIsRenameOpen(true)}
+            >
+              <Pencil className="size-4" />
+              <span className="sr-only">Rename workflow</span>
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              title="Delete workflow"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setIsDeleteOpen(true)}
+            >
+              <Trash2 className="size-4" />
+              <span className="sr-only">Delete workflow</span>
+            </Button>
+          </div>
           <RunButton workflowId={workflowId} />
         </div>
         <TabsList className="m-2 w-fit bg-background">
@@ -480,6 +459,19 @@ export function RightSidebar({ workflowId }: RightSidebarProps) {
           <Inspector key={selected?.id} node={selected} />
         </TabsContent>
       </Tabs>
+      <EditWorkflowDialog
+        workflowId={workflowId}
+        initialName={workflowName}
+        open={isRenameOpen}
+        onOpenChange={setIsRenameOpen}
+      />
+      <DeleteWorkflowDialog
+        workflowId={workflowId}
+        workflowName={workflowName}
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        redirectOnDelete={true}
+      />
     </ResizablePanel>
   )
 }
