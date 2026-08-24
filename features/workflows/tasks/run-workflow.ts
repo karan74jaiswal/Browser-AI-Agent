@@ -56,14 +56,22 @@ export const runWorkflowTask = task({
         browser = process.env.BROWSERBASE_API_KEY
           ? await browserbase.launch({
               apiKey: process.env.BROWSERBASE_API_KEY,
+
               userMetadata: { stagehand: "true" },
             })
-          : await localBrowser.launch({ headless: true })
+          : await localBrowser.launch({ headless: false })
 
         stagehand = await Stagehand.create({
           browser,
           model: {
-            modelName: "google/gemini-2.5-flash",
+            ...(process.env.BROWSERBASE_API_KEY
+              ? {
+                  modelName: "google/gemini-2.5-flash",
+                }
+              : {
+                  modelName: "google/gemini-3.6-flash",
+                  apiKey: process.env.GEMINI_API_KEY!,
+                }),
           },
           logging: {
             level: "off",
@@ -132,14 +140,18 @@ export const runWorkflowTask = task({
           await stagehand.close()
         }
       } catch (err) {
-        logger.warn("Stagehand close error (ignored)", { error: String(err) })
+        logger.warn("Stagehand session cleanup notice", {
+          error: err instanceof Error ? err.message : String(err),
+        })
       } finally {
         try {
           if (browser) {
             await browser.close()
           }
         } catch (err) {
-          logger.warn("Browser close error (ignored)", { error: String(err) })
+          logger.warn("Browser session cleanup notice", {
+            error: err instanceof Error ? err.message : String(err),
+          })
         }
       }
     }

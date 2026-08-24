@@ -1,5 +1,5 @@
 import type { Node } from "@xyflow/react"
-import { Bot, Eye, FileText, Globe, MousePointerClick, Zap, type LucideIcon } from "lucide-react"
+import { Bot, Eye, FileText, Globe, Mail, MousePointerClick, Zap, type LucideIcon } from "lucide-react"
 
 export type StepNodeKind = "trigger" | "action"
 
@@ -151,6 +151,35 @@ export const nodeRegistry = {
       { path: "message", label: "Message" },
       { path: "completed", label: "Completed" },
     ],
+  },
+  "send-email": {
+    type: "send-email",
+    kind: "action",
+    label: "Send Email",
+    icon: Mail,
+    accent: "bg-sky-500 text-white",
+    fields: [
+      {
+        key: "to",
+        label: "To",
+        placeholder: "delivered@resend.dev",
+        required: true,
+      },
+      {
+        key: "subject",
+        label: "Subject",
+        placeholder: "Email subject",
+        required: true,
+      },
+      {
+        key: "body",
+        label: "Body",
+        placeholder: "Write your email body here...",
+        multiline: true,
+        required: true,
+      },
+    ],
+    outputs: [{ path: "id", label: "Email ID" }],
   },
 } satisfies Record<string, NodeDefinition>
 
