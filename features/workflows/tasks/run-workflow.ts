@@ -16,7 +16,7 @@ export const runWorkflowTask = task({
     concurrencyLimit: 3, // Matches your Browserbase plan limit
   },
   retry: {
-    maxAttempts: 2,
+    maxAttempts: 1,
   },
   run: async ({ workflowId, orgId }: { workflowId: string; orgId: string }) => {
     const workflow = await getWorkflow(orgId, workflowId)
@@ -56,19 +56,15 @@ export const runWorkflowTask = task({
         browser = process.env.BROWSERBASE_API_KEY
           ? await browserbase.launch({
               apiKey: process.env.BROWSERBASE_API_KEY,
+              userMetadata: { stagehand: "true" },
             })
           : await localBrowser.launch({ headless: true })
 
         stagehand = await Stagehand.create({
           browser,
-          ...(process.env.OPENAI_API_KEY
-            ? {
-                model: {
-                  modelName: "openai/gpt-5.4-mini",
-                  apiKey: process.env.OPENAI_API_KEY,
-                },
-              }
-            : {}),
+          model: {
+            modelName: "google/gemini-2.5-flash",
+          },
           logging: {
             level: "off",
           },

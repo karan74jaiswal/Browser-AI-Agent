@@ -1,13 +1,12 @@
 "use client"
 
-import { useCallback, useState, useTransition } from "react"
+import { useCallback, useRef, useState, useTransition } from "react"
 import {
-  useNodes,
   useOnSelectionChange,
   useReactFlow,
   useStore,
 } from "@xyflow/react"
-import { Pencil, Play, Trash2, X } from "lucide-react"
+import { Pencil, Play, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { runWorkflowAction } from "@/features/workflows/actions"
 import { useUpstreamConnections } from "@/features/workflows/hooks"
@@ -20,13 +19,13 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
+import { TokenInput, type TokenInputHandle } from "./token-input"
 import { Label } from "@/components/ui/label"
 import { ResizablePanel } from "@/components/ui/resizable"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
-import { parseTokenReference, validateGraph } from "../lib"
+import { validateGraph } from "../lib"
 
 import {
   nodeRegistry,
@@ -95,65 +94,41 @@ function FieldInput({
   value,
   onChange,
   onFocus,
+  inputRef,
 }: {
   field: NodeField
   value: string
   onChange: (value: string) => void
   onFocus?: () => void
+  inputRef?: (handle: TokenInputHandle | null) => void
 }) {
-  const nodes = useNodes<StepNodeType>()
-  const tokenRef = parseTokenReference(value)
-
-  if (tokenRef) {
-    const sourceNode = nodes.find((n) => n.id === tokenRef.nodeId)
-    const sourceDef = sourceNode ? nodeRegistry[sourceNode.data.type] : null
-    const outputDef = sourceDef?.outputs?.find((o) => o.path === tokenRef.path)
-    const label = sourceNode
-      ? `${sourceNode.data.title} · ${outputDef?.label ?? tokenRef.path}`
-      : `Node (${tokenRef.nodeId.slice(0, 8)}) · ${tokenRef.path}`
-
+  if (field.options && field.options.length > 0) {
+    const currentValue =
+      value || field.defaultValue || field.options[0]?.value || ""
     return (
-      <div className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-card px-2.5 py-1 text-xs shadow-xs">
-        <div className="flex items-center gap-2 overflow-hidden">
-          {sourceDef && (
-            <NodeIcon
-              type={sourceDef.type as NodeType}
-              className="size-4 rounded-xs [&_svg]:size-2.5"
-            />
-          )}
-          <span className="truncate font-medium text-foreground">{label}</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          className="ml-2 rounded-xs p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground cursor-pointer"
-          title="Clear connection"
-        >
-          <X className="size-3.5" />
-        </button>
-      </div>
-    )
-  }
-
-  if (field.multiline) {
-    return (
-      <Textarea
+      <NativeSelect
         id={field.key}
-        value={value}
-        placeholder={field.placeholder}
+        value={currentValue}
         onChange={(e) => onChange(e.target.value)}
-        onFocus={onFocus}
-        className="min-h-24 resize-y text-xs"
-      />
+        className="w-full text-xs"
+      >
+        {field.options.map((opt) => (
+          <NativeSelectOption key={opt.value} value={opt.value}>
+            {opt.label}
+          </NativeSelectOption>
+        ))}
+      </NativeSelect>
     )
   }
 
   return (
-    <Input
+    <TokenInput
       id={field.key}
+      ref={inputRef}
       value={value}
       placeholder={field.placeholder}
-      onChange={(e) => onChange(e.target.value)}
+      multiline={field.multiline}
+      onChange={onChange}
       onFocus={onFocus}
     />
   )
@@ -165,6 +140,7 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
   const { updateNodeData } = useReactFlow<StepNodeType>()
   const connections = useUpstreamConnections(node)
   const [activeFieldKey, setActiveFieldKey] = useState<string | null>(null)
+  const inputRefs = useRef<Map<string, TokenInputHandle>>(new Map())
 
   if (!node) {
     return (
@@ -176,19 +152,28 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
 
   const { type, title, values } = node.data
   const def: NodeDefinition = nodeRegistry[type]
+  const insertableFields = def.fields.filter(
+    (f) => !f.options || f.options.length === 0
+  )
 
   const handleInsertToken = (token: string) => {
-    const targetKey =
-      activeFieldKey && def.fields.some((f) => f.key === activeFieldKey)
-        ? activeFieldKey
-        : def.fields[0]?.key
+    const targetField =
+      insertableFields.find((f) => f.key === activeFieldKey) ??
+      insertableFields[0]
 
-    if (!targetKey) return
+    if (!targetField) return
 
-    setActiveFieldKey(targetKey)
-    updateNodeData(node.id, {
-      values: { ...values, [targetKey]: token },
-    })
+    setActiveFieldKey(targetField.key)
+    const handle = inputRefs.current.get(targetField.key)
+    if (handle) {
+      handle.insertToken(token)
+    } else {
+      const currentVal = values[targetField.key] ?? ""
+      const newVal = currentVal ? `${currentVal} ${token}` : token
+      updateNodeData(node.id, {
+        values: { ...values, [targetField.key]: newVal },
+      })
+    }
   }
 
   return (
@@ -197,29 +182,48 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
         {def.fields.length === 0 ? (
           <p className="text-xs text-muted-foreground">No properties</p>
         ) : (
-          def.fields.map((field) => (
-            <div key={field.key} className="flex flex-col gap-1.5">
-              <Label htmlFor={field.key} className="text-xs">
-                {field.label}
-                {field.required && <span className="text-destructive">*</span>}
-              </Label>
-              <FieldInput
-                field={field}
-                value={values[field.key] ?? ""}
-                onFocus={() => setActiveFieldKey(field.key)}
-                onChange={(value) => {
-                  setActiveFieldKey(field.key)
-                  updateNodeData(node.id, {
-                    values: { ...values, [field.key]: value },
-                  })
-                }}
-              />
-            </div>
-          ))
+          def.fields.map((field) => {
+            const isInsertable = !field.options || field.options.length === 0
+            return (
+              <div key={field.key} className="flex flex-col gap-1.5">
+                <Label htmlFor={field.key} className="text-xs">
+                  {field.label}
+                  {field.required && <span className="text-destructive">*</span>}
+                </Label>
+                <FieldInput
+                  field={field}
+                  value={values[field.key] ?? ""}
+                  inputRef={
+                    isInsertable
+                      ? (handle) => {
+                          if (handle) {
+                            inputRefs.current.set(field.key, handle)
+                          } else {
+                            inputRefs.current.delete(field.key)
+                          }
+                        }
+                      : undefined
+                  }
+                  onFocus={
+                    isInsertable
+                      ? () => setActiveFieldKey(field.key)
+                      : undefined
+                  }
+                  onChange={(value) => {
+                    if (isInsertable) {
+                      setActiveFieldKey(field.key)
+                    }
+                    updateNodeData(node.id, {
+                      values: { ...values, [field.key]: value },
+                    })
+                  }}
+                />
+              </div>
+            )
+          })
         )}
 
-
-        {connections.length > 0 && (
+        {connections.length > 0 && insertableFields.length > 0 && (
           <div className="flex flex-col gap-1.5 border-t border-border pt-3">
             <Label className="text-xs text-muted-foreground">Connections</Label>
             <div className="flex flex-wrap gap-1.5">
