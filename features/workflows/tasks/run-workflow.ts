@@ -1,13 +1,29 @@
 import toposort from "toposort"
-import { logger, metadata, task } from "@trigger.dev/sdk"
+import { logger, metadata, task, wait } from "@trigger.dev/sdk"
 import { getWorkflow } from "@/features/workflows/data"
 import { browserbase, localBrowser, Stagehand } from "@browserbasehq/stagehand"
 import { nodeExecutors } from "../nodes/node-executors"
 import { interpolate } from "../lib"
+import type { DeserializedJson } from "@trigger.dev/core"
+import {
+  nodeRegistry,
+  type NodeType,
+  type StepNodeKind,
+} from "../nodes/node-registry"
 
 export type RunStep = {
   id: string
+  nodeId?: string
+  type: NodeType
+  title: string
+  kind?: StepNodeKind
   status: "pending" | "running" | "done" | "failed"
+  startedAt?: number
+  completedAt?: number
+  duration?: number
+  durationMs?: number
+  output?: DeserializedJson
+  error?: string
 }
 
 export const runWorkflowTask = task({
@@ -38,11 +54,25 @@ export const runWorkflowTask = task({
       .filter((id) => connected.has(id))
     logger.log(`Running Workflow ${workflow.name}`, { steps: order.length })
 
-    const steps: RunStep[] = order.map((id) => ({
-      id,
-      status: "pending",
-    }))
+    const steps: RunStep[] = order.map((id) => {
+      const node = byId.get(id)
+      const type = (node?.data.type ?? "start") as NodeType
+      const title =
+        node?.data.title ??
+        nodeRegistry[type]?.label ??
+        (node?.data.type || "Step")
+      const kind = node?.data.kind ?? nodeRegistry[type]?.kind ?? "action"
+      return {
+        id,
+        nodeId: id,
+        type,
+        title,
+        kind,
+        status: "pending" as const,
+      }
+    })
     metadata.set("steps", steps)
+    await metadata.flush()
 
     let stagehand: Stagehand | undefined
     let browser:
@@ -59,7 +89,7 @@ export const runWorkflowTask = task({
 
               userMetadata: { stagehand: "true" },
             })
-          : await localBrowser.launch({ headless: false })
+          : await localBrowser.launch({ headless: true })
 
         stagehand = await Stagehand.create({
           browser,
@@ -98,8 +128,10 @@ export const runWorkflowTask = task({
         logger.log(`Running step: ${node.data.title}`)
 
         const step = steps.find((s) => s.id === id)
+        const startedAt = Date.now()
         if (step) {
           step.status = "running"
+          step.startedAt = startedAt
           metadata.set("steps", steps)
           await metadata.flush()
         }
@@ -113,21 +145,37 @@ export const runWorkflowTask = task({
           )
 
           const executor = nodeExecutors[node.data.type]
+          let result: unknown = undefined
           if (executor) {
-            const result = await executor({
+            result = await executor({
               values: interpolatedValues,
               getStagehand,
             })
             results[id] = result
+          } else {
+            // Brief visual pacing for instant trigger nodes (e.g. 'start')
+            // using Trigger.dev's durable wait mechanism.
+            await wait.for({ seconds: 1 })
           }
 
           if (step) {
+            const completedAt = Date.now()
             step.status = "done"
+            step.completedAt = completedAt
+            step.duration = completedAt - startedAt
+            step.durationMs = completedAt - startedAt
+            step.output = result as DeserializedJson
             metadata.set("steps", steps)
+            await metadata.flush()
           }
         } catch (error) {
           if (step) {
+            const completedAt = Date.now()
             step.status = "failed"
+            step.completedAt = completedAt
+            step.duration = completedAt - startedAt
+            step.durationMs = completedAt - startedAt
+            step.error = error instanceof Error ? error.message : String(error)
             metadata.set("steps", steps)
             await metadata.flush()
           }

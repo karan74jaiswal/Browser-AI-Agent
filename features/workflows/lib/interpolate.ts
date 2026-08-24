@@ -97,7 +97,9 @@ export function interpolate(
     return template ?? ""
   }
 
-  return template.replace(/\{\{\s*([\s\S]*?)\s*\}\}/g, (_, path: string) => {
+  const sanitizedTemplate = template.replace(/[\u200B\uFEFF]/g, "")
+
+  return sanitizedTemplate.replace(/\{\{\s*([\s\S]*?)\s*\}\}/g, (_, path: string) => {
     const value = getByPath(context, path)
     return formatValue(value)
   })

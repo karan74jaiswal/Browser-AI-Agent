@@ -82,7 +82,10 @@ function serializeDom(container: Node): string {
   for (let i = 0; i < container.childNodes.length; i++) {
     const child = container.childNodes[i]
     if (child.nodeType === Node.TEXT_NODE) {
-      result += child.textContent ?? ""
+      const text = (child.textContent ?? "")
+        .replace(/[\u200B\uFEFF]/g, "")
+        .replace(/\u00A0/g, " ")
+      result += text
     } else if (child.nodeType === Node.ELEMENT_NODE) {
       const el = child as HTMLElement
       const token = el.getAttribute("data-token")
@@ -277,7 +280,7 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
           range.insertNode(tokenEl)
 
           // Place cursor after inserted token
-          const space = document.createTextNode("\u00A0")
+          const space = document.createTextNode("\u200B")
           tokenEl.after(space)
           range.setStartAfter(space)
           range.setEndAfter(space)
@@ -286,7 +289,7 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
         } else {
           // Append to container
           container.appendChild(tokenEl)
-          const space = document.createTextNode("\u00A0")
+          const space = document.createTextNode("\u200B")
           container.appendChild(space)
 
           // Move cursor to end
