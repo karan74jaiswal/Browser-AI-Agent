@@ -1,9 +1,12 @@
 "use client"
 
 import React, { useState } from "react"
-import { Terminal } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable"
 import { LogsPanel } from "./logs-panel"
 import { InspectorPanel } from "./inspector-panel"
 import { useWorkflowRuns, type WorkflowRun } from "./workflow-runs-provider"
@@ -24,7 +27,10 @@ export function ConsolePanel({ className }: ConsolePanelProps) {
     for (const run of runs) {
       const steps = getRunSteps(run) ?? []
       for (const s of steps) {
-        if (`${run.id}-${s.id}` === selectedStepKey || s.id === selectedStepKey) {
+        if (
+          `${run.id}-${s.id}` === selectedStepKey ||
+          s.id === selectedStepKey
+        ) {
           return s
         }
       }
@@ -50,49 +56,32 @@ export function ConsolePanel({ className }: ConsolePanelProps) {
         className
       )}
     >
-      <div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-card px-3 py-1.5 text-xs font-semibold">
-        <div className="flex items-center gap-2">
-          <Terminal className="size-3.5 text-muted-foreground" />
-          <span>Console</span>
-          {runs.length > 0 && (
-            <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-              {runs.length} {runs.length === 1 ? "run" : "runs"}
-            </Badge>
-          )}
-        </div>
-        {liveSelectedStep && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              setSelectedStepKey(null)
-              setSelectedStep(null)
-            }}
-          >
-            Clear selection
-          </Button>
-        )}
-      </div>
-
-      <div className="flex min-h-0 flex-1 divide-x divide-border">
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          <LogsPanel
-            selectedStepId={selectedStepKey}
-            onStepClick={handleStepClick}
-          />
-        </div>
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
+        <ResizablePanel minSize="12rem">
+          <div className="size-full overflow-y-auto">
+            <LogsPanel
+              selectedStepId={selectedStepKey}
+              onStepClick={handleStepClick}
+            />
+          </div>
+        </ResizablePanel>
 
         {liveSelectedStep && (
-          <InspectorPanel
-            step={liveSelectedStep}
-            onClose={() => {
-              setSelectedStepKey(null)
-              setSelectedStep(null)
-            }}
-          />
+          <>
+            <ResizableHandle />
+            <ResizablePanel defaultSize="20rem" minSize="14rem" maxSize="36rem">
+              <InspectorPanel
+                step={liveSelectedStep}
+                className="size-full w-full max-w-none min-w-0"
+                onClose={() => {
+                  setSelectedStepKey(null)
+                  setSelectedStep(null)
+                }}
+              />
+            </ResizablePanel>
+          </>
         )}
-      </div>
+      </ResizablePanelGroup>
     </div>
   )
 }

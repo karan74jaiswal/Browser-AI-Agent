@@ -5,6 +5,13 @@ import prettyMs from "pretty-ms"
 import { CheckCircle2, XCircle, Clock } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { useNodes } from "@xyflow/react"
 import { NodeIcon } from "./node-icon"
 import {
@@ -110,7 +117,11 @@ export function LogsPanel({
   }
 
   return (
-    <div className={cn("flex flex-col gap-4 font-sans", className)}>
+    <Accordion
+      type="multiple"
+      defaultValue={runs.map((r) => r.id)}
+      className={cn("px-3 py-2", className)}
+    >
       {runs.map((run, index) => {
         const recordedSteps = getRunSteps(run) ?? []
         const isRunActive = isRunLive(run.status)
@@ -142,42 +153,49 @@ export function LogsPanel({
             : null
 
         return (
-          <div key={run.id} className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-1.5 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-foreground">
-                  Run #{runs.length - index}
-                </span>
-                <span className="font-mono text-[11px] text-muted-foreground">
-                  {formattedTime}
-                </span>
-                {getRunStatusBadge(run.status)}
+          <AccordionItem
+            key={run.id}
+            value={run.id}
+            className="not-last:border-b-0"
+          >
+            <AccordionTrigger className="py-2 text-xs font-medium text-muted-foreground hover:no-underline">
+              <div className="flex w-full min-w-0 items-center justify-between gap-2 pr-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground">
+                    Run #{runs.length - index}
+                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {formattedTime}
+                  </span>
+                  {getRunStatusBadge(run.status)}
+                </div>
+                {runDuration && (
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {runDuration}
+                  </span>
+                )}
               </div>
-              {runDuration && (
-                <span className="font-mono text-[11px] text-muted-foreground">
-                  {runDuration}
-                </span>
-              )}
-            </div>
+            </AccordionTrigger>
 
-            {steps.length === 0 ? (
-              <div className="px-2 py-1 text-xs italic text-muted-foreground">
-                No steps recorded.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-1 border-l border-border/50 pl-2">
-                {steps.map((step) => {
+            <AccordionContent className="flex flex-col gap-0.5 pt-1">
+              {steps.length === 0 ? (
+                <p className="px-1.5 py-1 text-xs text-muted-foreground italic">
+                  No steps recorded.
+                </p>
+              ) : (
+                steps.map((step) => {
                   const stepKey = `${run.id}-${step.id}`
                   const isSelected =
                     selectedStepId === stepKey || selectedStepId === step.id
-                  const isRunActive = isRunLive(run.status)
                   const isFailed = step.status === "failed"
+                  const isSkipped = step.status === "skipped"
                   const isRunning =
                     isRunActive &&
                     (step.status === "running" ||
                       (step.kind === "trigger" &&
                         step.status !== "done" &&
-                        !isFailed))
+                        !isFailed &&
+                        !isSkipped))
                   const isPending = step.status === "pending" && !isRunning
                   const stepDuration =
                     step.duration !== undefined
@@ -187,34 +205,30 @@ export function LogsPanel({
                         : null
 
                   return (
-                    <button
+                    <Button
                       key={stepKey}
-                      type="button"
+                      variant="ghost"
                       onClick={() => onStepClick?.(step, run)}
                       className={cn(
-                        "group flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors",
-                        isSelected
-                          ? "border-border bg-accent text-accent-foreground shadow-xs ring-1 ring-ring/40"
-                          : isFailed
-                            ? "border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10"
-                            : isRunning
-                              ? "border-blue-500/30 bg-blue-500/5 text-foreground hover:bg-blue-500/10"
-                              : isPending
-                                ? "border-transparent text-muted-foreground opacity-50 hover:bg-muted/30 hover:opacity-80"
-                                : "border-transparent text-foreground hover:bg-muted/50"
+                        "w-full justify-between gap-2.5 px-1.5 h-8 text-xs font-normal",
+                        isSelected && "bg-accent text-accent-foreground font-medium",
+                        isFailed && "text-destructive hover:text-destructive hover:bg-destructive/10",
+                        isRunning && "text-foreground font-medium",
+                        isPending && "text-muted-foreground opacity-60",
+                        isSkipped && "text-muted-foreground/60"
                       )}
                     >
-                      <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2.5">
                         <NodeIcon
                           type={step.type}
                           running={isRunning}
-                          className="size-5 rounded-xs [&_svg]:size-3"
                         />
                         <span
                           className={cn(
-                            "truncate font-medium",
-                            isFailed && "font-semibold text-destructive",
-                            isPending && "font-normal"
+                            "truncate",
+                            isFailed && "font-medium text-destructive",
+                            isRunning && "font-medium",
+                            isSkipped && "text-muted-foreground/80"
                           )}
                         >
                           {step.title}
@@ -227,11 +241,16 @@ export function LogsPanel({
                             Running...
                           </span>
                         )}
+                        {isSkipped && (
+                          <span className="font-sans text-[10px] text-muted-foreground/70">
+                            Skipped
+                          </span>
+                        )}
                         {stepDuration && (
                           <span
                             className={cn(
                               "text-muted-foreground",
-                              isFailed && "text-destructive/80",
+                              isFailed && "text-destructive",
                               isSelected && "text-accent-foreground"
                             )}
                           >
@@ -239,14 +258,14 @@ export function LogsPanel({
                           </span>
                         )}
                       </div>
-                    </button>
+                    </Button>
                   )
-                })}
-              </div>
-            )}
-          </div>
+                })
+              )}
+            </AccordionContent>
+          </AccordionItem>
         )
       })}
-    </div>
+    </Accordion>
   )
 }

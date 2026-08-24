@@ -17,7 +17,7 @@ export type RunStep = {
   type: NodeType
   title: string
   kind?: StepNodeKind
-  status: "pending" | "running" | "done" | "failed"
+  status: "pending" | "running" | "done" | "failed" | "skipped"
   startedAt?: number
   completedAt?: number
   duration?: number
@@ -176,9 +176,21 @@ export const runWorkflowTask = task({
             step.duration = completedAt - startedAt
             step.durationMs = completedAt - startedAt
             step.error = error instanceof Error ? error.message : String(error)
-            metadata.set("steps", steps)
-            await metadata.flush()
           }
+
+          // Mark any remaining steps that never executed as skipped
+          const currentIndex = order.indexOf(id)
+          if (currentIndex !== -1) {
+            for (let i = currentIndex + 1; i < order.length; i++) {
+              const remainingStep = steps.find((s) => s.id === order[i])
+              if (remainingStep && remainingStep.status === "pending") {
+                remainingStep.status = "skipped"
+              }
+            }
+          }
+
+          metadata.set("steps", steps)
+          await metadata.flush()
           throw error
         }
       }

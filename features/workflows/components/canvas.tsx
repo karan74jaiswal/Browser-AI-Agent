@@ -6,12 +6,14 @@ import {
   Controls,
   type Edge,
   type ColorMode,
+  type EdgeTypes,
   ConnectionLineType,
   NodeTypes,
   Panel,
 } from "@xyflow/react"
 import { useTheme } from "next-themes"
 import { StepNode } from "@/features/workflows/components/step-node"
+import { WorkflowEdge } from "@/features/workflows/components/workflow-edge"
 import { type StepNodeType } from "@/features/workflows/nodes/node-registry"
 import { useLiveblocksFlow, Cursors } from "@liveblocks/react-flow"
 import { AvatarStack } from "@liveblocks/react-ui"
@@ -22,6 +24,11 @@ import "@liveblocks/react-flow/styles.css"
 const emptySubscribe = () => () => {}
 
 const nodeTypes: NodeTypes = { step: StepNode }
+const edgeTypes: EdgeTypes = {
+  smoothstep: WorkflowEdge,
+  default: WorkflowEdge,
+  workflow: WorkflowEdge,
+}
 const initialNodes: StepNodeType[] = [
   {
     id: "1",
@@ -68,6 +75,7 @@ export function Canvas({ workflowId }: CanvasProps) {
     <div className="size-full">
       <ReactFlow
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}

@@ -29,18 +29,40 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
   return (
     <div
       className={cn(
-        "max-w-80 min-w-50 rounded-(--radius) border-2 border-border bg-card text-card-foreground",
-        isRunning && "border-blue-500",
+        "relative max-w-80 min-w-50 rounded-(--radius) border-2 border-border bg-card text-card-foreground transition-all duration-300 ease-in-out",
+        isRunning && "border-blue-500/40 shadow-[0_0_16px_rgba(59,130,246,0.15)]",
         isFailed && "border-destructive",
         selected && "ring-2 ring-ring ring-offset-2 ring-offset-background"
       )}
     >
+      {/* Circular border beam orbiting active node */}
+      {isRunning && (
+        <svg className="pointer-events-none absolute -inset-[2px] size-[calc(100%+4px)] overflow-visible z-10">
+          <rect
+            x="1"
+            y="1"
+            width="calc(100% - 2px)"
+            height="calc(100% - 2px)"
+            rx="calc(var(--radius) + 1px)"
+            fill="none"
+            stroke="rgb(59 130 246)"
+            strokeWidth="2"
+            pathLength="100"
+            strokeDasharray="25 75"
+            className="animate-border-beam"
+          />
+        </svg>
+      )}
+
       {hasTarget && (
         <Handle
           type="target"
           position={Position.Left}
           style={{ transform: "translate(-100%, -50%)" }}
-          className="h-3.5! w-1.5! min-w-0! rounded-l-xs! rounded-r-none! border-0! bg-border!"
+          className={cn(
+            "h-3.5! w-1.5! min-w-0! rounded-l-xs! rounded-r-none! border-0! transition-colors duration-300",
+            isRunning ? "bg-blue-500!" : "bg-border!"
+          )}
         />
       )}
 
@@ -83,7 +105,10 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
         type="source"
         position={Position.Right}
         style={{ transform: "translate(100%, -50%)" }}
-        className="h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! bg-border!"
+        className={cn(
+          "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-colors duration-300",
+          isRunning ? "bg-blue-500!" : "bg-border!"
+        )}
       />
     </div>
   )

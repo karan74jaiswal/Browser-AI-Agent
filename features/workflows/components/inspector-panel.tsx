@@ -127,6 +127,14 @@ export function InspectorPanel({
                 <span>Failed</span>
               </Badge>
             )}
+            {step.status === "skipped" && (
+              <Badge
+                variant="outline"
+                className="h-4.5 gap-1 border-muted-foreground/30 bg-muted/40 px-1.5 text-[10px] text-muted-foreground"
+              >
+                <span>Skipped</span>
+              </Badge>
+            )}
             {step.status === "pending" && (
               <Badge
                 variant="secondary"
@@ -171,6 +179,9 @@ export function InspectorPanel({
           <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
             {step.status === "pending" && (
               <p className="italic">This step has not run yet.</p>
+            )}
+            {step.status === "skipped" && (
+              <p className="italic">This step was skipped because a previous step failed.</p>
             )}
             {step.status === "running" && (
               <div className="flex items-center gap-2 italic">
