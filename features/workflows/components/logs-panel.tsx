@@ -2,7 +2,7 @@
 
 import React from "react"
 import prettyMs from "pretty-ms"
-import { CheckCircle2, XCircle, Clock } from "lucide-react"
+import { CheckCircle2, XCircle, Clock, Ban } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,7 +32,37 @@ export interface LogsPanelProps {
   className?: string
 }
 
-function getRunStatusBadge(status?: string) {
+function getRunStatusBadge(
+  status?: string,
+  steps?: RunStep[],
+  isCanceling?: boolean
+) {
+  if (isCanceling) {
+    return (
+      <Badge
+        variant="outline"
+        className="h-4.5 gap-1 border-amber-500/30 bg-amber-500/10 px-1.5 text-[10px] text-amber-600 dark:text-amber-400"
+      >
+        <Spinner className="size-3 text-amber-500" />
+        <span>Canceling</span>
+      </Badge>
+    )
+  }
+
+  const allStepsDone =
+    steps && steps.length > 0 && steps.every((s) => s.status === "done")
+  if (allStepsDone) {
+    return (
+      <Badge
+        variant="outline"
+        className="h-4.5 gap-1 border-emerald-500/30 bg-emerald-500/10 px-1.5 text-[10px] text-emerald-600 dark:text-emerald-400"
+      >
+        <CheckCircle2 className="size-3" />
+        <span>Completed</span>
+      </Badge>
+    )
+  }
+
   const upper = status?.toUpperCase()
   switch (upper) {
     case "COMPLETED":
@@ -62,6 +92,17 @@ function getRunStatusBadge(status?: string) {
         <Badge variant="destructive" className="h-4.5 gap-1 px-1.5 text-[10px]">
           <XCircle className="size-3" />
           <span>Failed</span>
+        </Badge>
+      )
+    case "CANCELED":
+    case "CANCELLED":
+      return (
+        <Badge
+          variant="outline"
+          className="h-4.5 gap-1 border-muted-foreground/30 bg-muted/40 px-1.5 text-[10px] text-muted-foreground"
+        >
+          <Ban className="size-3" />
+          <span>Canceled</span>
         </Badge>
       )
     case "QUEUED":
@@ -97,7 +138,7 @@ export function LogsPanel({
   onStepClick,
   className,
 }: LogsPanelProps) {
-  const { runs, getRunSteps } = useWorkflowRuns()
+  const { runs, getRunSteps, cancelingRunId } = useWorkflowRuns()
   const nodes = useNodes<StepNodeType>()
 
   if (!runs || runs.length === 0) {
@@ -125,6 +166,10 @@ export function LogsPanel({
       {runs.map((run, index) => {
         const recordedSteps = getRunSteps(run) ?? []
         const isRunActive = isRunLive(run.status)
+        const isRunCanceling = cancelingRunId === run.id && isRunActive
+        const isRunCanceled =
+          run.status?.toUpperCase() === "CANCELED" ||
+          run.status?.toUpperCase() === "CANCELLED"
         const steps: RunStep[] =
           recordedSteps.length > 0
             ? recordedSteps
@@ -167,7 +212,7 @@ export function LogsPanel({
                   <span className="font-mono text-[11px] text-muted-foreground">
                     {formattedTime}
                   </span>
-                  {getRunStatusBadge(run.status)}
+                  {getRunStatusBadge(run.status, steps, isRunCanceling)}
                 </div>
                 {runDuration && (
                   <span className="font-mono text-[11px] text-muted-foreground">
@@ -188,31 +233,57 @@ export function LogsPanel({
                   const isSelected =
                     selectedStepId === stepKey || selectedStepId === step.id
                   const isFailed = step.status === "failed"
-                  const isSkipped = step.status === "skipped"
+                  const isCanceled =
+                    step.status === "canceled" ||
+                    (isRunCanceled && step.status === "running")
+                  const isStepCanceling =
+                    isRunCanceling &&
+                    (step.status === "running" ||
+                      (step.kind === "trigger" && step.status !== "done"))
+                  const isSkipped =
+                    step.status === "skipped" ||
+                    (isRunCanceled && step.status === "pending") ||
+                    (isRunCanceling &&
+                      step.status === "pending" &&
+                      !isStepCanceling)
                   const isRunning =
                     isRunActive &&
+                    !isRunCanceling &&
                     (step.status === "running" ||
                       (step.kind === "trigger" &&
                         step.status !== "done" &&
                         !isFailed &&
-                        !isSkipped))
-                  const isPending = step.status === "pending" && !isRunning
+                        !isSkipped &&
+                        !isCanceled))
+                  const isPending =
+                    step.status === "pending" && !isRunning && !isSkipped
                   const stepDuration =
                     step.duration !== undefined
                       ? prettyMs(step.duration)
                       : step.durationMs !== undefined
                         ? prettyMs(step.durationMs)
                         : null
+                  const effectiveStep: RunStep = {
+                    ...step,
+                    status: isFailed
+                      ? "failed"
+                      : isCanceled || isStepCanceling
+                        ? "canceled"
+                        : isSkipped
+                          ? "skipped"
+                          : step.status,
+                  }
 
                   return (
                     <Button
                       key={stepKey}
                       variant="ghost"
-                      onClick={() => onStepClick?.(step, run)}
+                      onClick={() => onStepClick?.(effectiveStep, run)}
                       className={cn(
                         "w-full justify-between gap-2.5 px-1.5 h-8 text-xs font-normal",
                         isSelected && "bg-accent text-accent-foreground font-medium",
                         isFailed && "text-destructive hover:text-destructive hover:bg-destructive/10",
+                        (isCanceled || isStepCanceling) && "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10",
                         isRunning && "text-foreground font-medium",
                         isPending && "text-muted-foreground opacity-60",
                         isSkipped && "text-muted-foreground/60"
@@ -221,12 +292,13 @@ export function LogsPanel({
                       <div className="flex min-w-0 items-center gap-2.5">
                         <NodeIcon
                           type={step.type}
-                          running={isRunning}
+                          running={isRunning || isStepCanceling}
                         />
                         <span
                           className={cn(
                             "truncate",
                             isFailed && "font-medium text-destructive",
+                            (isCanceled || isStepCanceling) && "font-medium text-amber-600 dark:text-amber-400",
                             isRunning && "font-medium",
                             isSkipped && "text-muted-foreground/80"
                           )}
@@ -241,6 +313,16 @@ export function LogsPanel({
                             Running...
                           </span>
                         )}
+                        {isStepCanceling && (
+                          <span className="font-sans text-[10px] text-amber-600 dark:text-amber-400">
+                            Canceling...
+                          </span>
+                        )}
+                        {isCanceled && !isStepCanceling && (
+                          <span className="font-sans text-[10px] text-amber-600 dark:text-amber-400">
+                            Canceled
+                          </span>
+                        )}
                         {isSkipped && (
                           <span className="font-sans text-[10px] text-muted-foreground/70">
                             Skipped
@@ -251,6 +333,7 @@ export function LogsPanel({
                             className={cn(
                               "text-muted-foreground",
                               isFailed && "text-destructive",
+                              (isCanceled || isStepCanceling) && "text-amber-600 dark:text-amber-400",
                               isSelected && "text-accent-foreground"
                             )}
                           >

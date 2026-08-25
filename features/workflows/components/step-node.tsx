@@ -15,11 +15,19 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
   const Icon = def.icon
   const fields = def.fields.filter((field) => values[field.key])
 
-  const { steps, isLive } = useLatestRunSteps()
+  const { steps, isLive, cancelingRunId, latestRun } = useLatestRunSteps()
+  const isRunCanceling = Boolean(
+    cancelingRunId && latestRun?.id === cancelingRunId && isLive
+  )
   const step = steps?.find((s) => s.id === id)
   const isFailed = step?.status === "failed"
+  const isStepCanceling =
+    isRunCanceling &&
+    (step?.status === "running" ||
+      (kind === "trigger" && step?.status !== "done" && !isFailed))
   const isRunning =
     isLive &&
+    !isRunCanceling &&
     (step?.status === "running" ||
       (kind === "trigger" && step?.status !== "done" && !isFailed))
 
@@ -31,6 +39,8 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
       className={cn(
         "relative max-w-80 min-w-50 rounded-(--radius) border-2 border-border bg-card text-card-foreground transition-all duration-300 ease-in-out",
         isRunning && "border-blue-500/40 shadow-[0_0_16px_rgba(59,130,246,0.15)]",
+        isStepCanceling &&
+          "border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.2)]",
         isFailed && "border-destructive",
         selected && "ring-2 ring-ring ring-offset-2 ring-offset-background"
       )}
@@ -54,6 +64,24 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
         </svg>
       )}
 
+      {isStepCanceling && (
+        <svg className="pointer-events-none absolute -inset-[2px] size-[calc(100%+4px)] overflow-visible z-10">
+          <rect
+            x="1"
+            y="1"
+            width="calc(100% - 2px)"
+            height="calc(100% - 2px)"
+            rx="calc(var(--radius) + 1px)"
+            fill="none"
+            stroke="rgb(245 158 11)"
+            strokeWidth="2"
+            pathLength="100"
+            strokeDasharray="25 75"
+            className="animate-border-beam"
+          />
+        </svg>
+      )}
+
       {hasTarget && (
         <Handle
           type="target"
@@ -61,7 +89,11 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
           style={{ transform: "translate(-100%, -50%)" }}
           className={cn(
             "h-3.5! w-1.5! min-w-0! rounded-l-xs! rounded-r-none! border-0! transition-colors duration-300",
-            isRunning ? "bg-blue-500!" : "bg-border!"
+            isStepCanceling
+              ? "bg-amber-500!"
+              : isRunning
+                ? "bg-blue-500!"
+                : "bg-border!"
           )}
         />
       )}
@@ -73,7 +105,9 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
             def.accent
           )}
         >
-          {isRunning ? (
+          {isStepCanceling ? (
+            <Spinner className="size-4 text-amber-500" />
+          ) : isRunning ? (
             <Spinner className="size-4" />
           ) : (
             <Icon className="size-4" />
@@ -107,7 +141,11 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
         style={{ transform: "translate(100%, -50%)" }}
         className={cn(
           "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-colors duration-300",
-          isRunning ? "bg-blue-500!" : "bg-border!"
+          isStepCanceling
+            ? "bg-amber-500!"
+            : isRunning
+              ? "bg-blue-500!"
+              : "bg-border!"
         )}
       />
     </div>

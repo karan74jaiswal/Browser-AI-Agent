@@ -22,8 +22,8 @@ export function ConsolePanel({ className }: ConsolePanelProps) {
   const [selectedStepKey, setSelectedStepKey] = useState<string | null>(null)
   const [selectedStep, setSelectedStep] = useState<RunStep | null>(null)
 
-  const liveSelectedStep = React.useMemo(() => {
-    if (!selectedStepKey) return null
+  let liveSelectedStep: RunStep | null = null
+  if (selectedStepKey) {
     for (const run of runs) {
       const steps = getRunSteps(run) ?? []
       for (const s of steps) {
@@ -31,12 +31,16 @@ export function ConsolePanel({ className }: ConsolePanelProps) {
           `${run.id}-${s.id}` === selectedStepKey ||
           s.id === selectedStepKey
         ) {
-          return s
+          liveSelectedStep = s
+          break
         }
       }
+      if (liveSelectedStep) break
     }
-    return selectedStep
-  }, [selectedStepKey, runs, getRunSteps, selectedStep])
+    if (!liveSelectedStep) {
+      liveSelectedStep = selectedStep
+    }
+  }
 
   const handleStepClick = (step: RunStep, run: WorkflowRun) => {
     const key = `${run.id}-${step.id}`
@@ -73,10 +77,6 @@ export function ConsolePanel({ className }: ConsolePanelProps) {
               <InspectorPanel
                 step={liveSelectedStep}
                 className="size-full w-full max-w-none min-w-0"
-                onClose={() => {
-                  setSelectedStepKey(null)
-                  setSelectedStep(null)
-                }}
               />
             </ResizablePanel>
           </>

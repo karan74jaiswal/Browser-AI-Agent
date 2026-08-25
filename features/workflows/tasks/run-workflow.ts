@@ -17,7 +17,7 @@ export type RunStep = {
   type: NodeType
   title: string
   kind?: StepNodeKind
-  status: "pending" | "running" | "done" | "failed" | "skipped"
+  status: "pending" | "running" | "done" | "failed" | "skipped" | "canceled"
   startedAt?: number
   completedAt?: number
   duration?: number
@@ -34,7 +34,10 @@ export const runWorkflowTask = task({
   retry: {
     maxAttempts: 1,
   },
-  run: async ({ workflowId, orgId }: { workflowId: string; orgId: string }) => {
+  run: async (
+    { workflowId, orgId }: { workflowId: string; orgId: string },
+    { signal }
+  ) => {
     const workflow = await getWorkflow(orgId, workflowId)
 
     if (!workflow?.graph) throw new Error(`Workflow ${workflowId} has no graph`)
@@ -122,6 +125,21 @@ export const runWorkflowTask = task({
 
     try {
       for (const id of order) {
+        if (signal?.aborted) {
+          const currentIndex = order.indexOf(id)
+          if (currentIndex !== -1) {
+            for (let i = currentIndex; i < order.length; i++) {
+              const remainingStep = steps.find((s) => s.id === order[i])
+              if (remainingStep && (remainingStep.status === "pending" || remainingStep.status === "running")) {
+                remainingStep.status = remainingStep.status === "running" ? "canceled" : "skipped"
+              }
+            }
+          }
+          metadata.set("steps", steps)
+          await metadata.flush()
+          throw new Error("Workflow run was canceled")
+        }
+
         const node = byId.get(id)
         if (!node) continue
 
@@ -169,13 +187,20 @@ export const runWorkflowTask = task({
             await metadata.flush()
           }
         } catch (error) {
+          const isAbort =
+            signal?.aborted ||
+            (error instanceof Error && error.message.includes("canceled"))
           if (step) {
             const completedAt = Date.now()
-            step.status = "failed"
+            step.status = isAbort ? "canceled" : "failed"
             step.completedAt = completedAt
             step.duration = completedAt - startedAt
             step.durationMs = completedAt - startedAt
-            step.error = error instanceof Error ? error.message : String(error)
+            step.error = isAbort
+              ? "Workflow run was canceled"
+              : error instanceof Error
+                ? error.message
+                : String(error)
           }
 
           // Mark any remaining steps that never executed as skipped

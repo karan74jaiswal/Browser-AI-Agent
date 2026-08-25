@@ -26,7 +26,10 @@ export function WorkflowEdge({
     targetPosition,
   })
 
-  const { steps, isLive } = useLatestRunSteps()
+  const { steps, isLive, cancelingRunId, latestRun } = useLatestRunSteps()
+  const isRunCanceling = Boolean(
+    cancelingRunId && latestRun?.id === cancelingRunId && isLive
+  )
   const sourceStep = steps?.find((s) => s.id === source)
   const targetStep = steps?.find((s) => s.id === target)
 
@@ -34,6 +37,7 @@ export function WorkflowEdge({
   // and target is waiting to begin execution ("pending" or not yet running)
   const isTransferring =
     isLive &&
+    !isRunCanceling &&
     sourceStep?.status === "done" &&
     (!targetStep || targetStep.status === "pending")
 

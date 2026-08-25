@@ -1,7 +1,14 @@
 "use client"
 
-import React, { createContext, useContext, useMemo, useState } from "react"
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react"
 import { useRealtimeRunsWithTag } from "@trigger.dev/react-hooks"
+import { cancelWorkflowAction } from "@/features/workflows/actions"
 import type {
   runWorkflowTask,
   RunStep,
@@ -14,9 +21,15 @@ export type WorkflowRun = ReturnType<
 >["runs"][number]
 
 export function getRunSteps(
-  run: WorkflowRun | { output?: unknown; metadata?: unknown } | undefined | null
+  run:
+    | WorkflowRun
+    | { output?: unknown; metadata?: unknown; status?: string }
+    | undefined
+    | null
 ): RunStep[] | undefined {
   if (!run) return undefined
+
+  let rawSteps: RunStep[] | undefined = undefined
 
   // Prefer final output steps
   const output = run.output as
@@ -26,20 +39,55 @@ export function getRunSteps(
 
   if (output) {
     if (Array.isArray(output)) {
-      return output
-    }
-    if (Array.isArray(output.steps)) {
-      return output.steps
+      rawSteps = output
+    } else if (Array.isArray(output.steps)) {
+      rawSteps = output.steps
     }
   }
 
   // Fall back to live / persisted metadata steps
-  const metadata = run.metadata as { steps?: RunStep[] } | undefined
-  if (metadata && Array.isArray(metadata.steps)) {
-    return metadata.steps
+  if (!rawSteps) {
+    const metadata = run.metadata as { steps?: RunStep[] } | undefined
+    if (metadata && Array.isArray(metadata.steps)) {
+      rawSteps = metadata.steps
+    }
   }
 
-  return undefined
+  if (!rawSteps) return undefined
+
+  const statusUpper =
+    "status" in run && typeof run.status === "string"
+      ? run.status.toUpperCase()
+      : undefined
+  const isCanceled = statusUpper === "CANCELED" || statusUpper === "CANCELLED"
+  const isFailed = statusUpper === "FAILED" || statusUpper === "CRASHED"
+
+  if (isCanceled) {
+    const allDone =
+      rawSteps.length > 0 && rawSteps.every((s) => s.status === "done")
+    if (!allDone) {
+      return rawSteps.map((s) => {
+        if (s.status === "running") {
+          return { ...s, status: "canceled" as const }
+        }
+        if (s.status === "pending") {
+          return { ...s, status: "skipped" as const }
+        }
+        return s
+      })
+    }
+  }
+
+  if (isFailed) {
+    return rawSteps.map((s) => {
+      if (s.status === "pending") {
+        return { ...s, status: "skipped" as const }
+      }
+      return s
+    })
+  }
+
+  return rawSteps
 }
 
 export interface WorkflowRunsContextValue {
@@ -50,12 +98,18 @@ export interface WorkflowRunsContextValue {
   error: Error | undefined
   stop: () => void
   getRunSteps: (
-    run: WorkflowRun | { output?: unknown; metadata?: unknown } | undefined | null
+    run:
+      | WorkflowRun
+      | { output?: unknown; metadata?: unknown; status?: string }
+      | undefined
+      | null
   ) => RunStep[] | undefined
   selectedRunId: string | null
   setSelectedRunId: (id: string | null) => void
   selectedRun: WorkflowRun | undefined
   selectedRunSteps: RunStep[] | undefined
+  cancelingRunId: string | null
+  cancelRun: (runId: string) => Promise<void>
 }
 
 const WorkflowRunsContext = createContext<WorkflowRunsContextValue | null>(null)
@@ -104,6 +158,7 @@ export function WorkflowRunsProvider({
   )
 
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
+  const [rawCancelingRunId, setRawCancelingRunId] = useState<string | null>(null)
 
   const sortedRuns = useMemo(() => {
     if (!runs || runs.length === 0) return []
@@ -118,13 +173,30 @@ export function WorkflowRunsProvider({
     return sortedRuns[0]
   }, [sortedRuns])
 
-  const isLive = useMemo(() => {
-    return isRunLive(latestRun?.status)
-  }, [latestRun])
-
   const steps = useMemo(() => {
     return getRunSteps(latestRun)
   }, [latestRun])
+
+  const isLive = useMemo(() => {
+    if (!isRunLive(latestRun?.status)) return false
+    if (steps && steps.length > 0 && steps.every((s) => s.status === "done")) {
+      return false
+    }
+    return true
+  }, [latestRun, steps])
+
+  // Canceling is active strictly while the run is live
+  const cancelingRunId = isLive ? rawCancelingRunId : null
+
+  const cancelRun = useCallback(async (runId: string) => {
+    setRawCancelingRunId(runId)
+    try {
+      await cancelWorkflowAction(runId)
+    } catch (err) {
+      setRawCancelingRunId(null)
+      throw err
+    }
+  }, [])
 
   const selectedRun = useMemo(() => {
     if (!selectedRunId) return latestRun
@@ -148,6 +220,8 @@ export function WorkflowRunsProvider({
       setSelectedRunId,
       selectedRun,
       selectedRunSteps,
+      cancelingRunId,
+      cancelRun,
     }),
     [
       sortedRuns,
@@ -159,6 +233,8 @@ export function WorkflowRunsProvider({
       selectedRunId,
       selectedRun,
       selectedRunSteps,
+      cancelingRunId,
+      cancelRun,
     ]
   )
 
@@ -190,6 +266,8 @@ export function useLatestRunSteps() {
     steps: context.steps,
     isLive: context.isLive,
     latestRun: context.latestRun,
+    cancelingRunId: context.cancelingRunId,
+    cancelRun: context.cancelRun,
     runs: context.runs,
     error: context.error,
     getRunSteps: context.getRunSteps,

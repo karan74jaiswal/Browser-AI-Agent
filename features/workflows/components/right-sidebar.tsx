@@ -7,9 +7,11 @@ import {
   useStore,
 } from "@xyflow/react"
 import { Pencil, Play, Trash2 } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
 import { runWorkflowAction } from "@/features/workflows/actions"
 import { useUpstreamConnections } from "@/features/workflows/hooks"
+import { useWorkflowRuns } from "./workflow-runs-provider"
 import { EditWorkflowDialog } from "./edit-workflow-dialog"
 import { DeleteWorkflowDialog } from "./delete-workflow-dialog"
 import {
@@ -334,30 +336,82 @@ function Palette() {
 // Header — workflow-level actions shown above the tabs.
 // ---------------------------------------------------------------------------
 
-// Kicks off a run of the current workflow.
+// Kicks off a run of the current workflow or cancels an active one.
 function RunButton({ workflowId }: { workflowId: string }) {
   const { getNodes, getEdges } = useReactFlow<StepNodeType>()
-  const [isPending, startTransition] = useTransition()
+  const { latestRun, isLive, cancelingRunId, cancelRun } = useWorkflowRuns()
+  const [isTriggering, startTriggerTransition] = useTransition()
+
+  const isCanceling = Boolean(
+    cancelingRunId && latestRun?.id === cancelingRunId && isLive
+  )
+
+  const handleRun = () => {
+    const graph = { nodes: getNodes(), edges: getEdges() }
+    const problems = validateGraph(graph)
+    if (problems.length > 0) {
+      toast.error(problems[0])
+      return
+    }
+    startTriggerTransition(async () => {
+      try {
+        await runWorkflowAction(workflowId, graph)
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to start workflow"
+        )
+      }
+    })
+  }
+
+  const handleCancel = async () => {
+    if (!latestRun?.id || isCanceling) return
+    try {
+      await cancelRun(latestRun.id)
+      toast.success("Workflow cancellation requested")
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to cancel workflow"
+      )
+    }
+  }
+
+  if (isLive || isTriggering) {
+    return (
+      <Button
+        size="sm"
+        variant="destructive"
+        disabled={isCanceling}
+        onClick={handleCancel}
+        className="gap-1.5"
+      >
+        {isCanceling ? (
+          <>
+            <Spinner className="size-3.5" />
+            <span>Canceling...</span>
+          </>
+        ) : (
+          <>
+            <div className="relative flex size-3.5 shrink-0 items-center justify-center">
+              <Spinner className="size-3.5 text-current" />
+              <div className="absolute size-1 rounded-[0.5px] bg-current" />
+            </div>
+            <span>Stop</span>
+          </>
+        )}
+      </Button>
+    )
+  }
+
   return (
     <Button
       size="sm"
       variant="secondary"
-      disabled={isPending}
-      onClick={() => {
-        // TODO: validate the graph and run the workflow (toggle to Stop while running).
-        const graph = { nodes: getNodes(), edges: getEdges() }
-        const problems = validateGraph(graph)
-        if (problems.length > 0) {
-          toast.error(problems[0])
-          return
-        }
-        startTransition(async () => {
-          await runWorkflowAction(workflowId, graph)
-        })
-      }}
+      onClick={handleRun}
+      className="gap-1.5"
     >
-      <Play fill="primary" />
-      Run
+      <Play className="size-3.5 fill-primary" />
+      <span>Run</span>
     </Button>
   )
 }
