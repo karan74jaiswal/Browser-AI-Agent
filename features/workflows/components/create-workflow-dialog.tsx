@@ -4,6 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import * as Sentry from "@sentry/nextjs"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -54,8 +55,12 @@ function CreateWorkflowForm({
           router.push(`/workflows/${workflow.id}`)
         }
       } catch (error) {
-        console.error("Failed to create workflow:", error)
-        toast.error("Failed to create workflow")
+        Sentry.logger.error("Failed to create workflow", {
+          reason: error instanceof Error ? error.message : String(error),
+        })
+        const message =
+          error instanceof Error ? error.message : "Failed to create workflow"
+        toast.error(message)
       }
     })
   }

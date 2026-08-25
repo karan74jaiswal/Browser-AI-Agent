@@ -33,6 +33,8 @@ export type NodeDefinition = {
   accent: string // Tailwind classes for the icon chip color
   fields: NodeField[]
   outputs: NodeOutput[]
+  requiredPlan?: "pro" | "enterprise" | (string & {})
+  requiredFeature?: string
 }
 
 export const nodeRegistry = {
@@ -125,6 +127,7 @@ export const nodeRegistry = {
     label: "Agent",
     icon: Bot,
     accent: "bg-indigo-500 text-white",
+    requiredPlan: "pro",
     fields: [
       {
         key: "instruction",

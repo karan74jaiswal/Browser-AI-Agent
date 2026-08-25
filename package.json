@@ -30,6 +30,7 @@
     "@neon/config": "^1.0.1",
     "@neon/env": "^1.1.1",
     "@neondatabase/serverless": "^1.1.0",
+    "@sentry/nextjs": "^10.71.0",
     "@shadcn/react": "^0.3.0",
     "@trigger.dev/react-hooks": "^4.5.12",
     "@trigger.dev/sdk": "^4.5.12",

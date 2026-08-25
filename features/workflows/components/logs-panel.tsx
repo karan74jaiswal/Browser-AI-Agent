@@ -2,10 +2,11 @@
 
 import React from "react"
 import prettyMs from "pretty-ms"
-import { CheckCircle2, XCircle, Clock, Ban, Film } from "lucide-react"
+import { CheckCircle2, XCircle, Clock, Ban, Film, Lock } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useProPlan } from "@/features/workflows/hooks"
 import {
   Accordion,
   AccordionContent,
@@ -145,6 +146,7 @@ export function LogsPanel({
 }: LogsPanelProps) {
   const activeSelectedId = selectedId ?? selectedStepId
   const { runs, getRunSteps, cancelingRunId } = useWorkflowRuns()
+  const { isPro, redirectToPricing } = useProPlan()
   const nodes = useNodes<StepNodeType>()
 
   if (!runs || runs.length === 0) {
@@ -232,7 +234,7 @@ export function LogsPanel({
               </div>
             </AccordionTrigger>
 
-            <AccordionContent className="!h-auto flex flex-col gap-0.5 pt-1">
+            <AccordionContent className="flex h-auto! flex-col gap-0.5 pt-1">
               {steps.length === 0 && !hasRecording ? (
                 <p className="px-1.5 py-1 text-xs text-muted-foreground italic">
                   No steps recorded.
@@ -366,7 +368,13 @@ export function LogsPanel({
                     <Button
                       key={`${run.id}-replay`}
                       variant="ghost"
-                      onClick={() => onReplayClick?.(run)}
+                      onClick={() => {
+                        if (!isPro) {
+                          redirectToPricing()
+                          return
+                        }
+                        onReplayClick?.(run)
+                      }}
                       className={cn(
                         "h-8 w-full justify-between gap-2.5 px-1.5 text-xs font-normal",
                         activeSelectedId === `${run.id}-replay` &&
@@ -382,6 +390,15 @@ export function LogsPanel({
                           Session Replay
                         </span>
                       </div>
+
+                      {!isPro && (
+                        <div className="flex items-center gap-1 font-sans text-[11px] text-muted-foreground">
+                          <span className="rounded bg-accent px-1 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            Pro
+                          </span>
+                          <Lock className="size-3 text-muted-foreground" />
+                        </div>
+                      )}
                     </Button>
                   )}
                 </>

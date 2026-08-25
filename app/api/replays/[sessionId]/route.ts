@@ -1,16 +1,27 @@
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { APIError } from "@browserbasehq/sdk"
+import * as Sentry from "@sentry/nextjs"
 import { browserbase } from "@/lib/browserbase"
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
-  const { userId, orgId } = await auth()
+  const { userId, orgId, has } = await auth()
   const user = await currentUser()
 
   if (!userId || !user || !orgId) {
     return new Response("Unauthorized", { status: 401 })
+  }
+
+  const isPro = has({ plan: "pro" }) || has({ plan: "org:pro" })
+  if (!isPro) {
+    return new Response("Forbidden: Pro plan required to view session recordings", {
+      status: 403,
+      headers: {
+        "Content-Type": "text/plain",
+      },
+    })
   }
 
   const { sessionId } = await params
@@ -27,6 +38,10 @@ export async function GET(
       const meta = await browserbase.sessions.replays.retrieve(sessionId)
       const firstPage = meta.pages?.[0]
       if (!firstPage) {
+        Sentry.logger.info("Session replay not ready", {
+          "session.id": sessionId,
+          "org.id": orgId,
+        })
         return new Response("Replay not ready or no pages found", {
           status: 404,
           headers: {
@@ -52,6 +67,12 @@ export async function GET(
     })
   } catch (err: unknown) {
     if (err instanceof APIError) {
+      Sentry.logger.error("Browserbase replay API error", {
+        "session.id": sessionId,
+        "org.id": orgId,
+        status: err.status ?? 500,
+        reason: err.message,
+      })
       return new Response(err.message, {
         status: err.status ?? 500,
         headers: {
@@ -60,6 +81,12 @@ export async function GET(
       })
     }
     const message = err instanceof Error ? err.message : "Internal Server Error"
+    Sentry.logger.error("Session replay fetch failed", {
+      "session.id": sessionId,
+      "org.id": orgId,
+      reason: message,
+    })
+    Sentry.captureException(err)
     return new Response(message, {
       status: 500,
       headers: {

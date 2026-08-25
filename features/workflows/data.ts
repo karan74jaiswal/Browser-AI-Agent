@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm"
+import { and, count, desc, eq } from "drizzle-orm"
 import { db, workflows } from "@/lib/db"
 import type { Workflow, WorkflowGraph } from "@/lib/db"
 import { validateGraph } from "./lib/validate-graph"
@@ -9,6 +9,15 @@ export function listWorkflows(orgId: string) {
     .from(workflows)
     .where(eq(workflows.orgId, orgId))
     .orderBy(desc(workflows.createdAt))
+}
+
+export async function countWorkflows(orgId: string): Promise<number> {
+  const [result] = await db
+    .select({ count: count() })
+    .from(workflows)
+    .where(eq(workflows.orgId, orgId))
+
+  return result?.count ?? 0
 }
 
 export async function getWorkflow(params: {
