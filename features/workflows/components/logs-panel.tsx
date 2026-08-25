@@ -2,7 +2,7 @@
 
 import React from "react"
 import prettyMs from "pretty-ms"
-import { CheckCircle2, XCircle, Clock, Ban } from "lucide-react"
+import { CheckCircle2, XCircle, Clock, Ban, Film } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,7 @@ import { useNodes } from "@xyflow/react"
 import { NodeIcon } from "./node-icon"
 import {
   isRunLive,
+  getRunSessionId,
   useWorkflowRuns,
   type WorkflowRun,
 } from "./workflow-runs-provider"
@@ -27,8 +28,10 @@ import type { RunStep } from "@/features/workflows/tasks/run-workflow"
 import { cn } from "@/lib/utils"
 
 export interface LogsPanelProps {
+  selectedId?: string | null
   selectedStepId?: string | null
   onStepClick?: (step: RunStep, run: WorkflowRun) => void
+  onReplayClick?: (run: WorkflowRun) => void
   className?: string
 }
 
@@ -134,10 +137,13 @@ function getRunStatusBadge(
 }
 
 export function LogsPanel({
+  selectedId,
   selectedStepId,
   onStepClick,
+  onReplayClick,
   className,
 }: LogsPanelProps) {
+  const activeSelectedId = selectedId ?? selectedStepId
   const { runs, getRunSteps, cancelingRunId } = useWorkflowRuns()
   const nodes = useNodes<StepNodeType>()
 
@@ -170,6 +176,10 @@ export function LogsPanel({
         const isRunCanceled =
           run.status?.toUpperCase() === "CANCELED" ||
           run.status?.toUpperCase() === "CANCELLED"
+        const sessionId = getRunSessionId(run)
+        const isFinished = !isRunActive
+        const hasRecording = Boolean(sessionId && isFinished)
+
         const steps: RunStep[] =
           recordedSteps.length > 0
             ? recordedSteps
@@ -222,128 +232,159 @@ export function LogsPanel({
               </div>
             </AccordionTrigger>
 
-            <AccordionContent className="flex flex-col gap-0.5 pt-1">
-              {steps.length === 0 ? (
+            <AccordionContent className="!h-auto flex flex-col gap-0.5 pt-1">
+              {steps.length === 0 && !hasRecording ? (
                 <p className="px-1.5 py-1 text-xs text-muted-foreground italic">
                   No steps recorded.
                 </p>
               ) : (
-                steps.map((step) => {
-                  const stepKey = `${run.id}-${step.id}`
-                  const isSelected =
-                    selectedStepId === stepKey || selectedStepId === step.id
-                  const isFailed = step.status === "failed"
-                  const isCanceled =
-                    step.status === "canceled" ||
-                    (isRunCanceled && step.status === "running")
-                  const isStepCanceling =
-                    isRunCanceling &&
-                    (step.status === "running" ||
-                      (step.kind === "trigger" && step.status !== "done"))
-                  const isSkipped =
-                    step.status === "skipped" ||
-                    (isRunCanceled && step.status === "pending") ||
-                    (isRunCanceling &&
-                      step.status === "pending" &&
-                      !isStepCanceling)
-                  const isRunning =
-                    isRunActive &&
-                    !isRunCanceling &&
-                    (step.status === "running" ||
-                      (step.kind === "trigger" &&
-                        step.status !== "done" &&
-                        !isFailed &&
-                        !isSkipped &&
-                        !isCanceled))
-                  const isPending =
-                    step.status === "pending" && !isRunning && !isSkipped
-                  const stepDuration =
-                    step.duration !== undefined
-                      ? prettyMs(step.duration)
-                      : step.durationMs !== undefined
-                        ? prettyMs(step.durationMs)
-                        : null
-                  const effectiveStep: RunStep = {
-                    ...step,
-                    status: isFailed
-                      ? "failed"
-                      : isCanceled || isStepCanceling
-                        ? "canceled"
-                        : isSkipped
-                          ? "skipped"
-                          : step.status,
-                  }
+                <>
+                  {steps.map((step) => {
+                    const stepKey = `${run.id}-${step.id}`
+                    const isSelected =
+                      activeSelectedId === stepKey ||
+                      activeSelectedId === step.id
+                    const isFailed = step.status === "failed"
+                    const isCanceled =
+                      step.status === "canceled" ||
+                      (isRunCanceled && step.status === "running")
+                    const isStepCanceling =
+                      isRunCanceling &&
+                      (step.status === "running" ||
+                        (step.kind === "trigger" && step.status !== "done"))
+                    const isSkipped =
+                      step.status === "skipped" ||
+                      (isRunCanceled && step.status === "pending") ||
+                      (isRunCanceling &&
+                        step.status === "pending" &&
+                        !isStepCanceling)
+                    const isRunning =
+                      isRunActive &&
+                      !isRunCanceling &&
+                      (step.status === "running" ||
+                        (step.kind === "trigger" &&
+                          step.status !== "done" &&
+                          !isFailed &&
+                          !isSkipped &&
+                          !isCanceled))
+                    const isPending =
+                      step.status === "pending" && !isRunning && !isSkipped
+                    const stepDuration =
+                      step.duration !== undefined
+                        ? prettyMs(step.duration)
+                        : step.durationMs !== undefined
+                          ? prettyMs(step.durationMs)
+                          : null
+                    const effectiveStep: RunStep = {
+                      ...step,
+                      status: isFailed
+                        ? "failed"
+                        : isCanceled || isStepCanceling
+                          ? "canceled"
+                          : isSkipped
+                            ? "skipped"
+                            : step.status,
+                    }
 
-                  return (
+                    return (
+                      <Button
+                        key={stepKey}
+                        variant="ghost"
+                        onClick={() => onStepClick?.(effectiveStep, run)}
+                        className={cn(
+                          "h-8 w-full justify-between gap-2.5 px-1.5 text-xs font-normal",
+                          isSelected &&
+                            "bg-accent font-medium text-accent-foreground",
+                          isFailed &&
+                            "text-destructive hover:bg-destructive/10 hover:text-destructive",
+                          (isCanceled || isStepCanceling) &&
+                            "text-amber-600 hover:bg-amber-500/10 dark:text-amber-400",
+                          isRunning && "font-medium text-foreground",
+                          isPending && "text-muted-foreground opacity-60",
+                          isSkipped && "text-muted-foreground/60"
+                        )}
+                      >
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <NodeIcon
+                            type={step.type}
+                            running={isRunning || isStepCanceling}
+                          />
+                          <span
+                            className={cn(
+                              "truncate",
+                              isFailed && "font-medium text-destructive",
+                              (isCanceled || isStepCanceling) &&
+                                "font-medium text-amber-600 dark:text-amber-400",
+                              isRunning && "font-medium",
+                              isSkipped && "text-muted-foreground/80"
+                            )}
+                          >
+                            {step.title}
+                          </span>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-2 font-mono text-[11px]">
+                          {isRunning && (
+                            <span className="font-sans text-blue-600 dark:text-blue-400">
+                              Running...
+                            </span>
+                          )}
+                          {isStepCanceling && (
+                            <span className="font-sans text-[10px] text-amber-600 dark:text-amber-400">
+                              Canceling...
+                            </span>
+                          )}
+                          {isCanceled && !isStepCanceling && (
+                            <span className="font-sans text-[10px] text-amber-600 dark:text-amber-400">
+                              Canceled
+                            </span>
+                          )}
+                          {isSkipped && (
+                            <span className="font-sans text-[10px] text-muted-foreground/70">
+                              Skipped
+                            </span>
+                          )}
+                          {stepDuration && (
+                            <span
+                              className={cn(
+                                "text-muted-foreground",
+                                isFailed && "text-destructive",
+                                (isCanceled || isStepCanceling) &&
+                                  "text-amber-600 dark:text-amber-400",
+                                isSelected && "text-accent-foreground"
+                              )}
+                            >
+                              {stepDuration}
+                            </span>
+                          )}
+                        </div>
+                      </Button>
+                    )
+                  })}
+
+                  {hasRecording && (
                     <Button
-                      key={stepKey}
+                      key={`${run.id}-replay`}
                       variant="ghost"
-                      onClick={() => onStepClick?.(effectiveStep, run)}
+                      onClick={() => onReplayClick?.(run)}
                       className={cn(
-                        "w-full justify-between gap-2.5 px-1.5 h-8 text-xs font-normal",
-                        isSelected && "bg-accent text-accent-foreground font-medium",
-                        isFailed && "text-destructive hover:text-destructive hover:bg-destructive/10",
-                        (isCanceled || isStepCanceling) && "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10",
-                        isRunning && "text-foreground font-medium",
-                        isPending && "text-muted-foreground opacity-60",
-                        isSkipped && "text-muted-foreground/60"
+                        "h-8 w-full justify-between gap-2.5 px-1.5 text-xs font-normal",
+                        activeSelectedId === `${run.id}-replay` &&
+                          "bg-accent font-medium text-accent-foreground",
+                        "text-foreground hover:bg-accent/50"
                       )}
                     >
                       <div className="flex min-w-0 items-center gap-2.5">
-                        <NodeIcon
-                          type={step.type}
-                          running={isRunning || isStepCanceling}
-                        />
-                        <span
-                          className={cn(
-                            "truncate",
-                            isFailed && "font-medium text-destructive",
-                            (isCanceled || isStepCanceling) && "font-medium text-amber-600 dark:text-amber-400",
-                            isRunning && "font-medium",
-                            isSkipped && "text-muted-foreground/80"
-                          )}
-                        >
-                          {step.title}
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-rose-500 text-white">
+                          <Film className="size-3.5" />
+                        </span>
+                        <span className="truncate font-medium text-foreground">
+                          Session Replay
                         </span>
                       </div>
-
-                      <div className="flex shrink-0 items-center gap-2 font-mono text-[11px]">
-                        {isRunning && (
-                          <span className="font-sans text-blue-600 dark:text-blue-400">
-                            Running...
-                          </span>
-                        )}
-                        {isStepCanceling && (
-                          <span className="font-sans text-[10px] text-amber-600 dark:text-amber-400">
-                            Canceling...
-                          </span>
-                        )}
-                        {isCanceled && !isStepCanceling && (
-                          <span className="font-sans text-[10px] text-amber-600 dark:text-amber-400">
-                            Canceled
-                          </span>
-                        )}
-                        {isSkipped && (
-                          <span className="font-sans text-[10px] text-muted-foreground/70">
-                            Skipped
-                          </span>
-                        )}
-                        {stepDuration && (
-                          <span
-                            className={cn(
-                              "text-muted-foreground",
-                              isFailed && "text-destructive",
-                              (isCanceled || isStepCanceling) && "text-amber-600 dark:text-amber-400",
-                              isSelected && "text-accent-foreground"
-                            )}
-                          >
-                            {stepDuration}
-                          </span>
-                        )}
-                      </div>
                     </Button>
-                  )
-                })
+                  )}
+                </>
               )}
             </AccordionContent>
           </AccordionItem>

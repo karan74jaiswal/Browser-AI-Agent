@@ -1,7 +1,12 @@
 import toposort from "toposort"
 import { logger, metadata, task, wait } from "@trigger.dev/sdk"
 import { getWorkflow } from "@/features/workflows/data"
-import { browserbase, localBrowser, Stagehand } from "@browserbasehq/stagehand"
+import {
+  browserbase,
+  localBrowser,
+  Stagehand,
+  type StagehandBrowser,
+} from "@browserbasehq/stagehand"
 import { nodeExecutors } from "../nodes/node-executors"
 import { interpolate } from "../lib"
 import type { DeserializedJson } from "@trigger.dev/core"
@@ -78,10 +83,8 @@ export const runWorkflowTask = task({
     await metadata.flush()
 
     let stagehand: Stagehand | undefined
-    let browser:
-      | Awaited<ReturnType<typeof browserbase.launch>>
-      | Awaited<ReturnType<typeof localBrowser.launch>>
-      | undefined
+    let browser: StagehandBrowser | undefined
+    let sessionId: string | undefined
 
     const getStagehand = async (): Promise<Stagehand> => {
       if (stagehand) return stagehand
@@ -89,10 +92,11 @@ export const runWorkflowTask = task({
         browser = process.env.BROWSERBASE_API_KEY
           ? await browserbase.launch({
               apiKey: process.env.BROWSERBASE_API_KEY,
-
               userMetadata: { stagehand: "true" },
             })
           : await localBrowser.launch({ headless: true })
+
+        sessionId = browser.sessionId
 
         stagehand = await Stagehand.create({
           browser,
@@ -241,6 +245,6 @@ export const runWorkflowTask = task({
       }
     }
 
-    return { steps }
+    return { steps, sessionId }
   },
 })

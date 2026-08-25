@@ -18,7 +18,34 @@ export type { RunStep }
 
 export type WorkflowRun = ReturnType<
   typeof useRealtimeRunsWithTag<typeof runWorkflowTask>
->["runs"][number]
+>["runs"][number] & {
+  sessionId?: string
+}
+
+export function getRunSessionId(
+  run:
+    | WorkflowRun
+    | { output?: unknown; metadata?: unknown; status?: string; sessionId?: string }
+    | undefined
+    | null
+): string | undefined {
+  if (!run) return undefined
+
+  // Read session id from the run's final output (not live metadata)
+  const output = run.output as
+    | { sessionId?: string }
+    | undefined
+
+  if (output && typeof output.sessionId === "string" && output.sessionId) {
+    return output.sessionId
+  }
+
+  if ("sessionId" in run && typeof run.sessionId === "string" && run.sessionId) {
+    return run.sessionId
+  }
+
+  return undefined
+}
 
 export function getRunSteps(
   run:
@@ -94,6 +121,7 @@ export interface WorkflowRunsContextValue {
   runs: WorkflowRun[]
   latestRun: WorkflowRun | undefined
   steps: RunStep[] | undefined
+  sessionId: string | undefined
   isLive: boolean
   error: Error | undefined
   stop: () => void
@@ -104,10 +132,18 @@ export interface WorkflowRunsContextValue {
       | undefined
       | null
   ) => RunStep[] | undefined
+  getRunSessionId: (
+    run:
+      | WorkflowRun
+      | { output?: unknown; metadata?: unknown; status?: string; sessionId?: string }
+      | undefined
+      | null
+  ) => string | undefined
   selectedRunId: string | null
   setSelectedRunId: (id: string | null) => void
   selectedRun: WorkflowRun | undefined
   selectedRunSteps: RunStep[] | undefined
+  selectedRunSessionId: string | undefined
   cancelingRunId: string | null
   cancelRun: (runId: string) => Promise<void>
 }
@@ -162,11 +198,16 @@ export function WorkflowRunsProvider({
 
   const sortedRuns = useMemo(() => {
     if (!runs || runs.length === 0) return []
-    return [...runs].sort((a, b) => {
-      const aTime = new Date(a.createdAt).getTime()
-      const bTime = new Date(b.createdAt).getTime()
-      return bTime - aTime
-    })
+    return [...runs]
+      .sort((a, b) => {
+        const aTime = new Date(a.createdAt).getTime()
+        const bTime = new Date(b.createdAt).getTime()
+        return bTime - aTime
+      })
+      .map((run) => ({
+        ...run,
+        sessionId: getRunSessionId(run),
+      }))
   }, [runs])
 
   const latestRun = useMemo(() => {
@@ -175,6 +216,10 @@ export function WorkflowRunsProvider({
 
   const steps = useMemo(() => {
     return getRunSteps(latestRun)
+  }, [latestRun])
+
+  const sessionId = useMemo(() => {
+    return getRunSessionId(latestRun)
   }, [latestRun])
 
   const isLive = useMemo(() => {
@@ -207,19 +252,26 @@ export function WorkflowRunsProvider({
     return getRunSteps(selectedRun)
   }, [selectedRun])
 
+  const selectedRunSessionId = useMemo(() => {
+    return getRunSessionId(selectedRun)
+  }, [selectedRun])
+
   const value = useMemo<WorkflowRunsContextValue>(
     () => ({
       runs: sortedRuns,
       latestRun,
       steps,
+      sessionId,
       isLive,
       error,
       stop,
       getRunSteps,
+      getRunSessionId,
       selectedRunId,
       setSelectedRunId,
       selectedRun,
       selectedRunSteps,
+      selectedRunSessionId,
       cancelingRunId,
       cancelRun,
     }),
@@ -227,12 +279,14 @@ export function WorkflowRunsProvider({
       sortedRuns,
       latestRun,
       steps,
+      sessionId,
       isLive,
       error,
       stop,
       selectedRunId,
       selectedRun,
       selectedRunSteps,
+      selectedRunSessionId,
       cancelingRunId,
       cancelRun,
     ]
@@ -264,6 +318,7 @@ export function useLatestRunSteps() {
   }
   return {
     steps: context.steps,
+    sessionId: context.sessionId,
     isLive: context.isLive,
     latestRun: context.latestRun,
     cancelingRunId: context.cancelingRunId,
@@ -271,9 +326,11 @@ export function useLatestRunSteps() {
     runs: context.runs,
     error: context.error,
     getRunSteps: context.getRunSteps,
+    getRunSessionId: context.getRunSessionId,
     selectedRunId: context.selectedRunId,
     setSelectedRunId: context.setSelectedRunId,
     selectedRun: context.selectedRun,
     selectedRunSteps: context.selectedRunSteps,
+    selectedRunSessionId: context.selectedRunSessionId,
   }
 }

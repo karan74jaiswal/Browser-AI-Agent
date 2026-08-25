@@ -8,8 +8,12 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
 import { LogsPanel } from "./logs-panel"
-import { InspectorPanel } from "./inspector-panel"
-import { useWorkflowRuns, type WorkflowRun } from "./workflow-runs-provider"
+import { InspectorPanel, type InspectorSelection } from "./inspector-panel"
+import {
+  useWorkflowRuns,
+  getRunSessionId,
+  type WorkflowRun,
+} from "./workflow-runs-provider"
 import type { RunStep } from "@/features/workflows/tasks/run-workflow"
 import { cn } from "@/lib/utils"
 
@@ -19,37 +23,67 @@ export interface ConsolePanelProps {
 
 export function ConsolePanel({ className }: ConsolePanelProps) {
   const { runs, getRunSteps } = useWorkflowRuns()
-  const [selectedStepKey, setSelectedStepKey] = useState<string | null>(null)
-  const [selectedStep, setSelectedStep] = useState<RunStep | null>(null)
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [selection, setSelection] = useState<InspectorSelection | null>(null)
 
-  let liveSelectedStep: RunStep | null = null
-  if (selectedStepKey) {
-    for (const run of runs) {
-      const steps = getRunSteps(run) ?? []
-      for (const s of steps) {
-        if (
-          `${run.id}-${s.id}` === selectedStepKey ||
-          s.id === selectedStepKey
-        ) {
-          liveSelectedStep = s
-          break
+  let liveSelection: InspectorSelection | null = null
+
+  if (selectedKey && selection) {
+    if (selection.type === "step") {
+      let liveStep: RunStep | null = null
+      let targetRun: WorkflowRun | null = null
+
+      for (const run of runs) {
+        const steps = getRunSteps(run) ?? []
+        for (const s of steps) {
+          if (`${run.id}-${s.id}` === selectedKey || s.id === selectedKey) {
+            liveStep = s
+            targetRun = run
+            break
+          }
         }
+        if (liveStep) break
       }
-      if (liveSelectedStep) break
-    }
-    if (!liveSelectedStep) {
-      liveSelectedStep = selectedStep
+
+      liveSelection = liveStep
+        ? { type: "step", step: liveStep, run: targetRun ?? selection.run }
+        : selection
+    } else if (selection.type === "replay") {
+      const currentRun =
+        runs.find((r) => `${r.id}-replay` === selectedKey || r.id === selection.run.id) ??
+        selection.run
+
+      liveSelection = {
+        type: "replay",
+        run: currentRun,
+        sessionId: getRunSessionId(currentRun) || currentRun.sessionId,
+      }
     }
   }
 
   const handleStepClick = (step: RunStep, run: WorkflowRun) => {
     const key = `${run.id}-${step.id}`
-    if (selectedStepKey === key) {
-      setSelectedStepKey(null)
-      setSelectedStep(null)
+    if (selectedKey === key) {
+      setSelectedKey(null)
+      setSelection(null)
     } else {
-      setSelectedStepKey(key)
-      setSelectedStep(step)
+      setSelectedKey(key)
+      setSelection({ type: "step", step, run })
+    }
+  }
+
+  const handleReplayClick = (run: WorkflowRun) => {
+    const key = `${run.id}-replay`
+    if (selectedKey === key) {
+      setSelectedKey(null)
+      setSelection(null)
+    } else {
+      setSelectedKey(key)
+      setSelection({
+        type: "replay",
+        run,
+        sessionId: getRunSessionId(run) || run.sessionId,
+      })
     }
   }
 
@@ -64,18 +98,19 @@ export function ConsolePanel({ className }: ConsolePanelProps) {
         <ResizablePanel minSize="12rem">
           <div className="size-full overflow-y-auto">
             <LogsPanel
-              selectedStepId={selectedStepKey}
+              selectedId={selectedKey}
               onStepClick={handleStepClick}
+              onReplayClick={handleReplayClick}
             />
           </div>
         </ResizablePanel>
 
-        {liveSelectedStep && (
+        {liveSelection && (
           <>
             <ResizableHandle />
             <ResizablePanel defaultSize="20rem" minSize="14rem" maxSize="36rem">
               <InspectorPanel
-                step={liveSelectedStep}
+                selection={liveSelection}
                 className="size-full w-full max-w-none min-w-0"
               />
             </ResizablePanel>

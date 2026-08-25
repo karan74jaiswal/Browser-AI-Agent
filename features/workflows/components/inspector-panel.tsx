@@ -1,16 +1,31 @@
 "use client"
 
 import React, { useState } from "react"
-import { XCircle, CheckCircle2, Clock, Copy, Check, Ban } from "lucide-react"
+import {
+  XCircle,
+  CheckCircle2,
+  Clock,
+  Copy,
+  Check,
+  Ban,
+  Film,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
 import { NodeIcon } from "./node-icon"
+import { SessionReplay } from "./session-replay"
+import type { WorkflowRun } from "./workflow-runs-provider"
 import type { RunStep } from "@/features/workflows/tasks/run-workflow"
 import { cn } from "@/lib/utils"
 
+export type InspectorSelection =
+  | { type: "step"; step: RunStep; run?: WorkflowRun }
+  | { type: "replay"; run: WorkflowRun; sessionId?: string }
+
 export interface InspectorPanelProps {
-  step: RunStep
+  selection?: InspectorSelection | null
+  step?: RunStep
   className?: string
 }
 
@@ -104,12 +119,67 @@ function getStepStatusBadge(status?: RunStep["status"]) {
   }
 }
 
-export function InspectorPanel({ step, className }: InspectorPanelProps) {
+export function InspectorPanel({
+  selection,
+  step,
+  className,
+}: InspectorPanelProps) {
+  const activeSelection =
+    selection ?? (step ? ({ type: "step", step } as const) : null)
+
+  if (!activeSelection) {
+    return null
+  }
+
+  if (activeSelection.type === "replay") {
+    const run = activeSelection.run
+    const sessionId = activeSelection.sessionId || run.sessionId
+
+    return (
+      <div
+        className={cn(
+          "flex h-full w-full flex-col bg-background text-xs text-foreground",
+          className
+        )}
+      >
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-rose-500 text-white">
+              <Film className="size-3.5" />
+            </span>
+            <span className="truncate font-semibold text-foreground">
+              Session Replay
+            </span>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-black">
+          {sessionId ? (
+            <SessionReplay
+              sessionId={sessionId}
+              className="aspect-auto size-full flex-1 rounded-none border-0"
+            />
+          ) : (
+            <div className="flex size-full flex-1 flex-col items-center justify-center gap-2 bg-background p-8 text-center text-muted-foreground">
+              <Film className="size-8 stroke-[1.5] text-muted-foreground/60" />
+              <p className="text-xs font-medium text-foreground">
+                No Recording Available
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const currentStep = activeSelection.step
   const formattedOutput =
-    step.output !== undefined && step.output !== null
-      ? typeof step.output === "object"
-        ? JSON.stringify(step.output, null, 2)
-        : String(step.output)
+    currentStep.output !== undefined && currentStep.output !== null
+      ? typeof currentStep.output === "object"
+        ? JSON.stringify(currentStep.output, null, 2)
+        : String(currentStep.output)
       : null
 
   return (
@@ -122,27 +192,27 @@ export function InspectorPanel({ step, className }: InspectorPanelProps) {
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
-          <NodeIcon type={step.type} />
+          <NodeIcon type={currentStep.type} />
           <span className="truncate font-semibold text-foreground">
-            {step.title}
+            {currentStep.title}
           </span>
         </div>
         <div className="flex shrink-0 items-center">
-          {getStepStatusBadge(step.status)}
+          {getStepStatusBadge(currentStep.status)}
         </div>
       </div>
 
       {/* Body */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
         {/* Error */}
-        {step.error && (
+        {currentStep.error && (
           <div className="flex flex-col gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 p-2.5 text-destructive">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold">
               <XCircle className="size-3.5" />
               <span>Error</span>
             </div>
             <pre className="overflow-x-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
-              {step.error}
+              {currentStep.error}
             </pre>
           </div>
         )}
@@ -158,15 +228,15 @@ export function InspectorPanel({ step, className }: InspectorPanelProps) {
               {formattedOutput}
             </pre>
           </div>
-        ) : !step.error ? (
+        ) : !currentStep.error ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-center text-muted-foreground">
-            {step.status === "pending" && (
+            {currentStep.status === "pending" && (
               <>
                 <Clock className="size-4 text-muted-foreground/60" />
                 <p className="text-xs">This step has not run yet.</p>
               </>
             )}
-            {step.status === "canceled" && (
+            {currentStep.status === "canceled" && (
               <>
                 <Ban className="size-4 text-muted-foreground/60" />
                 <p className="text-xs">
@@ -174,13 +244,13 @@ export function InspectorPanel({ step, className }: InspectorPanelProps) {
                 </p>
               </>
             )}
-            {step.status === "skipped" && (
+            {currentStep.status === "skipped" && (
               <p className="text-xs">
                 This step was skipped because the workflow was stopped or an
                 earlier step failed.
               </p>
             )}
-            {step.status === "running" && (
+            {currentStep.status === "running" && (
               <>
                 <Spinner className="size-4 text-blue-500" />
                 <p className="text-xs text-blue-600 dark:text-blue-400">
@@ -188,7 +258,7 @@ export function InspectorPanel({ step, className }: InspectorPanelProps) {
                 </p>
               </>
             )}
-            {step.status === "done" && (
+            {currentStep.status === "done" && (
               <>
                 <CheckCircle2 className="size-4 text-emerald-500/80" />
                 <p className="text-xs">No output produced by this step.</p>
