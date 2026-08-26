@@ -1,12 +1,26 @@
 "use client"
 
-import { useCallback, useRef, useState, useTransition } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
+import { useAuth } from "@clerk/nextjs"
 import {
+  useEdges,
+  useNodes,
   useOnSelectionChange,
   useReactFlow,
   useStore,
 } from "@xyflow/react"
-import { Lock, Pencil, Play, Trash2 } from "lucide-react"
+import {
+  AlertTriangle,
+  Check,
+  Code2,
+  Copy,
+  Lock,
+  Pencil,
+  Play,
+  RefreshCw,
+  Sparkles,
+  Trash2,
+} from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
 import { runWorkflowAction } from "@/features/workflows/actions"
@@ -21,12 +35,13 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { TokenInput, type TokenInputHandle } from "./token-input"
 import { Label } from "@/components/ui/label"
 import { ResizablePanel } from "@/components/ui/resizable"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { validateGraph } from "../lib"
+import { extractAllTokenReferences, generateGoogleFormScript, validateGraph } from "../lib"
 
 import { NodeIcon } from "./node-icon"
 import {
@@ -77,12 +92,14 @@ function Section({
 function FieldInput({
   field,
   value,
+  nodeId,
   onChange,
   onFocus,
   inputRef,
 }: {
   field: NodeField
   value: string
+  nodeId?: string
   onChange: (value: string) => void
   onFocus?: () => void
   inputRef?: (handle: TokenInputHandle | null) => void
@@ -115,17 +132,228 @@ function FieldInput({
       multiline={field.multiline}
       onChange={onChange}
       onFocus={onFocus}
+      currentNodeId={nodeId}
     />
   )
 }
 
 
+function GoogleFormTriggerInspector({
+  node,
+  workflowId,
+}: {
+  node: StepNodeType
+  workflowId: string
+}) {
+  const { orgId } = useAuth()
+  const { updateNodeData } = useReactFlow<StepNodeType>()
+  const [copiedUrl, setCopiedUrl] = useState(false)
+  const [copiedScript, setCopiedScript] = useState(false)
+
+  // Ensure secret token is generated
+  const secret = node.data.values?.secret || ""
+  useEffect(() => {
+    if (!node.data.values?.secret) {
+      const generated = `whsec_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`
+      updateNodeData(node.id, {
+        values: { ...node.data.values, secret: generated },
+      })
+    }
+  }, [node.id, node.data.values, updateNodeData])
+
+  const handleRegenerateSecret = () => {
+    const generated = `whsec_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`
+    updateNodeData(node.id, {
+      values: { ...node.data.values, secret: generated },
+    })
+    toast.success("Webhook secret regenerated")
+  }
+
+  const origin =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : process.env.NEXT_PUBLIC_APP_URL || ""
+
+  const webhookUrl = `${origin}/api/webhooks/google-form?orgId=${orgId ?? ""}&workflowId=${workflowId}&secret=${secret}`
+
+  const handleCopyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(webhookUrl)
+      setCopiedUrl(true)
+      toast.success("Webhook URL copied to clipboard")
+      setTimeout(() => setCopiedUrl(false), 2000)
+    } catch {
+      toast.error("Failed to copy URL")
+    }
+  }
+
+  const handleCopyScript = async () => {
+    try {
+      const script = generateGoogleFormScript(webhookUrl)
+      await navigator.clipboard.writeText(script)
+      setCopiedScript(true)
+      toast.success("Google Apps Script copied to clipboard")
+      setTimeout(() => setCopiedScript(false), 2000)
+    } catch {
+      toast.error("Failed to copy script")
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-border pt-3">
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-medium">Webhook URL</Label>
+        <div className="flex items-center gap-1.5">
+          <Input
+            readOnly
+            value={webhookUrl}
+            className="h-8 font-mono text-[11px] text-muted-foreground"
+          />
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="size-8 shrink-0"
+            onClick={handleCopyUrl}
+            title="Copy Webhook URL"
+          >
+            {copiedUrl ? (
+              <Check className="size-3.5 text-emerald-500" />
+            ) : (
+              <Copy className="size-3.5" />
+            )}
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] text-muted-foreground">Webhook Secret</span>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={handleRegenerateSecret}
+          className="h-6 gap-1 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+        >
+          <RefreshCw className="size-3" />
+          <span>Regenerate</span>
+        </Button>
+      </div>
+
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={handleCopyScript}
+        className="w-full gap-2 text-xs"
+      >
+        {copiedScript ? (
+          <Check className="size-3.5 text-emerald-500" />
+        ) : (
+          <Code2 className="size-3.5" />
+        )}
+        <span>Copy Google Apps Script</span>
+      </Button>
+
+      <div className="rounded-md border border-border bg-muted/30 p-2.5 text-xs text-muted-foreground">
+        <div className="mb-1.5 font-semibold text-foreground">
+          Setup Instructions
+        </div>
+        <ol className="list-inside list-decimal space-y-1 text-[11px] leading-relaxed">
+          <li>Open your form on Google Forms</li>
+          <li>
+            Click the three dots (&vellip;) menu &rarr; <b>Apps Script</b>
+          </li>
+          <li>
+            Paste the copied script and click <b>Save</b>
+          </li>
+          <li>
+            Click <b>Triggers</b> (alarm icon) &rarr; <b>Add Trigger</b>
+          </li>
+          <li>
+            Select &quot;On form submit&quot; &rarr; <b>Save</b>
+          </li>
+        </ol>
+      </div>
+    </div>
+  )
+}
+
 // The Editor tab: one input per field on the selected node, or an empty state.
-function Inspector({ node }: { node: StepNodeType | undefined }) {
+function Inspector({
+  node,
+  workflowId,
+}: {
+  node: StepNodeType | undefined
+  workflowId: string
+}) {
   const { updateNodeData } = useReactFlow<StepNodeType>()
   const connections = useUpstreamConnections(node)
+  const allNodes = useNodes<StepNodeType>()
+  const allEdges = useEdges()
   const [activeFieldKey, setActiveFieldKey] = useState<string | null>(null)
   const inputRefs = useRef<Map<string, TokenInputHandle>>(new Map())
+
+  // Find broken token references in node.data.values
+  const { brokenTokens, relinkCandidates } = useMemo(() => {
+    if (!node) return { brokenTokens: [], relinkCandidates: [] }
+
+    const targetToSources = new Map<string, string[]>()
+    for (const edge of allEdges) {
+      if (!edge.source || !edge.target) continue
+      const sources = targetToSources.get(edge.target)
+      if (sources) {
+        sources.push(edge.source)
+      } else {
+        targetToSources.set(edge.target, [edge.source])
+      }
+    }
+
+    const ancestors = new Set<string>()
+    const queue = [...(targetToSources.get(node.id) || [])]
+    while (queue.length > 0) {
+      const curr = queue.shift()!
+      if (!ancestors.has(curr)) {
+        ancestors.add(curr)
+        const parents = targetToSources.get(curr) || []
+        for (const p of parents) {
+          if (!ancestors.has(p)) queue.push(p)
+        }
+      }
+    }
+
+    const nodeById = new Map(allNodes.map((n) => [n.id, n]))
+    const broken: { raw: string; nodeId: string; path: string; fieldKey: string }[] = []
+
+    for (const [fieldKey, rawVal] of Object.entries(node.data.values || {})) {
+      if (typeof rawVal !== "string") continue
+      const refs = extractAllTokenReferences(rawVal)
+      for (const ref of refs) {
+        if (!nodeById.has(ref.nodeId) || !ancestors.has(ref.nodeId)) {
+          broken.push({
+            raw: `{{ ${ref.nodeId}.${ref.path} }}`,
+            nodeId: ref.nodeId,
+            path: ref.path,
+            fieldKey,
+          })
+        }
+      }
+    }
+
+    // Upstream nodes that could satisfy these broken tokens
+    const candidates: { id: string; title: string; type: NodeType }[] = []
+    for (const ancestorId of ancestors) {
+      const ancestorNode = nodeById.get(ancestorId)
+      if (!ancestorNode) continue
+      candidates.push({
+        id: ancestorNode.id,
+        title: ancestorNode.data?.title || "Step",
+        type: ancestorNode.data?.type as NodeType,
+      })
+    }
+
+    return { brokenTokens: broken, relinkCandidates: candidates }
+  }, [node, allNodes, allEdges])
 
   if (!node) {
     return (
@@ -140,6 +368,33 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
   const insertableFields = def.fields.filter(
     (f) => !f.options || f.options.length === 0
   )
+
+  const handleRelink = (targetNodeId: string, targetTitle: string) => {
+    if (!node) return
+    const newValues = { ...(node.data.values || {}) }
+    let relinkedCount = 0
+
+    for (const b of brokenTokens) {
+      const currentVal = newValues[b.fieldKey]
+      if (typeof currentVal === "string") {
+        const escapedPath = b.path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+        const regex = new RegExp(`\\{\\{\\s*${b.nodeId}\\.${escapedPath}\\s*\\}\\}`, "g")
+        const updated = currentVal.replace(
+          regex,
+          `{{ ${targetNodeId}.${b.path} }}`
+        )
+        if (updated !== currentVal) {
+          newValues[b.fieldKey] = updated
+          relinkedCount++
+        }
+      }
+    }
+
+    updateNodeData(node.id, { values: newValues })
+    toast.success(
+      `Relinked ${relinkedCount} token${relinkedCount === 1 ? "" : "s"} to ${targetTitle}`
+    )
+  }
 
   const handleInsertToken = (token: string) => {
     const targetField =
@@ -164,6 +419,34 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
   return (
     <Section title={title} icon={<NodeIcon type={type} />}>
       <div className="flex flex-col gap-3 p-3">
+        {brokenTokens.length > 0 && relinkCandidates.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-700 dark:text-amber-400">
+            <div className="flex items-center gap-1.5 font-medium">
+              <AlertTriangle className="size-3.5 shrink-0" />
+              <span>
+                {brokenTokens.length} broken {brokenTokens.length === 1 ? "token" : "tokens"} detected
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Found variables referencing a deleted or replaced step. Relink them to your connected steps:
+            </p>
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {relinkCandidates.map((candidate) => (
+                <Button
+                  key={candidate.id}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleRelink(candidate.id, candidate.title)}
+                  className="h-6 gap-1 bg-background/80 px-2 text-[11px] hover:bg-background hover:text-foreground cursor-pointer"
+                >
+                  <Sparkles className="size-3 text-amber-500" />
+                  <span>Relink to {candidate.title}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
         {def.fields.length === 0 ? (
           <p className="text-xs text-muted-foreground">No properties</p>
         ) : (
@@ -178,6 +461,7 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
                 <FieldInput
                   field={field}
                   value={values[field.key] ?? ""}
+                  nodeId={node.id}
                   inputRef={
                     isInsertable
                       ? (handle) => {
@@ -206,6 +490,10 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
               </div>
             )
           })
+        )}
+
+        {type === "google-form-trigger" && (
+          <GoogleFormTriggerInspector node={node} workflowId={workflowId} />
         )}
 
         {connections.length > 0 && insertableFields.length > 0 && (
@@ -284,6 +572,23 @@ function Palette() {
       y: (height / 2 - y) / zoom,
     }
 
+    const initialValues: Record<string, string> = {}
+    for (const field of def.fields as NodeField[]) {
+      if (field.defaultValue) {
+        initialValues[field.key] = field.defaultValue
+      } else if (
+        field.options &&
+        field.options.length > 0 &&
+        field.options[0]?.value
+      ) {
+        initialValues[field.key] = field.options[0].value
+      }
+    }
+    if (type === "google-form-trigger") {
+      initialValues.secret = `whsec_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`
+      initialValues.accessMode = "private"
+    }
+
     const newNode: StepNodeType = {
       id: crypto.randomUUID(),
       type: "step",
@@ -293,7 +598,7 @@ function Palette() {
         kind: def.kind,
         title,
         type,
-        values: {},
+        values: initialValues,
       },
     }
 
@@ -515,7 +820,11 @@ export function RightSidebar({
           <Palette />
         </TabsContent>
         <TabsContent value="editor" className="flex min-h-0 flex-col">
-          <Inspector key={selected?.id} node={selected} />
+          <Inspector
+            key={selected?.id}
+            node={selected}
+            workflowId={workflowId}
+          />
         </TabsContent>
       </Tabs>
       <EditWorkflowDialog

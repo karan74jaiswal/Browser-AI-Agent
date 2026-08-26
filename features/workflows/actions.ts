@@ -169,6 +169,16 @@ export async function runWorkflowAction(id: string, graph: WorkflowGraph) {
   return handle
 }
 
+export async function saveWorkflowGraphAction(id: string, graph: WorkflowGraph) {
+  const { orgId } = await auth()
+
+  if (!orgId) throw new Error("Unauthorized: No active organization found")
+  if (!id || typeof id !== "string") throw new Error("Workflow ID is required")
+
+  await saveWorkflowGraph(id, orgId, graph)
+  return { success: true }
+}
+
 export async function deleteWorkflowAction(id: string) {
   const { orgId } = await auth()
 

@@ -25,3 +25,26 @@ export function parseTokenReference(value: string): TokenReference | null {
     path: inner.slice(dotIndex + 1).trim(),
   }
 }
+
+/**
+ * Extracts all token references from a string containing one or more placeholders.
+ */
+export function extractAllTokenReferences(template: string): TokenReference[] {
+  if (!template || typeof template !== "string") return []
+  const regex = /\{\{\s*([\s\S]*?)\s*\}\}/g
+  const results: TokenReference[] = []
+  let match: RegExpExecArray | null
+
+  while ((match = regex.exec(template)) !== null) {
+    const inner = match[1].trim()
+    const dotIndex = inner.indexOf(".")
+    const nodeId = dotIndex === -1 ? inner : inner.slice(0, dotIndex).trim()
+    const path = dotIndex === -1 ? "" : inner.slice(dotIndex + 1).trim()
+    if (nodeId) {
+      results.push({ nodeId, path })
+    }
+  }
+
+  return results
+}
+

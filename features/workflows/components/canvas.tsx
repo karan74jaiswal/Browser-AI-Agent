@@ -21,6 +21,10 @@ import "@xyflow/react/dist/style.css"
 import "@liveblocks/react-ui/styles.css"
 import "@liveblocks/react-flow/styles.css"
 
+import type { WorkflowGraph } from "@/lib/db"
+import { saveWorkflowGraphAction } from "@/features/workflows/actions"
+import { validateGraph } from "@/features/workflows/lib"
+
 const emptySubscribe = () => () => {}
 
 const nodeTypes: NodeTypes = { step: StepNode }
@@ -45,7 +49,6 @@ interface CanvasProps {
 }
 
 export function Canvas({ workflowId }: CanvasProps) {
-  // console.log(workflowId)
   const { resolvedTheme } = useTheme()
   const isMounted = React.useSyncExternalStore(
     emptySubscribe,
@@ -63,6 +66,37 @@ export function Canvas({ workflowId }: CanvasProps) {
         initial: initialEdges,
       },
     })
+
+  const lastSavedJsonRef = React.useRef<string>("")
+
+  // Auto-save whenever the graph is valid and has changed
+  React.useEffect(() => {
+    if (!workflowId) return
+
+    const graph: WorkflowGraph = { nodes, edges }
+    const problems = validateGraph(graph)
+
+    // Only auto-save to DB if the graph is completely valid (0 problems)
+    if (problems.length > 0) {
+      return
+    }
+
+    const currentJson = JSON.stringify(graph)
+    if (currentJson === lastSavedJsonRef.current) {
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        await saveWorkflowGraphAction(workflowId, graph)
+        lastSavedJsonRef.current = currentJson
+      } catch (err) {
+        console.error("Auto-save failed:", err)
+      }
+    }, 800)
+
+    return () => clearTimeout(timer)
+  }, [nodes, edges, workflowId])
 
   const colorMode: ColorMode = React.useMemo(() => {
     if (!isMounted) return "light"

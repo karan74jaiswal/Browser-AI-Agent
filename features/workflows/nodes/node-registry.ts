@@ -1,5 +1,15 @@
 import type { Node } from "@xyflow/react"
-import { Bot, Eye, FileText, Globe, Mail, MousePointerClick, Zap, type LucideIcon } from "lucide-react"
+import {
+  Bot,
+  ClipboardList,
+  Eye,
+  FileText,
+  Globe,
+  Mail,
+  MousePointerClick,
+  Zap,
+  type LucideIcon,
+} from "lucide-react"
 
 export type StepNodeKind = "trigger" | "action"
 
@@ -46,6 +56,33 @@ export const nodeRegistry = {
     accent: "bg-blue-500 text-white",
     fields: [],
     outputs: [],
+  },
+  "google-form-trigger": {
+    type: "google-form-trigger",
+    kind: "trigger",
+    label: "Google Form",
+    icon: ClipboardList,
+    accent: "bg-purple-600 text-white",
+    requiredPlan: "pro",
+    fields: [
+      {
+        key: "accessMode",
+        label: "Access Mode",
+        defaultValue: "private",
+        options: [
+          { label: "Private (Organization members only)", value: "private" },
+          { label: "Public (Anyone can submit)", value: "public" },
+        ],
+      },
+    ],
+    outputs: [
+      { path: "formId", label: "Form ID" },
+      { path: "formTitle", label: "Form Title" },
+      { path: "responseId", label: "Response ID" },
+      { path: "respondentEmail", label: "Respondent Email" },
+      { path: "timestamp", label: "Timestamp" },
+      { path: "responses", label: "Responses" },
+    ],
   },
   "open-url": {
     type: "open-url",

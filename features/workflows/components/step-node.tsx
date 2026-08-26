@@ -4,6 +4,7 @@ import { Spinner } from "@/components/ui/spinner"
 
 import {
   nodeRegistry,
+  type NodeField,
   type StepNodeType,
 } from "@/features/workflows/nodes/node-registry"
 import { useLatestRunSteps } from "@/features/workflows/hooks"
@@ -13,7 +14,23 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
   const { type, kind, title, values } = data
   const def = nodeRegistry[type]
   const Icon = def.icon
-  const fields = def.fields.filter((field) => values[field.key])
+  const fields = (def.fields as NodeField[])
+    .map((field: NodeField) => {
+      const rawValue = values[field.key] || field.defaultValue || ""
+      if (!rawValue) return null
+      let displayValue = rawValue
+      if (field.options && field.options.length > 0) {
+        const option = field.options.find((opt) => opt.value === rawValue)
+        if (option) {
+          displayValue = option.label
+        }
+      }
+      return {
+        field,
+        displayValue,
+      }
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
 
   const { steps, isLive, cancelingRunId, latestRun } = useLatestRunSteps()
   const isRunCanceling = Boolean(
@@ -119,7 +136,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
         <>
           <div className="border-t border-border" />
           <div className="flex flex-col gap-1.5 px-3 py-2.5">
-            {fields.map((field) => (
+            {fields.map(({ field, displayValue }) => (
               <div
                 key={field.key}
                 className="flex items-center justify-between gap-4 text-xs"
@@ -128,7 +145,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
                   {field.label}
                 </span>
                 <span className="truncate font-medium">
-                  {values[field.key]}
+                  {displayValue}
                 </span>
               </div>
             ))}

@@ -40,7 +40,15 @@ export const runWorkflowTask = task({
     maxAttempts: 1,
   },
   run: async (
-    { workflowId, orgId }: { workflowId: string; orgId: string },
+    {
+      workflowId,
+      orgId,
+      triggerData,
+    }: {
+      workflowId: string
+      orgId: string
+      triggerData?: Record<string, unknown>
+    },
     { signal }
   ) => {
     const workflow = await getWorkflow(orgId, workflowId)
@@ -174,6 +182,19 @@ export const runWorkflowTask = task({
               getStagehand,
             })
             results[id] = result
+          } else if (node.data.type === "google-form-trigger") {
+            result = triggerData ?? {
+              formId: "sample-form-id",
+              formTitle: "Sample Form",
+              responseId: "sample-response-id",
+              respondentEmail: "test@example.com",
+              timestamp: new Date().toISOString(),
+              responses: {
+                "Sample Question": "Sample Answer",
+              },
+            }
+            results[id] = result
+            await wait.for({ seconds: 1 })
           } else {
             // Brief visual pacing for instant trigger nodes (e.g. 'start')
             // using Trigger.dev's durable wait mechanism.

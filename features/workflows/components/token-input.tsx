@@ -7,7 +7,7 @@ import React, {
   useImperativeHandle,
   useRef,
 } from "react"
-import { useNodes } from "@xyflow/react"
+import { useEdges, useNodes } from "@xyflow/react"
 import {
   nodeRegistry,
   type NodeType,
@@ -30,6 +30,7 @@ type TokenInputProps = {
   multiline?: boolean
   className?: string
   disabled?: boolean
+  currentNodeId?: string
 }
 
 type Segment =
@@ -112,6 +113,7 @@ function serializeDom(container: Node): string {
 
 const nodeIconSvgPaths: Record<string, string> = {
   start: `<path d="m9 9 5 12 1.8-5.2L21 14Z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/>`,
+  "google-form-trigger": `<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>`,
   "open-url": `<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>`,
   act: `<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>`,
   extract: `<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>`,
@@ -132,29 +134,89 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
       multiline = false,
       className,
       disabled = false,
+      currentNodeId,
     },
     ref
   ) {
     const containerRef = useRef<HTMLDivElement>(null)
     const nodes = useNodes<StepNodeType>()
+    const edges = useEdges()
     const lastSerializedValueRef = useRef<string | null>(null)
     const isComposingRef = useRef(false)
 
     const getNodeInfo = useCallback(
       (nodeId: string, path: string) => {
         const sourceNode = nodes.find((n) => n.id === nodeId)
-        const sourceDef = sourceNode ? nodeRegistry[sourceNode.data.type] : null
+        if (!sourceNode) {
+          return {
+            label: `Deleted Step · ${path || "output"}`,
+            accent: "bg-destructive text-destructive-foreground",
+            nodeType: undefined,
+            status: "deleted" as const,
+            tooltip: "This step was deleted. Remove this token.",
+          }
+        }
+
+        const sourceDef = nodeRegistry[sourceNode.data.type]
         const outputDef = sourceDef?.outputs?.find((o) => o.path === path)
         const nodeTitle =
           sourceNode?.data?.title || sourceDef?.label || "Node"
         const outputLabel = outputDef?.label || path || "output"
+
+        // Check whether sourceNode is a connected upstream ancestor of currentNodeId
+        let isConnected = true
+        if (currentNodeId) {
+          const targetToSources = new Map<string, string[]>()
+          for (const edge of edges) {
+            if (!edge.source || !edge.target) continue
+            const sources = targetToSources.get(edge.target)
+            if (sources) {
+              sources.push(edge.source)
+            } else {
+              targetToSources.set(edge.target, [edge.source])
+            }
+          }
+
+          const ancestors = new Set<string>()
+          const queue = [...(targetToSources.get(currentNodeId) || [])]
+          while (queue.length > 0) {
+            const curr = queue.shift()!
+            if (!ancestors.has(curr)) {
+              ancestors.add(curr)
+              const parents = targetToSources.get(curr) || []
+              for (const p of parents) {
+                if (!ancestors.has(p)) queue.push(p)
+              }
+            }
+          }
+
+          isConnected = ancestors.has(nodeId)
+        }
+
+        if (!isConnected) {
+          return {
+            label: `${nodeTitle} · ${outputLabel} (Disconnected)`,
+            accent: "bg-amber-500 text-white",
+            nodeType: sourceDef?.type as NodeType | undefined,
+            status: "disconnected" as const,
+            tooltip:
+              "This step is not connected to this node. Connect an edge to use this value.",
+          }
+        }
+
         const label = `${nodeTitle} · ${outputLabel}`
         const accent = sourceDef?.accent || "bg-primary text-primary-foreground"
         const nodeType = sourceDef?.type as NodeType | undefined
 
-        return { label, accent, nodeType }
+        return {
+          label,
+          accent,
+          nodeType,
+          status: "connected" as const,
+          tooltip: "",
+        }
       },
-      [nodes]
+      [nodes, edges, currentNodeId]
     )
 
     const buildTokenElement = useCallback(
@@ -163,13 +225,28 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
         const span = document.createElement("span")
         span.contentEditable = "false"
         span.setAttribute("data-token", rawToken)
-        span.className =
-          "inline-flex items-center gap-1.5 align-middle mx-1 my-0.5 px-1.5 py-0.5 rounded-md bg-secondary/80 text-secondary-foreground border border-border text-xs font-medium select-none shadow-2xs group/chip"
+
+        if (info.status === "deleted" || info.status === "disconnected") {
+          span.className =
+            "inline-flex items-center gap-1.5 align-middle mx-1 my-0.5 px-1.5 py-0.5 rounded-md bg-destructive/10 text-destructive border border-destructive/40 text-xs font-medium select-none shadow-2xs group/chip ring-1 ring-destructive/20"
+          if (info.tooltip) span.title = info.tooltip
+        } else {
+          span.className =
+            "inline-flex items-center gap-1.5 align-middle mx-1 my-0.5 px-1.5 py-0.5 rounded-md bg-secondary/80 text-secondary-foreground border border-border text-xs font-medium select-none shadow-2xs group/chip"
+        }
 
         // Icon chip
         const iconWrapper = document.createElement("span")
         iconWrapper.className = `flex size-3.5 shrink-0 items-center justify-center rounded-xs ${info.accent}`
-        const svgPath = (info.nodeType && nodeIconSvgPaths[info.nodeType]) || `<circle cx="12" cy="12" r="10"/>`
+        const warningSvg = `<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`
+        const normalSvg =
+          (info.nodeType && nodeIconSvgPaths[info.nodeType]) ||
+          `<circle cx="12" cy="12" r="10"/>`
+        const svgPath =
+          info.status === "deleted" || info.status === "disconnected"
+            ? warningSvg
+            : normalSvg
+
         iconWrapper.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${svgPath}</svg>`
         span.appendChild(iconWrapper)
 
@@ -195,11 +272,29 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
         removeBtn.onclick = (e) => {
           e.preventDefault()
           e.stopPropagation()
+          const parent = span.parentNode
+          const nextSibling = span.nextSibling
           span.remove()
           if (containerRef.current) {
             const nextVal = serializeDom(containerRef.current)
             lastSerializedValueRef.current = nextVal
             onChange(nextVal)
+
+            // Focus and maintain cursor at deletion point
+            containerRef.current.focus()
+            const sel = window.getSelection()
+            if (sel) {
+              const range = document.createRange()
+              if (nextSibling && parent?.contains(nextSibling)) {
+                range.setStartBefore(nextSibling)
+                range.setEndBefore(nextSibling)
+              } else if (parent) {
+                range.selectNodeContents(parent)
+                range.collapse(false)
+              }
+              sel.removeAllRanges()
+              sel.addRange(range)
+            }
           }
         }
         span.appendChild(removeBtn)
@@ -243,12 +338,58 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
       [buildTokenElement]
     )
 
-    // Sync from external value when it changes outside this component
+    // Sync only when external value has changed to prevent wiping cursor position
     useEffect(() => {
       if (value !== lastSerializedValueRef.current) {
         syncDomFromValue(value)
       }
     }, [value, syncDomFromValue])
+
+    // Update styling of existing token elements in-place when graph topology changes
+    useEffect(() => {
+      if (!containerRef.current) return
+      const tokenSpans =
+        containerRef.current.querySelectorAll<HTMLElement>("span[data-token]")
+      for (const span of Array.from(tokenSpans)) {
+        const rawToken = span.getAttribute("data-token")
+        if (!rawToken) continue
+        const segments = parseSegments(rawToken)
+        const tokenSeg = segments.find((s) => s.type === "token")
+        if (!tokenSeg || tokenSeg.type !== "token") continue
+
+        const info = getNodeInfo(tokenSeg.nodeId, tokenSeg.path)
+        if (info.status === "deleted" || info.status === "disconnected") {
+          span.className =
+            "inline-flex items-center gap-1.5 align-middle mx-1 my-0.5 px-1.5 py-0.5 rounded-md bg-destructive/10 text-destructive border border-destructive/40 text-xs font-medium select-none shadow-2xs group/chip ring-1 ring-destructive/20"
+          if (info.tooltip) span.title = info.tooltip
+        } else {
+          span.className =
+            "inline-flex items-center gap-1.5 align-middle mx-1 my-0.5 px-1.5 py-0.5 rounded-md bg-secondary/80 text-secondary-foreground border border-border text-xs font-medium select-none shadow-2xs group/chip"
+          span.title = ""
+        }
+
+        // Update icon wrapper
+        const iconWrapper = span.querySelector<HTMLElement>("span:first-child")
+        if (iconWrapper) {
+          iconWrapper.className = `flex size-3.5 shrink-0 items-center justify-center rounded-xs ${info.accent}`
+          const warningSvg = `<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`
+          const normalSvg =
+            (info.nodeType && nodeIconSvgPaths[info.nodeType]) ||
+            `<circle cx="12" cy="12" r="10"/>`
+          const svgPath =
+            info.status === "deleted" || info.status === "disconnected"
+              ? warningSvg
+              : normalSvg
+          iconWrapper.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${svgPath}</svg>`
+        }
+
+        // Update label
+        const labelSpan = span.querySelector<HTMLElement>("span:nth-child(2)")
+        if (labelSpan) {
+          labelSpan.textContent = info.label
+        }
+      }
+    }, [nodes, edges, getNodeInfo])
 
     const handleInput = () => {
       if (!containerRef.current || isComposingRef.current) return
