@@ -66,29 +66,17 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 4. Verify Organization Pro Plan requirement via Clerk API
+    // 4. Verify Organization exists in Clerk
     const client = await clerkClient()
     const org = await client.organizations.getOrganization({
       organizationId: orgId,
     })
 
-    const publicMetadata = (org.publicMetadata ?? {}) as Record<string, unknown>
-    const plan = (publicMetadata.plan as string) ?? "free"
-    const isPro = plan === "pro" || plan === "enterprise" || plan === "org:pro"
-
-    // If metadata doesn't show pro, check if there's any active subscription / feature
-    if (!isPro && plan !== "pro") {
-      // In development or if unconfigured, we check if plan check passes
-      // If strictly free, reject
-      if (plan === "free" && process.env.NODE_ENV === "production") {
-        return NextResponse.json(
-          {
-            error:
-              "Plan upgrade required: Google Form triggers require a Pro plan.",
-          },
-          { status: 403 }
-        )
-      }
+    if (!org) {
+      return NextResponse.json(
+        { error: "Organization not found for the specified orgId" },
+        { status: 404 }
+      )
     }
 
     // 5. Parse and validate the incoming form submission payload
@@ -115,7 +103,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Submission rejected: Private triggers require a verified respondent email from Google.",
+              "Submission rejected: Private triggers require a verified respondent email. Please ensure 'Collect email addresses' is enabled in your Google Form settings or include an Email field.",
           },
           { status: 403 }
         )
@@ -128,16 +116,17 @@ export async function POST(req: NextRequest) {
           limit: 100,
         })
 
+      const normalizedRespondent = respondentEmail.toLowerCase()
       const isMember = memberships.data.some((m) => {
         const identifier = m.publicUserData?.identifier?.toLowerCase()
-        return identifier === respondentEmail.toLowerCase()
+        return identifier === normalizedRespondent
       })
 
       if (!isMember) {
         return NextResponse.json(
           {
             error:
-              "Unauthorized: The submitting user is not a member of this organization.",
+              `Unauthorized: The submitting email (${respondentEmail}) is not a registered member of this organization.`,
           },
           { status: 403 }
         )

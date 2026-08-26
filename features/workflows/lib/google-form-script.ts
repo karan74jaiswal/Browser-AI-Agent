@@ -23,12 +23,23 @@ function onFormSubmit(e) {
     responses[item.getItem().getTitle()] = item.getResponse();
   }
 
+  // Extract respondent email from Google account or fallback to any form question matching "email"
+  var respondentEmail = formResponse.getRespondentEmail() || "";
+  if (!respondentEmail) {
+    for (var key in responses) {
+      if (key.toLowerCase().indexOf("email") !== -1 && typeof responses[key] === "string") {
+        respondentEmail = responses[key].trim();
+        break;
+      }
+    }
+  }
+
   var payload = {
     formId: e.source ? e.source.getId() : "",
     formTitle: e.source ? e.source.getTitle() : "",
     responseId: formResponse.getId(),
     timestamp: formResponse.getTimestamp() ? formResponse.getTimestamp().toISOString() : new Date().toISOString(),
-    respondentEmail: formResponse.getRespondentEmail() || "",
+    respondentEmail: respondentEmail,
     responses: responses,
   };
 
@@ -43,7 +54,9 @@ function onFormSubmit(e) {
 
   try {
     var response = UrlFetchApp.fetch(WEBHOOK_URL, options);
-    console.log("Webhook dispatched: HTTP " + response.getResponseCode());
+    var code = response.getResponseCode();
+    var body = response.getContentText();
+    console.log("Webhook dispatched: HTTP " + code + (body ? " - " + body : ""));
   } catch (error) {
     console.error("Failed to dispatch webhook:", error);
   }
