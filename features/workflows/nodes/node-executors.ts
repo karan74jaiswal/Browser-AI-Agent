@@ -7,6 +7,9 @@ import { extract } from "./extract"
 import { observe } from "./observe"
 import { agent } from "./agent"
 import { sendEmail } from "./send-email"
+import { httpRequest } from "./http-request"
+import { sendDiscordMessage } from "./discord"
+import { sendSlackMessage } from "./slack"
 
 export type NodeContext = {
   values: Record<string, string>
@@ -39,5 +42,24 @@ export const nodeExecutors: Partial<Record<NodeType, NodeExecutor>> = {
       to: values.to,
       subject: values.subject,
       body: values.body,
+    }),
+  "http-request": async ({ values }) =>
+    httpRequest({
+      endpoint: values.endpoint,
+      method: values.method || "GET",
+      headers: values.headers,
+      body: values.body,
+    }),
+  discord: async ({ values }) =>
+    sendDiscordMessage({
+      webhookUrl: values.webhookUrl,
+      content: values.content,
+      username: values.username,
+    }),
+  slack: async ({ values }) =>
+    sendSlackMessage({
+      webhookUrl: values.webhookUrl,
+      content: values.content,
+      username: values.username,
     }),
 } satisfies Record<ActionNodeType, NodeExecutor>

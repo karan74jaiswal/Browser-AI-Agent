@@ -19,16 +19,101 @@ The retrieval needs the secret API key, so it must be proxied server-side.
 
 # Adding a workflow node
 
-Three edits, all under `features/workflows/nodes/`:
+Workflows distinguish between two kinds of nodes: **Action Nodes** (execute during a run) and **Trigger Nodes** (initiate runs from webhooks or events). Follow the exact step-by-step instructions below based on which kind you are adding.
 
-1. the impl file (e.g. `open-url.ts`) — the node's executor logic,
-2. register it in `node-executors.ts` — the `satisfies` contract makes a missing
-   executor a compile error for action nodes,
-3. add its manifest entry in `node-registry.ts` — kind, label, icon, accent, its
-   input `fields`, and the `outputs` downstream nodes can reference.
+---
 
-The run task and the canvas step node are registry-driven — never touch them to add
-a node.
+## 1. Adding an Action Node (`kind: "action"`)
+
+Action nodes perform an operation during workflow execution (e.g. `open-url`, `act`, `extract`, `observe`, `agent`, `send-email`, `http-request`).
+
+### Step 1: Create the Executor File (`features/workflows/nodes/<node-name>.ts`)
+- Export an async executor function (e.g., `export async function httpRequest({ ... })`).
+- Sanitize string inputs if URLs or tokens might contain zero-width spaces: `.trim().replace(/[\u200B\uFEFF\u00A0]/g, "")`.
+- Return a serializable object containing the output variables defined in the manifest.
+- Throw descriptive `Error` instances on failure (these are caught by the execution runner and recorded in the step log).
+
+### Step 2: Register in `features/workflows/nodes/node-executors.ts`
+- Import the executor function.
+- Add the entry to `nodeExecutors`:
+  ```typescript
+  "my-action": async ({ values, getStagehand }) =>
+    myAction({
+      /* map values */
+    }),
+  ```
+- The `satisfies Record<ActionNodeType, NodeExecutor>` contract enforces compile-time safety: forgetting to register an action node will cause TypeScript compilation to fail.
+
+### Step 3: Register Manifest in `features/workflows/nodes/node-registry.ts`
+- Import the relevant Lucide icon from `lucide-react`.
+- Add an entry to `nodeRegistry` with:
+  - `type`: string key matching the executor name (e.g. `"my-action"`).
+  - `kind`: `"action"`.
+  - `label`: Human-readable label (e.g. `"My Action"`).
+  - `icon`: Lucide icon component.
+  - `accent`: Tailwind background + text class (e.g. `"bg-teal-600 text-white"`).
+  - `fields`: Array of `NodeField` (`key`, `label`, `placeholder`, `multiline`, `required`, `defaultValue`, `options`). If `options` is supplied, the inspector automatically renders a shadcn `Select` dropdown.
+  - `outputs`: Array of `NodeOutput` (`path`, `label`) that downstream nodes can reference using tokens (e.g. `{{ My Action · Result }}`).
+  - `requiredPlan`: Optional plan gating (`"pro"` or `"enterprise"`).
+
+### Step 4: Register Icon SVG Path in `features/workflows/components/token-input.tsx`
+- Add the node's SVG path to `nodeIconSvgPaths` so dynamic token pills in input fields display the branded icon badge.
+
+---
+
+## 2. Adding a Trigger Node (`kind: "trigger"`)
+
+Trigger nodes initiate workflow runs (e.g. `start`, `google-form-trigger`, `stripe-trigger`).
+
+### Step 1: Register Manifest in `features/workflows/nodes/node-registry.ts`
+- Add an entry to `nodeRegistry` with `kind: "trigger"`, `icon`, `accent`, `fields`, and `outputs`.
+
+### Step 2: Configure Inspector & Palette in `features/workflows/components/right-sidebar.tsx`
+- **Initial Values**: In `Palette.add()`, initialize default values or generated secrets (e.g., `whsec_${crypto.randomUUID()}`).
+- **Inspector Panel**: If the trigger requires webhook URLs or setup instructions, create a dedicated inspector component (e.g., `<StripeTriggerInspector>`, `<GoogleFormTriggerInspector>`) and render it in `Inspector` when `type === "<your-trigger>"`.
+
+### Step 3: Create Webhook Route (`app/api/webhooks/<provider>/route.ts`)
+- Parse query parameters: `workflowId`, `orgId`, `secret`.
+- Verify workflow existence via `getWorkflow(orgId, workflowId)`.
+- Verify secret authentication token against `node.data.values.secret`.
+- Normalize incoming payload to a strongly typed schema.
+- Dispatch Trigger.dev task:
+  ```typescript
+  await tasks.trigger<typeof runWorkflowTask>(
+    "run-workflow",
+    { workflowId, orgId, triggerData: normalizedData },
+    { tags: [`workflow:${workflowId}`, `org:${orgId}`, `trigger:<provider>`] }
+  )
+  ```
+
+### Step 4: Add Trigger Handling in `features/workflows/tasks/run-workflow.ts`
+- In the execution loop, handle `node.data.type === "<your-trigger>"` by populating `results[id]` with `triggerData ?? { /* fallback mock data for canvas test runs */ }`.
+
+### Step 5: Register Icon SVG Path in `features/workflows/components/token-input.tsx`
+- Add the trigger's SVG path to `nodeIconSvgPaths`.
+
+---
+
+## 3. Architecture Rules & Guardrails
+
+- **Registry-driven**: The canvas step node (`step-node.tsx`) and the run loop (`run-workflow.ts`) are registry-driven. Never hardcode node-specific UI or execution logic inside the canvas components.
+- **Variable Interpolation**: Token inputs automatically support `{{ <nodeId>.<output-path> }}` variable references. Downstream executors receive interpolated string values.
+- **Select Dropdowns**: Always use shadcn/ui components (`@/components/ui/select`), never native OS `<select>`/`<option>`.
+
+---
+
+## 4. What NOT to Do (Anti-Patterns & Pitfalls)
+
+- ❌ **DO NOT modify `step-node.tsx` or `canvas.tsx` for new action nodes**: The canvas node component is 100% generic and reads everything dynamically from `nodeRegistry`. Never hardcode `if (type === "my-action")` in canvas components.
+- ❌ **DO NOT touch `run-workflow.ts` for action nodes**: The Trigger.dev execution runner automatically looks up and invokes `nodeExecutors[node.data.type]`. You only ever add a branch to `run-workflow.ts` for **trigger** nodes (to handle `triggerData`).
+- ❌ **DO NOT create custom modal dialogs (`<Dialog>`) or form popups for node configuration**: Node properties are managed exclusively through the Right Sidebar Inspector. When you declare `fields` in `nodeRegistry`, the inspector automatically renders corresponding inputs and handles state persistence.
+- ❌ **DO NOT use native HTML `<select>` / `<option>` or `<NativeSelect>`**: Always use shadcn/ui Select (`@/components/ui/select`). Native OS dropdowns break dark mode, theme consistency, and custom styling.
+- ❌ **DO NOT perform manual token substitution inside action executors**: Upstream template variables (e.g. `{{ Step 1 · URL }}`) are already resolved by the runner before your executor function is called. Executors always receive cleanly interpolated string values.
+- ❌ **DO NOT silently catch and swallow errors in executors**: Always let errors bubble up or throw descriptive `Error` instances (e.g. `throw new Error("HTTP 404: Not Found")`). This ensures Trigger.dev logs the failure, marks the step as failed, and renders the red failure boundary on the canvas.
+- ❌ **DO NOT bypass the `satisfies Record<ActionNodeType, NodeExecutor>` type contract**: Never use `as any` in `node-executors.ts`. The type contract guarantees every action node in `nodeRegistry` has a corresponding executor.
+- ❌ **DO NOT use ad-hoc `any` or untyped `Record<string, unknown>` for third-party SDK payloads**: Always import and use official SDK types (e.g. `Stripe.Event`, `Stripe.PaymentIntent`, etc.) to maintain type safety.
+- ❌ **DO NOT omit SVG paths in `token-input.tsx`**: Always add the node's SVG path in `nodeIconSvgPaths`. Forgetting this causes variable chips in downstream inputs to render without their branded icon badge.
+- ❌ **DO NOT trigger background tasks directly from client components**: Always route webhook triggers and background task executions through secure server-side API routes (`/api/webhooks/...`) with proper authentication and organization scoping.
 
 # JSX text escaping
 
@@ -54,6 +139,13 @@ needed) from `db/schema.ts` and import it. When a consumer needs only some
 columns, narrow with `Pick<Row, ...>` / `Omit<Row, ...>` rather than redeclaring a
 literal type. Don't add an insert type where `db.insert(...).values()` already
 enforces the shape.
+
+<!-- STRIPE SKILLS START -->
+
+## Stripe agent skills
+
+This project has Strip agent skills installed in `.agents/skills/`. Before writing or changing Stripe code, load the most relevant skill: `sentry-setup-releases`, `stripe-apps`, `stripe-best-practices`, `stripe-directory`, `stripe-docs`, `stripe-projects`, `upgrade-stripe`, `connect-recommend`, `connect-required-verification-information`.
+<!-- STRIPE SKILLS END -->
 
 <!-- TRIGGER.DEV SKILLS START -->
 

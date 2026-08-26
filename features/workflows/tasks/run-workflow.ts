@@ -199,6 +199,25 @@ export const runWorkflowTask = task({
             if (!triggerData) {
               await wait.for({ seconds: 1 })
             }
+          } else if (node.data.type === "stripe-trigger") {
+            result = triggerData ?? {
+              amount: "49.00",
+              currency: "USD",
+              customerEmail: "customer@example.com",
+              customerId: "cus_sample12345",
+              eventType: node.data.values?.eventType || "payment_intent.succeeded",
+              status: "succeeded",
+              paymentIntentId: "pi_sample12345",
+              rawEvent: {
+                id: "evt_sample12345",
+                type: node.data.values?.eventType || "payment_intent.succeeded",
+              },
+            }
+            results[id] = result
+            // Only add pacing delay during manual canvas tests; execute immediately for live webhooks
+            if (!triggerData) {
+              await wait.for({ seconds: 1 })
+            }
           } else {
             // Brief visual pacing for instant trigger nodes (e.g. 'start')
             // using Trigger.dev's durable wait mechanism.

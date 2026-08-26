@@ -2,6 +2,7 @@ import type { Node } from "@xyflow/react"
 import {
   Bot,
   ClipboardList,
+  CreditCard,
   Eye,
   FileText,
   Globe,
@@ -10,6 +11,8 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react"
+import { DiscordIcon } from "./discord"
+import { SlackIcon } from "./slack"
 
 export type StepNodeKind = "trigger" | "action"
 
@@ -39,7 +42,7 @@ export type NodeDefinition = {
   type: string
   kind: StepNodeKind
   label: string
-  icon: LucideIcon
+  icon: LucideIcon | React.ComponentType<{ className?: string }>
   accent: string // Tailwind classes for the icon chip color
   fields: NodeField[]
   outputs: NodeOutput[]
@@ -82,6 +85,57 @@ export const nodeRegistry = {
       { path: "respondentEmail", label: "Respondent Email" },
       { path: "timestamp", label: "Timestamp" },
       { path: "responses", label: "Responses" },
+    ],
+  },
+  "stripe-trigger": {
+    type: "stripe-trigger",
+    kind: "trigger",
+    label: "Stripe",
+    icon: CreditCard,
+    accent: "bg-[#635BFF] text-white",
+    requiredPlan: "pro",
+    fields: [
+      {
+        key: "eventType",
+        label: "Event Type",
+        defaultValue: "payment_intent.succeeded",
+        options: [
+          {
+            label: "Payment Succeeded (payment_intent.succeeded)",
+            value: "payment_intent.succeeded",
+          },
+          {
+            label: "Checkout Session Completed (checkout.session.completed)",
+            value: "checkout.session.completed",
+          },
+          {
+            label: "Subscription Created (customer.subscription.created)",
+            value: "customer.subscription.created",
+          },
+          {
+            label: "Invoice Paid (invoice.payment_succeeded)",
+            value: "invoice.payment_succeeded",
+          },
+          {
+            label: "Charge Succeeded (charge.succeeded)",
+            value: "charge.succeeded",
+          },
+          {
+            label: "All Events (Listen to any Stripe event)",
+            value: "all",
+          },
+        ],
+      },
+    ],
+    outputs: [
+      { path: "amount", label: "Amount" },
+      { path: "currency", label: "Currency" },
+      { path: "customerEmail", label: "Customer Email" },
+      { path: "customerId", label: "Customer ID" },
+      { path: "eventType", label: "Event Type" },
+      { path: "status", label: "Payment Status" },
+      { path: "paymentIntentId", label: "Payment Intent ID" },
+      { path: "rawEvent", label: "Raw Event Data" },
     ],
   },
   "open-url": {
@@ -220,6 +274,113 @@ export const nodeRegistry = {
       },
     ],
     outputs: [{ path: "id", label: "Email ID" }],
+  },
+  "http-request": {
+    type: "http-request",
+    kind: "action",
+    label: "HTTP Request",
+    icon: Globe,
+    accent: "bg-teal-600 text-white",
+    fields: [
+      {
+        key: "endpoint",
+        label: "Endpoint URL",
+        placeholder: "https://api.example.com/v1/resource",
+        required: true,
+      },
+      {
+        key: "method",
+        label: "Method",
+        defaultValue: "GET",
+        options: [
+          { label: "GET", value: "GET" },
+          { label: "POST", value: "POST" },
+          { label: "PUT", value: "PUT" },
+          { label: "PATCH", value: "PATCH" },
+          { label: "DELETE", value: "DELETE" },
+        ],
+      },
+      {
+        key: "headers",
+        label: "Headers (JSON)",
+        placeholder: '{\n  "Authorization": "Bearer ...",\n  "Content-Type": "application/json"\n}',
+        multiline: true,
+      },
+      {
+        key: "body",
+        label: "Request Body",
+        placeholder: '{\n  "name": "Jane Doe",\n  "email": "jane@example.com"\n}',
+        multiline: true,
+      },
+    ],
+    outputs: [
+      { path: "status", label: "Status Code" },
+      { path: "statusText", label: "Status Text" },
+      { path: "data", label: "Response Body" },
+      { path: "headers", label: "Response Headers" },
+    ],
+  },
+  discord: {
+    type: "discord",
+    kind: "action",
+    label: "Discord",
+    icon: DiscordIcon,
+    accent: "bg-[#5865F2] text-white",
+    fields: [
+      {
+        key: "webhookUrl",
+        label: "Webhook URL",
+        placeholder: "https://discord.com/api/webhooks/...",
+        required: true,
+      },
+      {
+        key: "content",
+        label: "Message Content",
+        placeholder: "Summary: {{ Extract · Result }}",
+        multiline: true,
+        required: true,
+      },
+      {
+        key: "username",
+        label: "Bot Username (Optional)",
+        placeholder: "Workflow Bot",
+      },
+    ],
+    outputs: [
+      { path: "messageContent", label: "Message Content" },
+      { path: "success", label: "Success" },
+    ],
+  },
+  slack: {
+    type: "slack",
+    kind: "action",
+    label: "Slack",
+    icon: SlackIcon,
+    accent: "bg-[#4A154B] text-white",
+    fields: [
+      {
+        key: "webhookUrl",
+        label: "Webhook URL",
+        placeholder: "https://hooks.slack.com/services/...",
+        required: true,
+      },
+      {
+        key: "content",
+        label: "Message Content",
+        placeholder: "Summary: {{ Extract · Result }}",
+        multiline: true,
+        required: true,
+      },
+      {
+        key: "username",
+        label: "Bot Username (Optional)",
+        placeholder: "Workflow Bot",
+      },
+    ],
+    outputs: [
+      { path: "messageContent", label: "Message Content" },
+      { path: "success", label: "Success" },
+    ],
   },
 } satisfies Record<string, NodeDefinition>
 
