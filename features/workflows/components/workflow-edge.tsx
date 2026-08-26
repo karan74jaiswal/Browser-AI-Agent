@@ -1,10 +1,15 @@
 "use client"
 
-import React from "react"
+import React, { memo } from "react"
 import { BaseEdge, getSmoothStepPath, type EdgeProps } from "@xyflow/react"
 import { useLatestRunSteps } from "./workflow-runs-provider"
 
-export function WorkflowEdge({
+const baseEdgeStyle: React.CSSProperties = {
+  stroke: "var(--border)",
+  strokeWidth: 2,
+}
+
+function WorkflowEdgeComponent({
   id,
   source,
   target,
@@ -41,17 +46,17 @@ export function WorkflowEdge({
     sourceStep?.status === "done" &&
     (!targetStep || targetStep.status === "pending")
 
+  const combinedStyle = React.useMemo(() => {
+    return style ? { ...baseEdgeStyle, ...style } : baseEdgeStyle
+  }, [style])
+
   return (
     <>
       {/* Base normal gray edge */}
       <BaseEdge
         id={id}
         path={edgePath}
-        style={{
-          stroke: "var(--border)",
-          strokeWidth: 2,
-          ...style,
-        }}
+        style={combinedStyle}
         markerEnd={markerEnd}
       />
 
@@ -80,3 +85,5 @@ export function WorkflowEdge({
     </>
   )
 }
+
+export const WorkflowEdge = memo(WorkflowEdgeComponent)

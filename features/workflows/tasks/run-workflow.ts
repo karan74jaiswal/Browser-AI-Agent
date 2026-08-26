@@ -33,6 +33,7 @@ export type RunStep = {
 
 export const runWorkflowTask = task({
   id: "run-workflow",
+  maxDuration: 300, // 5-minute timeout cap to prevent runaway browser compute
   queue: {
     concurrencyLimit: 3, // Matches your Browserbase plan limit
   },
@@ -194,7 +195,10 @@ export const runWorkflowTask = task({
               },
             }
             results[id] = result
-            await wait.for({ seconds: 1 })
+            // Only add pacing delay during manual canvas tests; execute immediately for live webhooks
+            if (!triggerData) {
+              await wait.for({ seconds: 1 })
+            }
           } else {
             // Brief visual pacing for instant trigger nodes (e.g. 'start')
             // using Trigger.dev's durable wait mechanism.

@@ -44,6 +44,25 @@ const initialNodes: StepNodeType[] = [
 
 const initialEdges: Edge[] = []
 
+const defaultConnectionLineStyle: React.CSSProperties = {
+  stroke: "var(--border)",
+}
+
+const defaultEdgeOptions = {
+  type: "smoothstep",
+  style: { stroke: "var(--border)" },
+} as const
+
+const canvasStyle: React.CSSProperties = {
+  "--xy-background-color": "var(--background)",
+  "--xy-edge-stroke-width": 2,
+  "--xy-connectionline-stroke-width": 2,
+} as React.CSSProperties
+
+const proOptions = {
+  hideAttribution: true,
+} as const
+
 interface CanvasProps {
   workflowId?: string
 }
@@ -119,22 +138,11 @@ export function Canvas({ workflowId }: CanvasProps) {
         colorMode={colorMode}
         fitView
         connectionLineType={ConnectionLineType.SmoothStep}
-        connectionLineStyle={{ stroke: "var(--border)" }}
-        defaultEdgeOptions={{
-          type: "smoothstep",
-          style: { stroke: "var(--border)" },
-        }}
-        style={
-          {
-            "--xy-background-color": "var(--background)",
-            "--xy-edge-stroke-width": 2,
-            "--xy-connectionline-stroke-width": 2,
-          } as React.CSSProperties
-        }
+        connectionLineStyle={defaultConnectionLineStyle}
+        defaultEdgeOptions={defaultEdgeOptions}
+        style={canvasStyle}
         maxZoom={1}
-        proOptions={{
-          hideAttribution: true,
-        }}
+        proOptions={proOptions}
       >
         <Cursors />
         <Controls />

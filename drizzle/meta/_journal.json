@@ -15,6 +15,13 @@
       "when": 1787092104699,
       "tag": "0001_whole_cardiac",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787737462274,
+      "tag": "0002_fast_starhawk",
+      "breakpoints": true
     }
   ]
 }
