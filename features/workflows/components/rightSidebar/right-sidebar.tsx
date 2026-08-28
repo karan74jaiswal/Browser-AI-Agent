@@ -1,0 +1,129 @@
+"use client"
+
+import { useCallback, useState } from "react"
+
+import { useOnSelectionChange, useStore } from "@xyflow/react"
+import { Pencil, Trash2 } from "lucide-react"
+
+import { EditWorkflowDialog } from "../edit-workflow-dialog"
+import { DeleteWorkflowDialog } from "../delete-workflow-dialog"
+
+import { Button } from "@/components/ui/button"
+
+import { ResizablePanel } from "@/components/ui/resizable"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+import { type StepNodeType } from "@/features/workflows/nodes/node-registry"
+
+import Inspector from "./inspector"
+import Palette from "./palette"
+import RunButton from "./run-button"
+
+// ---------------------------------------------------------------------------
+// Header — workflow-level actions shown above the tabs.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// The sidebar itself — header on top, then the Toolbar / Editor tabs.
+// ---------------------------------------------------------------------------
+
+interface RightSidebarProps {
+  workflowId: string
+  workflowName?: string
+}
+
+export function RightSidebar({
+  workflowId,
+  workflowName = "",
+}: RightSidebarProps) {
+  const [tab, setTab] = useState("toolbar")
+  const [isRenameOpen, setIsRenameOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+
+  // Read the currently selected node from React Flow.
+  const selected = useStore((s) => s.nodes.find((node) => node.selected)) as
+    StepNodeType | undefined
+
+  // Auto-switch to the Editor tab when the selection changes.
+  useOnSelectionChange({
+    onChange: useCallback(({ nodes }) => {
+      if (nodes.length == 1) {
+        setTab("editor")
+      }
+    }, []),
+  })
+
+  return (
+    <ResizablePanel
+      className="bg-background"
+      defaultSize="16rem"
+      minSize="14rem"
+      maxSize="36rem"
+      groupResizeBehavior="preserve-pixel-size"
+    >
+      <Tabs value={tab} onValueChange={setTab} className="size-full gap-0">
+        <div className="flex items-center justify-between border-b border-border p-2">
+          <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              title="Rename workflow"
+              onClick={() => setIsRenameOpen(true)}
+            >
+              <Pencil className="size-4" />
+              <span className="sr-only">Rename workflow</span>
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              title="Delete workflow"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setIsDeleteOpen(true)}
+            >
+              <Trash2 className="size-4" />
+              <span className="sr-only">Delete workflow</span>
+            </Button>
+          </div>
+          <RunButton workflowId={workflowId} />
+        </div>
+        <TabsList className="m-2 w-fit bg-background">
+          <TabsTrigger
+            value="toolbar"
+            className="flex-none rounded-sm data-active:bg-accent! data-active:text-accent-foreground! data-active:shadow-none! dark:data-active:border-transparent!"
+          >
+            Toolbar
+          </TabsTrigger>
+          <TabsTrigger
+            value="editor"
+            className="flex-none rounded-sm data-active:bg-accent! data-active:text-accent-foreground! data-active:shadow-none! dark:data-active:border-transparent!"
+          >
+            Editor
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="toolbar" className="flex min-h-0 flex-col">
+          <Palette />
+        </TabsContent>
+        <TabsContent value="editor" className="flex min-h-0 flex-col">
+          <Inspector
+            key={selected?.id}
+            node={selected}
+            workflowId={workflowId}
+          />
+        </TabsContent>
+      </Tabs>
+      <EditWorkflowDialog
+        workflowId={workflowId}
+        initialName={workflowName}
+        open={isRenameOpen}
+        onOpenChange={setIsRenameOpen}
+      />
+      <DeleteWorkflowDialog
+        workflowId={workflowId}
+        workflowName={workflowName}
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        redirectOnDelete={true}
+      />
+    </ResizablePanel>
+  )
+}

@@ -151,7 +151,7 @@ export function Canvas({ workflowId }: CanvasProps) {
           <AvatarStack />
         </Panel>
         {process.env.NODE_ENV === "development" && (
-          <Panel position="bottom-left" className="ml-16 mb-2">
+          <Panel position="top-left" className="mb-2 ml-16">
             <DevWorkflowDebugger />
           </Panel>
         )}

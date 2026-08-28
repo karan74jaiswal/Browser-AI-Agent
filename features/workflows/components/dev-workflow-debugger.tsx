@@ -189,14 +189,17 @@ export function DevWorkflowDebugger() {
           hasSourceDone &&
           isBranchActive &&
           (edgeStep
-            ? edgeStep.status === "pending" || edgeStep.status === "running"
-            : targetRunning?.status === "running" || targetPending?.status === "pending")
+            ? edgeStep.status === "pending"
+            : targetPending?.status === "pending" && !targetRunning)
       )
 
       const isTraversed = Boolean(
         !isTransferring &&
-          (edgeStep ? edgeStep.status === "done" : hasSourceDone && hasTargetDone) &&
-          isBranchActive
+          hasSourceDone &&
+          isBranchActive &&
+          (edgeStep
+            ? edgeStep.status === "running" || edgeStep.status === "done"
+            : hasTargetDone || Boolean(targetRunning))
       )
 
       const currentEdgeState = isTraversed

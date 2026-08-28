@@ -74,20 +74,21 @@ function WorkflowEdgeComponent(props: EdgeProps) {
   const isBranchActive =
     sourceStep?.type !== "if" || !activeBranch || handleId === activeBranch
 
-  // Edge is transferring/animating while live, source has completed, branch is active, and target for this edge is pending/running
+  // Edge is transferring/animating while live, source has completed, branch is active, and target is pending (token traveling to target)
   const isTransferring = Boolean(
     isLive &&
     !isRunCanceling &&
     hasSourceDone &&
     isBranchActive &&
-    (edgeStep ? (edgeStep.status === "pending" || edgeStep.status === "running") : (targetRunning?.status === "running" || targetPending?.status === "pending"))
+    (edgeStep ? edgeStep.status === "pending" : (targetPending?.status === "pending" && !targetRunning))
   )
 
-  // Edge was traversed successfully when its step is done (or both endpoints finished) and it's not currently transferring
+  // Edge was traversed successfully once the token reaches the target (target is running or done)
   const isTraversed = Boolean(
     !isTransferring &&
-    (edgeStep ? edgeStep.status === "done" : (hasSourceDone && hasTargetDone)) &&
-    isBranchActive
+    hasSourceDone &&
+    isBranchActive &&
+    (edgeStep ? (edgeStep.status === "running" || edgeStep.status === "done") : (hasTargetDone || Boolean(targetRunning)))
   )
 
   // Edge failed if target step failed or (source failed and no target)
