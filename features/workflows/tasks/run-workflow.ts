@@ -1,50 +1,31 @@
 import { logger, metadata, task } from "@trigger.dev/sdk"
-import { getWorkflow } from "@/features/workflows/data"
-import {
-  browserbase,
-  localBrowser,
-  Stagehand,
-  type StagehandBrowser,
-} from "@browserbasehq/stagehand"
-import { nodeExecutors } from "../nodes/node-executors"
-import {
-  evaluateIfConditions,
-  interpolate,
-  type ConditionCriterion,
-  type LogicalCombinator,
-} from "../lib"
 import type { DeserializedJson } from "@trigger.dev/core"
+import { getWorkflow } from "@/features/workflows/data"
 import {
   nodeRegistry,
   type NodeType,
-  type StepNodeKind,
   type StepNodeType,
 } from "../nodes/node-registry"
-import type { Edge } from "@xyflow/react"
+import type {
+  QueueItem,
+  RunStep,
+  RunWorkflowTaskInput,
+  RunWorkflowTaskOutput,
+} from "./types"
+import { createBrowserSessionManager } from "./browser-manager"
+import {
+  buildEdgeMaps,
+  discoverNextReadyChildren,
+  findTriggerNode,
+} from "./graph-traversal"
+import { executeStep } from "./step-executor"
 
-export type RunStep = {
-  id: string
-  nodeId?: string
-  edgeId?: string
-  type: NodeType
-  title: string
-  kind?: StepNodeKind
-  status: "pending" | "running" | "done" | "failed" | "skipped" | "canceled"
-  startedAt?: number
-  completedAt?: number
-  duration?: number
-  durationMs?: number
-  output?: DeserializedJson
-  error?: string
-}
-
-type QueueItem = {
-  nodeId: string
-  edgeId?: string
-}
-
-const pace = (ms: number = 600) =>
-  new Promise((resolve) => setTimeout(resolve, ms))
+export type {
+  RunStep,
+  QueueItem,
+  RunWorkflowTaskInput,
+  RunWorkflowTaskOutput,
+} from "./types"
 
 export const runWorkflowTask = task({
   id: "run-workflow",
@@ -56,99 +37,32 @@ export const runWorkflowTask = task({
     maxAttempts: 1,
   },
   run: async (
-    {
-      workflowId,
-      orgId,
-      triggerData,
-    }: {
-      workflowId: string
-      orgId: string
-      triggerData?: Record<string, unknown>
-    },
+    { workflowId, orgId, triggerData }: RunWorkflowTaskInput,
     { signal }
-  ) => {
+  ): Promise<RunWorkflowTaskOutput> => {
     const workflow = await getWorkflow(orgId, workflowId)
 
-    if (!workflow?.graph) throw new Error(`Workflow ${workflowId} has no graph`)
+    if (!workflow?.graph) {
+      throw new Error(`Workflow ${workflowId} has no graph`)
+    }
 
     const { nodes, edges } = workflow.graph
     const byId = new Map<string, StepNodeType>(nodes.map((n) => [n.id, n]))
 
     // Map incoming and outgoing connections for dependency graph execution
-    const incomingEdges = new Map<string, Edge[]>()
-    const outgoingEdges = new Map<string, Edge[]>()
-
-    for (const edge of edges) {
-      if (!edge.source || !edge.target) continue
-
-      const inList = incomingEdges.get(edge.target) || []
-      inList.push(edge)
-      incomingEdges.set(edge.target, inList)
-
-      const outList = outgoingEdges.get(edge.source) || []
-      outList.push(edge)
-      outgoingEdges.set(edge.source, outList)
-    }
-
+    const { outgoingEdges } = buildEdgeMaps(edges)
     const activeEdges = new Set<string>()
     const disabledEdges = new Set<string>()
 
     // Determine entry point (trigger node)
-    const triggerNode =
-      nodes.find((n) => n.data?.kind === "trigger") || nodes[0]
-    if (!triggerNode) {
-      throw new Error("No start node found in workflow")
-    }
-
+    const triggerNode = findTriggerNode(nodes)
     const readyQueue: QueueItem[] = [{ nodeId: triggerNode.id }]
     const results: Record<string, unknown> = {}
     const steps: RunStep[] = []
 
     logger.log(`Running Workflow: ${workflow.name}`)
 
-    let stagehand: Stagehand | undefined
-    let browser: StagehandBrowser | undefined
-    let sessionId: string | undefined
-
-    const getStagehand = async (): Promise<Stagehand> => {
-      if (stagehand) return stagehand
-      try {
-        browser = process.env.BROWSERBASE_API_KEY
-          ? await browserbase.launch({
-              apiKey: process.env.BROWSERBASE_API_KEY,
-              userMetadata: { stagehand: "true" },
-            })
-          : await localBrowser.launch({ headless: true })
-
-        sessionId = browser.sessionId
-
-        stagehand = await Stagehand.create({
-          browser,
-          model: {
-            ...(process.env.BROWSERBASE_API_KEY
-              ? {
-                  modelName: "google/gemini-2.5-flash",
-                }
-              : {
-                  modelName: "google/gemini-3.6-flash",
-                  apiKey: process.env.GEMINI_API_KEY!,
-                }),
-          },
-          logging: {
-            level: "off",
-          },
-        })
-
-        return stagehand
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err))
-        logger.error("Failed to initialize browser session", {
-          error: error.message,
-        })
-        throw error
-      }
-    }
-
+    const browserManager = createBrowserSessionManager()
     let hasFailedStep = false
     let firstFailureError: Error | null = null
 
@@ -205,112 +119,15 @@ export const runWorkflowTask = task({
         logger.log(`Running step: ${title} (${type})`)
 
         try {
-          const interpolatedValues = Object.fromEntries(
-            Object.entries(node.data.values ?? {}).map(([key, value]) => [
-              key,
-              interpolate(value, results),
-            ])
-          )
-
-          let result: unknown
-
-          if (type === "if") {
-            const combinator =
-              (node.data.values?.combinator as LogicalCombinator) || "and"
-            let conditions: ConditionCriterion[] = []
-            try {
-              if (node.data.values?.conditions) {
-                conditions = JSON.parse(node.data.values.conditions)
-              }
-            } catch {}
-
-            const evaluationResult = evaluateIfConditions(
-              conditions,
-              combinator,
-              results
-            )
-            const activeBranch = evaluationResult ? "true" : "false"
-            const winningHandle = activeBranch
-
-            result = {
-              result: evaluationResult,
-              branch: activeBranch,
-              reason: `Evaluated ${evaluationResult ? "TRUE" : "FALSE"} via ${combinator.toUpperCase()} combinator`,
-            }
-            results[nodeId] = result
-
-            const outEdges = outgoingEdges.get(nodeId) || []
-            for (const edge of outEdges) {
-              const handle =
-                (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
-                  .sourceHandleId ||
-                (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
-                  .sourceHandle ||
-                "true"
-
-              if (handle === winningHandle) {
-                activeEdges.add(edge.id)
-              } else {
-                disabledEdges.add(edge.id)
-              }
-            }
-          } else if (node.data.type === "google-form-trigger") {
-            result = triggerData ?? {
-              formId: "sample-form-id",
-              formTitle: "Sample Form",
-              responseId: "sample-response-id",
-              respondentEmail: "test@example.com",
-              timestamp: new Date().toISOString(),
-              responses: {
-                "Sample Question": "Sample Answer",
-              },
-            }
-            results[nodeId] = result
-
-            const outEdges = outgoingEdges.get(nodeId) || []
-            for (const edge of outEdges) {
-              activeEdges.add(edge.id)
-            }
-          } else if (node.data.type === "stripe-trigger") {
-            result = triggerData ?? {
-              amount: "49.00",
-              currency: "USD",
-              customerEmail: "customer@example.com",
-              customerId: "cus_sample12345",
-              eventType:
-                node.data.values?.eventType || "payment_intent.succeeded",
-              status: "succeeded",
-              paymentIntentId: "pi_sample12345",
-              rawEvent: {
-                id: "evt_sample12345",
-                type: node.data.values?.eventType || "payment_intent.succeeded",
-              },
-            }
-            results[nodeId] = result
-
-            const outEdges = outgoingEdges.get(nodeId) || []
-            for (const edge of outEdges) {
-              activeEdges.add(edge.id)
-            }
-          } else {
-            const executor = nodeExecutors[node.data.type]
-            if (executor) {
-              result = await executor({
-                values: interpolatedValues,
-                getStagehand,
-              })
-            }
-            results[nodeId] = result
-
-            const outEdges = outgoingEdges.get(nodeId) || []
-            for (const edge of outEdges) {
-              activeEdges.add(edge.id)
-            }
-          }
-
-          if (!triggerData) {
-            await pace(400)
-          }
+          const result = await executeStep({
+            node,
+            results,
+            triggerData,
+            outgoingEdges,
+            activeEdges,
+            disabledEdges,
+            getStagehand: browserManager.getStagehand,
+          })
 
           const completedAt = Date.now()
           step.status = "done"
@@ -320,52 +137,17 @@ export const runWorkflowTask = task({
           step.output = (result as DeserializedJson) ?? { completed: true }
 
           // Discover ready downstream child nodes
-          const outEdges = outgoingEdges.get(nodeId) || []
-          const newReadyChildren: QueueItem[] = []
-
-          for (const edge of outEdges) {
-            if (!activeEdges.has(edge.id)) continue
-
-            const targetId = edge.target
-            if (!targetId) continue
-
-            newReadyChildren.push({ nodeId: targetId, edgeId: edge.id })
-
-            // Register child node as "pending" for canvas handoff animation
-            const childNode = byId.get(targetId)
-            if (childNode) {
-              const childDef = nodeRegistry[childNode.data.type]
-              steps.push({
-                id: crypto.randomUUID(),
-                nodeId: targetId,
-                edgeId: edge.id,
-                type: childNode.data.type as NodeType,
-                title:
-                  childNode.data.title ||
-                  childDef?.label ||
-                  childNode.data.type ||
-                  "Step",
-                kind: childNode.data.kind || childDef?.kind || "action",
-                status: "pending",
-              })
-            }
-          }
-
-          // Top-to-Bottom Canvas Priority: Sort sibling branches by canvas Y-coordinate
-          newReadyChildren.sort((a, b) => {
-            const nodeA = byId.get(a.nodeId)
-            const nodeB = byId.get(b.nodeId)
-            const yA = nodeA?.position?.y ?? 0
-            const yB = nodeB?.position?.y ?? 0
-            if (yA !== yB) return yA - yB
-
-            const xA = nodeA?.position?.x ?? 0
-            const xB = nodeB?.position?.x ?? 0
-            return xA - xB
+          const { readyChildren, pendingSteps } = discoverNextReadyChildren({
+            nodeId,
+            outgoingEdges,
+            activeEdges,
+            byId,
           })
 
+          steps.push(...pendingSteps)
+
           // Depth-First (DFS): Prepend direct child branch nodes to the front of readyQueue
-          readyQueue.unshift(...newReadyChildren)
+          readyQueue.unshift(...readyChildren)
 
           metadata.set("steps", steps)
           await metadata.flush()
@@ -403,7 +185,9 @@ export const runWorkflowTask = task({
             firstFailureError =
               error instanceof Error ? error : new Error(String(error))
           }
-          logger.error(`Step "${title}" failed: ${step.error}. Sibling branches will continue.`)
+          logger.error(
+            `Step "${title}" failed: ${step.error}. Sibling branches will continue.`
+          )
         }
       }
 
@@ -418,30 +202,14 @@ export const runWorkflowTask = task({
 
       // If any step failed, throw after all sibling branches have finished
       if (hasFailedStep) {
-        throw firstFailureError || new Error("Workflow finished with failed steps")
+        throw (
+          firstFailureError || new Error("Workflow finished with failed steps")
+        )
       }
     } finally {
-      try {
-        if (stagehand) {
-          await stagehand.close()
-        }
-      } catch (err) {
-        logger.warn("Stagehand session cleanup notice", {
-          error: err instanceof Error ? err.message : String(err),
-        })
-      } finally {
-        try {
-          if (browser) {
-            await browser.close()
-          }
-        } catch (err) {
-          logger.warn("Browser session cleanup notice", {
-            error: err instanceof Error ? err.message : String(err),
-          })
-        }
-      }
+      await browserManager.close()
     }
 
-    return { steps, sessionId }
+    return { steps, sessionId: browserManager.getSessionId() }
   },
 })
