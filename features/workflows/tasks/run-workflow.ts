@@ -25,6 +25,7 @@ import type { Edge } from "@xyflow/react"
 export type RunStep = {
   id: string
   nodeId?: string
+  edgeId?: string
   type: NodeType
   title: string
   kind?: StepNodeKind
@@ -35,6 +36,11 @@ export type RunStep = {
   durationMs?: number
   output?: DeserializedJson
   error?: string
+}
+
+type QueueItem = {
+  nodeId: string
+  edgeId?: string
 }
 
 const pace = (ms: number = 600) =>
@@ -94,7 +100,7 @@ export const runWorkflowTask = task({
       throw new Error("No start node found in workflow")
     }
 
-    const readyQueue: string[] = [triggerNode.id]
+    const readyQueue: QueueItem[] = [{ nodeId: triggerNode.id }]
     const executedNodes = new Set<string>()
     const results: Record<string, unknown> = {}
     const steps: RunStep[] = []
@@ -146,8 +152,9 @@ export const runWorkflowTask = task({
 
     try {
       while (readyQueue.length > 0) {
-        const nodeId = readyQueue.shift()!
-        if (executedNodes.has(nodeId)) continue
+        const item = readyQueue.shift()!
+        const nodeId = typeof item === "string" ? item : item.nodeId
+        const edgeId = typeof item === "string" ? undefined : item.edgeId
 
         if (signal?.aborted) {
           for (const s of steps) {
@@ -167,12 +174,17 @@ export const runWorkflowTask = task({
         const title = node.data.title || def?.label || node.data.type || "Step"
         const kind = node.data.kind || def?.kind || "action"
 
-        let step = steps.find((s) => s.id === nodeId)
+        let step = steps.find(
+          (s) =>
+            (edgeId ? s.edgeId === edgeId : (s.nodeId === nodeId || s.id === nodeId)) &&
+            s.status === "pending"
+        )
         const startedAt = Date.now()
         if (!step) {
           step = {
-            id: nodeId,
+            id: crypto.randomUUID(),
             nodeId,
+            edgeId,
             type,
             title,
             kind,
@@ -239,8 +251,10 @@ export const runWorkflowTask = task({
               }
             }
 
-            // Brief in-process visual breath so the user sees the evaluation happen on canvas
-            await pace(400)
+            // Brief visual breath for manual canvas test runs so user sees evaluation on canvas
+            if (!triggerData) {
+              await pace(400)
+            }
           } else if (node.data.type === "google-form-trigger") {
             result = triggerData ?? {
               formId: "sample-form-id",
@@ -315,47 +329,46 @@ export const runWorkflowTask = task({
 
           executedNodes.add(nodeId)
 
-          // Collect downstream children whose prerequisites are fully satisfied
-          const newReadyChildren: string[] = []
+          // Collect downstream children ready to execute on this active branch (n8n dataflow token model)
+          const newReadyChildren: QueueItem[] = []
           const outEdges = outgoingEdges.get(nodeId) || []
           for (const edge of outEdges) {
             if (!activeEdges.has(edge.id)) continue
 
             const targetId = edge.target
-            const targetInEdges = incomingEdges.get(targetId) || []
+            newReadyChildren.push({ nodeId: targetId, edgeId: edge.id })
 
-            // Child is ready when all its active (non-disabled) incoming edges have executed
-            const remainingPrereqs = targetInEdges.filter(
-              (e) => !disabledEdges.has(e.id) && !executedNodes.has(e.source)
-            )
-
-            if (
-              remainingPrereqs.length === 0 &&
-              !executedNodes.has(targetId) &&
-              !readyQueue.includes(targetId) &&
-              !newReadyChildren.includes(targetId)
-            ) {
-              newReadyChildren.push(targetId)
-
-              // Register all activated branch entry nodes as "pending" for parallel broadcast animation on canvas
-              const childNode = byId.get(targetId)
-              if (childNode && !steps.some((s) => s.id === targetId)) {
-                const childDef = nodeRegistry[childNode.data.type]
-                steps.push({
-                  id: targetId,
-                  nodeId: targetId,
-                  type: childNode.data.type as NodeType,
-                  title:
-                    childNode.data.title ||
-                    childDef?.label ||
-                    childNode.data.type ||
-                    "Step",
-                  kind: childNode.data.kind || childDef?.kind || "action",
-                  status: "pending",
-                })
-              }
+            // Register child node as "pending" for canvas handoff animation
+            const childNode = byId.get(targetId)
+            if (childNode) {
+              const childDef = nodeRegistry[childNode.data.type]
+              steps.push({
+                id: crypto.randomUUID(),
+                nodeId: targetId,
+                edgeId: edge.id,
+                type: childNode.data.type as NodeType,
+                title:
+                  childNode.data.title ||
+                  childDef?.label ||
+                  childNode.data.type ||
+                  "Step",
+                kind: childNode.data.kind || childDef?.kind || "action",
+                status: "pending",
+              })
             }
           }
+
+          // Sort sibling branch nodes visually from top-to-bottom on canvas (n8n / visual DAG convention)
+          newReadyChildren.sort((itemA, itemB) => {
+            const nodeA = byId.get(itemA.nodeId)
+            const nodeB = byId.get(itemB.nodeId)
+            const yA = nodeA?.position?.y ?? 0
+            const yB = nodeB?.position?.y ?? 0
+            if (yA !== yB) return yA - yB
+            const xA = nodeA?.position?.x ?? 0
+            const xB = nodeB?.position?.x ?? 0
+            return xA - xB
+          })
 
           // Depth-First (DFS): Prepend direct child branch nodes to the front of readyQueue
           // so the current pipeline runs to completion before backtracking to alternate branches (n8n style)

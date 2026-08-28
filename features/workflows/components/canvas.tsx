@@ -14,6 +14,7 @@ import {
 import { useTheme } from "next-themes"
 import { StepNode } from "@/features/workflows/components/step-node"
 import { WorkflowEdge } from "@/features/workflows/components/workflow-edge"
+import { DevWorkflowDebugger } from "@/features/workflows/components/dev-workflow-debugger"
 import { type StepNodeType } from "@/features/workflows/nodes/node-registry"
 import { useLiveblocksFlow, Cursors } from "@liveblocks/react-flow"
 import { AvatarStack } from "@liveblocks/react-ui"
@@ -149,6 +150,11 @@ export function Canvas({ workflowId }: CanvasProps) {
         <Panel position="top-right">
           <AvatarStack />
         </Panel>
+        {process.env.NODE_ENV === "development" && (
+          <Panel position="bottom-left" className="ml-16 mb-2">
+            <DevWorkflowDebugger />
+          </Panel>
+        )}
       </ReactFlow>
     </div>
   )

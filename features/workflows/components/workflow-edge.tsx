@@ -37,8 +37,27 @@ function WorkflowEdgeComponent(props: EdgeProps) {
   const isRunCanceling = Boolean(
     cancelingRunId && latestRun?.id === cancelingRunId && isLive
   )
-  const sourceStep = steps?.find((s) => s.id === source)
-  const targetStep = steps?.find((s) => s.id === target)
+  // Find the exact step instance initiated by this specific edge (prioritize active running/pending pass)
+  const edgeSteps = steps?.filter((s) => s.edgeId === id) ?? []
+  const edgeRunning = edgeSteps.find((s) => s.status === "running")
+  const edgePending = edgeSteps.find((s) => s.status === "pending")
+  const edgeDone = [...edgeSteps].reverse().find((s) => s.status === "done")
+  const edgeStep = edgeRunning ?? edgePending ?? edgeDone ?? edgeSteps[edgeSteps.length - 1]
+
+  const sourceSteps = steps?.filter((s) => s.nodeId === source || s.id === source) ?? []
+  const targetSteps = steps?.filter((s) => s.nodeId === target || s.id === target) ?? []
+
+  const hasSourceDone = sourceSteps.some((s) => s.status === "done")
+  const hasTargetDone = targetSteps.some((s) => s.status === "done")
+
+  const sourceRunning = sourceSteps.find((s) => s.status === "running")
+  const sourceDone = sourceSteps.find((s) => s.status === "done")
+  const sourceStep = sourceRunning ?? sourceDone ?? sourceSteps[sourceSteps.length - 1]
+
+  const targetRunning = targetSteps.find((s) => s.status === "running")
+  const targetPending = targetSteps.find((s) => s.status === "pending")
+  const targetStep =
+    edgeStep ?? targetRunning ?? targetPending ?? targetSteps[targetSteps.length - 1]
 
   const handleId =
     (props as { sourceHandleId?: string | null; sourceHandle?: string | null })
@@ -55,27 +74,26 @@ function WorkflowEdgeComponent(props: EdgeProps) {
   const isBranchActive =
     sourceStep?.type !== "if" || !activeBranch || handleId === activeBranch
 
-  // Edge was traversed successfully when both connected nodes are done on the active branch
+  // Edge is transferring/animating while live, source has completed, branch is active, and target for this edge is pending/running
+  const isTransferring = Boolean(
+    isLive &&
+    !isRunCanceling &&
+    hasSourceDone &&
+    isBranchActive &&
+    (edgeStep ? (edgeStep.status === "pending" || edgeStep.status === "running") : (targetRunning?.status === "running" || targetPending?.status === "pending"))
+  )
+
+  // Edge was traversed successfully when its step is done (or both endpoints finished) and it's not currently transferring
   const isTraversed = Boolean(
-    sourceStep?.status === "done" &&
-    targetStep?.status === "done" &&
+    !isTransferring &&
+    (edgeStep ? edgeStep.status === "done" : (hasSourceDone && hasTargetDone)) &&
     isBranchActive
   )
 
   // Edge failed if target step failed or (source failed and no target)
   const isFailed = Boolean(
-    (targetStep?.status === "failed" ||
-      (sourceStep?.status === "failed" && !targetStep)) &&
+    (edgeStep?.status === "failed" || targetStep?.status === "failed" || (sourceStep?.status === "failed" && !targetStep)) &&
     isBranchActive
-  )
-
-  // Edge is transferring/animating while live, source is done, target is pending or running, and branch was active
-  const isTransferring = Boolean(
-    isLive &&
-    !isRunCanceling &&
-    sourceStep?.status === "done" &&
-    isBranchActive &&
-    (targetStep?.status === "pending" || targetStep?.status === "running")
   )
 
   const combinedStyle = React.useMemo(() => {

@@ -37,19 +37,28 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
   const isRunCanceling = Boolean(
     cancelingRunId && latestRun?.id === cancelingRunId && isLive
   )
-  const step = steps?.find((s) => s.id === id)
-  const isFailed = step?.status === "failed"
+  const nodeSteps = steps?.filter((s) => s.nodeId === id || s.id === id) ?? []
+  const hasRunning = nodeSteps.some((s) => s.status === "running")
+  const hasDone = nodeSteps.some((s) => s.status === "done")
+  const hasFailed = nodeSteps.some((s) => s.status === "failed")
+
+  const runningStep = nodeSteps.find((s) => s.status === "running")
+  const doneStep = [...nodeSteps].reverse().find((s) => s.status === "done")
+  const latestStep = nodeSteps[nodeSteps.length - 1]
+  const step = runningStep ?? doneStep ?? latestStep
+
+  const isFailed = hasFailed && !hasRunning
   const isStepCanceling =
     isRunCanceling &&
-    (step?.status === "running" ||
-      (kind === "trigger" && step?.status !== "done" && !isFailed))
+    (hasRunning ||
+      (kind === "trigger" && !hasDone && !isFailed))
   const isRunning =
     isLive &&
     !isRunCanceling &&
-    (step?.status === "running" ||
-      (kind === "trigger" && step?.status !== "done" && !isFailed))
+    (hasRunning ||
+      (kind === "trigger" && !hasDone && !isFailed))
   const isDone = Boolean(
-    step?.status === "done" && !isRunning && !isStepCanceling && !isFailed
+    hasDone && !isRunning && !isStepCanceling && !isFailed
   )
   const winningBranch = (step?.output as { branch?: string } | undefined)?.branch
 
