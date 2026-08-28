@@ -48,28 +48,54 @@ function WorkflowEdgeComponent(props: EdgeProps) {
     "true"
 
   const outputObj = sourceStep?.output as
-    | { branch?: string; result?: boolean }
-    | undefined
+    { branch?: string; result?: boolean } | undefined
   const activeBranch = outputObj?.branch
 
   // If the source node is an "if" node, verify that this edge matches the winning branch
   const isBranchActive =
-    sourceStep?.type !== "if" ||
-    !activeBranch ||
-    handleId === activeBranch
+    sourceStep?.type !== "if" || !activeBranch || handleId === activeBranch
 
-  // Edge is active strictly during the handoff phase: source is finished ("done")
-  // and target is waiting to begin execution ("pending")
-  const isTransferring =
+  // Edge was traversed successfully when both connected nodes are done on the active branch
+  const isTraversed = Boolean(
+    sourceStep?.status === "done" &&
+    targetStep?.status === "done" &&
+    isBranchActive
+  )
+
+  // Edge failed if target step failed or (source failed and no target)
+  const isFailed = Boolean(
+    (targetStep?.status === "failed" ||
+      (sourceStep?.status === "failed" && !targetStep)) &&
+    isBranchActive
+  )
+
+  // Edge is transferring/animating while live, source is done, target is pending or running, and branch was active
+  const isTransferring = Boolean(
     isLive &&
     !isRunCanceling &&
     sourceStep?.status === "done" &&
     isBranchActive &&
-    targetStep?.status === "pending"
+    (targetStep?.status === "pending" || targetStep?.status === "running")
+  )
 
   const combinedStyle = React.useMemo(() => {
-    return style ? { ...baseEdgeStyle, ...style } : baseEdgeStyle
-  }, [style])
+    const base = { ...baseEdgeStyle, ...style }
+    if (isTraversed) {
+      return {
+        ...base,
+        stroke: "rgb(16 185 129)", // Emerald 500
+        strokeWidth: 2,
+      }
+    }
+    if (isFailed) {
+      return {
+        ...base,
+        stroke: "var(--destructive)",
+        strokeWidth: 2,
+      }
+    }
+    return base
+  }, [isTraversed, isFailed, style])
 
   return (
     <>

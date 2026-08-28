@@ -315,7 +315,8 @@ export const runWorkflowTask = task({
 
           executedNodes.add(nodeId)
 
-          // Enqueue downstream children whose prerequisites are fully satisfied
+          // Collect downstream children whose prerequisites are fully satisfied
+          const newReadyChildren: string[] = []
           const outEdges = outgoingEdges.get(nodeId) || []
           for (const edge of outEdges) {
             if (!activeEdges.has(edge.id)) continue
@@ -331,11 +332,12 @@ export const runWorkflowTask = task({
             if (
               remainingPrereqs.length === 0 &&
               !executedNodes.has(targetId) &&
-              !readyQueue.includes(targetId)
+              !readyQueue.includes(targetId) &&
+              !newReadyChildren.includes(targetId)
             ) {
-              readyQueue.push(targetId)
+              newReadyChildren.push(targetId)
 
-              // Register downstream child as "pending" for seamless canvas handoff pulse
+              // Register all activated branch entry nodes as "pending" for parallel broadcast animation on canvas
               const childNode = byId.get(targetId)
               if (childNode && !steps.some((s) => s.id === targetId)) {
                 const childDef = nodeRegistry[childNode.data.type]
@@ -354,6 +356,10 @@ export const runWorkflowTask = task({
               }
             }
           }
+
+          // Depth-First (DFS): Prepend direct child branch nodes to the front of readyQueue
+          // so the current pipeline runs to completion before backtracking to alternate branches (n8n style)
+          readyQueue.unshift(...newReadyChildren)
 
           metadata.set("steps", steps)
           await metadata.flush()

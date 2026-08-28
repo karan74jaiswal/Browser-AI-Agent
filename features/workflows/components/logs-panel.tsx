@@ -172,6 +172,10 @@ export function LogsPanel({
             ? prettyMs(run.durationMs)
             : null
 
+        const visibleSteps = steps
+          .filter((step) => step.status !== "pending")
+          .sort((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0))
+
         return (
           <AccordionItem
             key={run.id}
@@ -201,7 +205,7 @@ export function LogsPanel({
             </AccordionTrigger>
 
             <AccordionContent className="flex h-auto! flex-col gap-0.5 pt-1">
-              {steps.length === 0 && !hasRecording ? (
+              {visibleSteps.length === 0 && !hasRecording ? (
                 isRunActive ? (
                   <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
                     <Spinner className="size-3 text-primary" />
@@ -214,7 +218,7 @@ export function LogsPanel({
                 )
               ) : (
                 <>
-                  {steps.map((step) => {
+                  {visibleSteps.map((step) => {
                     const stepKey = `${run.id}-${step.id}`
                     const isSelected =
                       activeSelectedId === stepKey ||

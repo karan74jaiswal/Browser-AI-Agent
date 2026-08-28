@@ -476,7 +476,15 @@ const CONDITION_OPERATORS: { label: string; value: ConditionOperator }[] = [
   { label: "does not match regex", value: "not_regex_match" },
 ]
 
-function IfInspector({ node }: { node: StepNodeType }) {
+function IfInspector({
+  node,
+  onFocusField,
+  registerInputRef,
+}: {
+  node: StepNodeType
+  onFocusField?: (key: string) => void
+  registerInputRef?: (key: string, handle: TokenInputHandle | null) => void
+}) {
   const { updateNodeData } = useReactFlow<StepNodeType>()
 
   const combinator = (node.data.values?.combinator as LogicalCombinator) || "and"
@@ -628,7 +636,16 @@ function IfInspector({ node }: { node: StepNodeType }) {
 
                 {/* Left Input */}
                 <TokenInput
+                  ref={(handle) =>
+                    registerInputRef?.(
+                      `condition-${criterion.id}-left`,
+                      handle
+                    )
+                  }
                   value={criterion.left}
+                  onFocus={() =>
+                    onFocusField?.(`condition-${criterion.id}-left`)
+                  }
                   onChange={(val) =>
                     handleUpdateCondition(criterion.id, { left: val })
                   }
@@ -660,7 +677,16 @@ function IfInspector({ node }: { node: StepNodeType }) {
                 {/* Right Input (if binary) */}
                 {!isUnary && (
                   <TokenInput
+                    ref={(handle) =>
+                      registerInputRef?.(
+                        `condition-${criterion.id}-right`,
+                        handle
+                      )
+                    }
                     value={criterion.right}
+                    onFocus={() =>
+                      onFocusField?.(`condition-${criterion.id}-right`)
+                    }
                     onChange={(val) =>
                       handleUpdateCondition(criterion.id, { right: val })
                     }
@@ -806,22 +832,59 @@ function Inspector({
   }
 
   const handleInsertToken = (token: string) => {
+    // 1. If an active input field is focused (standard field or If condition), insert directly into it
+    if (activeFieldKey) {
+      const handle = inputRefs.current.get(activeFieldKey)
+      if (handle) {
+        handle.insertToken(token)
+        return
+      }
+    }
+
+    // 2. Fallback for standard nodes: first insertable field
     const targetField =
       insertableFields.find((f) => f.key === activeFieldKey) ??
       insertableFields[0]
 
-    if (!targetField) return
+    if (targetField) {
+      setActiveFieldKey(targetField.key)
+      const handle = inputRefs.current.get(targetField.key)
+      if (handle) {
+        handle.insertToken(token)
+      } else {
+        const currentVal = values[targetField.key] ?? ""
+        const newVal = currentVal ? `${currentVal} ${token}` : token
+        updateNodeData(node.id, {
+          values: { ...values, [targetField.key]: newVal },
+        })
+      }
+      return
+    }
 
-    setActiveFieldKey(targetField.key)
-    const handle = inputRefs.current.get(targetField.key)
-    if (handle) {
-      handle.insertToken(token)
-    } else {
-      const currentVal = values[targetField.key] ?? ""
-      const newVal = currentVal ? `${currentVal} ${token}` : token
-      updateNodeData(node.id, {
-        values: { ...values, [targetField.key]: newVal },
-      })
+    // 3. Fallback for If node: insert into first condition's left field if none focused
+    if (type === "if") {
+      try {
+        const conditions: ConditionCriterion[] = JSON.parse(
+          values.conditions || "[]"
+        )
+        if (conditions.length > 0) {
+          const first = conditions[0]
+          const fieldKey = `condition-${first.id}-left`
+          setActiveFieldKey(fieldKey)
+          const handle = inputRefs.current.get(fieldKey)
+          if (handle) {
+            handle.insertToken(token)
+          } else {
+            const next = [
+              { ...first, left: first.left ? `${first.left} ${token}` : token },
+              ...conditions.slice(1),
+            ]
+            updateNodeData(node.id, {
+              values: { ...values, conditions: JSON.stringify(next) },
+            })
+          }
+        }
+      } catch {}
     }
   }
 
@@ -913,9 +976,21 @@ function Inspector({
 
         {type === "slack" && <SlackInspector />}
 
-        {type === "if" && <IfInspector node={node} />}
+        {type === "if" && (
+          <IfInspector
+            node={node}
+            onFocusField={setActiveFieldKey}
+            registerInputRef={(key, handle) => {
+              if (handle) {
+                inputRefs.current.set(key, handle)
+              } else {
+                inputRefs.current.delete(key)
+              }
+            }}
+          />
+        )}
 
-        {connections.length > 0 && insertableFields.length > 0 && (
+        {connections.length > 0 && (insertableFields.length > 0 || type === "if") && (
           <div className="flex flex-col gap-1.5 border-t border-border pt-3">
             <Label className="text-xs text-muted-foreground">Connections</Label>
             <div className="flex flex-wrap gap-1.5">

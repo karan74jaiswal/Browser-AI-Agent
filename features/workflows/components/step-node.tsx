@@ -48,6 +48,10 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
     !isRunCanceling &&
     (step?.status === "running" ||
       (kind === "trigger" && step?.status !== "done" && !isFailed))
+  const isDone = Boolean(
+    step?.status === "done" && !isRunning && !isStepCanceling && !isFailed
+  )
+  const winningBranch = (step?.output as { branch?: string } | undefined)?.branch
 
   // A trigger starts the flow and takes no input, so it has no target handle.
   const hasTarget = kind !== "trigger"
@@ -59,7 +63,9 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
         isRunning && "border-blue-500/40 shadow-[0_0_16px_rgba(59,130,246,0.15)]",
         isStepCanceling &&
           "border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.2)]",
-        isFailed && "border-destructive",
+        isFailed && "border-destructive shadow-[0_0_16px_rgba(239,68,68,0.15)]",
+        isDone &&
+          "border-emerald-500/50 dark:border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.1)]",
         selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
         isIfNode && "min-h-[72px] flex flex-col justify-center"
       )}
@@ -112,7 +118,9 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
               ? "bg-amber-500!"
               : isRunning
                 ? "bg-blue-500!"
-                : "bg-border!"
+                : isDone
+                  ? "bg-emerald-500!"
+                  : "bg-border!"
           )}
         />
       )}
@@ -147,7 +155,9 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
                 ? "bg-amber-500!"
                 : isRunning
                   ? "bg-blue-500!"
-                  : "bg-border!"
+                  : isDone && winningBranch === "true"
+                    ? "bg-emerald-500!"
+                    : "bg-border!"
             )}
           />
           <div
@@ -170,7 +180,9 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
                 ? "bg-amber-500!"
                 : isRunning
                   ? "bg-blue-500!"
-                  : "bg-border!"
+                  : isDone && winningBranch === "false"
+                    ? "bg-emerald-500!"
+                    : "bg-border!"
             )}
           />
           <div
@@ -214,7 +226,9 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
                 ? "bg-amber-500!"
                 : isRunning
                   ? "bg-blue-500!"
-                  : "bg-border!"
+                  : isDone
+                    ? "bg-emerald-500!"
+                    : "bg-border!"
             )}
           />
         </>
