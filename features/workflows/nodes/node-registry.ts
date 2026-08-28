@@ -1,5 +1,6 @@
 import type { Node } from "@xyflow/react"
 import {
+  AlertOctagon,
   Bot,
   ClipboardList,
   Clock,
@@ -416,6 +417,23 @@ export const nodeRegistry = {
       { path: "seconds", label: "Seconds Waited" },
       { path: "completedAt", label: "Completed At" },
     ],
+  },
+  "throw-error": {
+    type: "throw-error",
+    kind: "action",
+    label: "Throw Error",
+    icon: AlertOctagon,
+    accent: "bg-rose-600 text-white",
+    fields: [
+      {
+        key: "message",
+        label: "Error Message",
+        placeholder: "e.g. Intentional failure for testing",
+        defaultValue: "Intentional test error triggered by Throw Error node",
+        required: false,
+      },
+    ],
+    outputs: [],
   },
 } satisfies Record<string, NodeDefinition>
 

@@ -295,6 +295,7 @@ export async function POST(req: NextRequest) {
           `trigger:stripe`,
           `stripe:event:${event.type}`,
         ],
+        idempotencyKey: `stripe:${workflow.id}:${event.id}`,
       }
     )
 

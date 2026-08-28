@@ -11,6 +11,7 @@ import { httpRequest } from "./http-request"
 import { sendDiscordMessage } from "./discord"
 import { sendSlackMessage } from "./slack"
 import { waitNode } from "./wait"
+import { throwErrorNode } from "./throw-error"
 import {
   evaluateIfConditions,
   type ConditionCriterion,
@@ -85,4 +86,6 @@ export const nodeExecutors: Partial<Record<NodeType, NodeExecutor>> = {
   },
   wait: async ({ values }) =>
     waitNode({ seconds: values.seconds }),
+  "throw-error": async ({ values }) =>
+    throwErrorNode({ message: values.message }),
 } satisfies Record<ActionNodeType, NodeExecutor>

@@ -89,24 +89,24 @@ export function Canvas({ workflowId }: CanvasProps) {
 
   const lastSavedJsonRef = React.useRef<string>("")
 
-  // Auto-save whenever the graph is valid and has changed
+  // Auto-save whenever the graph is valid and has changed (debounced)
   React.useEffect(() => {
     if (!workflowId) return
 
-    const graph: WorkflowGraph = { nodes, edges }
-    const problems = validateGraph(graph)
-
-    // Only auto-save to DB if the graph is completely valid (0 problems)
-    if (problems.length > 0) {
-      return
-    }
-
-    const currentJson = JSON.stringify(graph)
-    if (currentJson === lastSavedJsonRef.current) {
-      return
-    }
-
     const timer = setTimeout(async () => {
+      const graph: WorkflowGraph = { nodes, edges }
+      const problems = validateGraph(graph)
+
+      // Only auto-save to DB if the graph is completely valid (0 problems)
+      if (problems.length > 0) {
+        return
+      }
+
+      const currentJson = JSON.stringify(graph)
+      if (currentJson === lastSavedJsonRef.current) {
+        return
+      }
+
       try {
         await saveWorkflowGraphAction(workflowId, graph)
         lastSavedJsonRef.current = currentJson

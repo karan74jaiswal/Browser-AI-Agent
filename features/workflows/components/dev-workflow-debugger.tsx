@@ -22,6 +22,8 @@ interface ItemGlowRecord {
   firstBlueAt?: string
   greenSeen: boolean
   firstGreenAt?: string
+  failedSeen?: boolean
+  firstFailedAt?: string
   lastStatus?: string
   transitionHistory: string[]
 }
@@ -74,27 +76,28 @@ export function DevWorkflowDebugger() {
     nodes.forEach((n) => {
       const nodeKey = `node:${n.id}`
       const nodeSteps = steps.filter((s) => s.nodeId === n.id || s.id === n.id)
-      const runningStep = nodeSteps.find((s) => s.status === "running")
-      const pendingStep = nodeSteps.find((s) => s.status === "pending")
-      const latestStep = nodeSteps[nodeSteps.length - 1]
-      const currentStep = runningStep ?? pendingStep ?? latestStep
+      const hasRunning = nodeSteps.some((s) => s.status === "running")
+      const hasDone = nodeSteps.some((s) => s.status === "done")
+      const hasPending = nodeSteps.some((s) => s.status === "pending")
+      const hasFailed = nodeSteps.some((s) => s.status === "failed")
+      const failedStep = nodeSteps.find((s) => s.status === "failed")
 
       const isRunning =
         isLive &&
-        (currentStep?.status === "running" ||
-          (n.data?.kind === "trigger" &&
-            currentStep?.status !== "done" &&
-            currentStep?.status !== "failed"))
-      const isDone = currentStep?.status === "done" && !isRunning
-      const isPending = currentStep?.status === "pending"
+        (hasRunning ||
+          (n.data?.kind === "trigger" && !hasDone && !hasFailed))
+      const isDone = hasDone && !isRunning
+      const isPending = hasPending && !isRunning && !isDone
 
       const currentState = isRunning
         ? "RUNNING"
-        : isDone
-          ? "DONE"
-          : isPending
-            ? "PENDING"
-            : "IDLE"
+        : hasFailed && !isRunning
+          ? "FAILED"
+          : isDone
+            ? "DONE"
+            : isPending
+              ? "PENDING"
+              : "IDLE"
       const prevState = prevStatesRef.current.get(nodeKey)
 
       if (currentState !== prevState) {
@@ -125,6 +128,14 @@ export function DevWorkflowDebugger() {
             timestamp: Date.now(),
             relativeTime: getRelTime(),
             text: `🔵 [Node: ${n.data?.title || n.id}] Blue Orbit Glow STARTED (Running Pass ${doneCount + 1}/${totalPasses})`,
+          })
+        } else if (currentState === "FAILED") {
+          record.failedSeen = true
+          if (!record.firstFailedAt) record.firstFailedAt = getRelTime()
+          timelineEventsRef.current.push({
+            timestamp: Date.now(),
+            relativeTime: getRelTime(),
+            text: `🔴 [Node: ${n.data?.title || n.id}] FAILED: "${failedStep?.error || "Step failed"}"`,
           })
         } else if (isDone) {
           record.greenSeen = true
@@ -312,8 +323,12 @@ export function DevWorkflowDebugger() {
       const greenText = record?.greenSeen
         ? `✅ YES (${record.firstGreenAt})`
         : `❌ NO`
+      const statusText =
+        record?.lastStatus === "FAILED"
+          ? `🔴 FAILED (${record.firstFailedAt})`
+          : `\`${record?.lastStatus || "IDLE"}\``
       const historyStr = record?.transitionHistory?.join(" ➔ ") || "None"
-      md += `| **[${n.data?.title || n.id}]** | Node | ${blueText} | ${greenText} | \`${record?.lastStatus || "IDLE"}\` | \`${historyStr}\` |\n`
+      md += `| **[${n.data?.title || n.id}]** | Node | ${blueText} | ${greenText} | ${statusText} | \`${historyStr}\` |\n`
     })
 
     // Check all edges

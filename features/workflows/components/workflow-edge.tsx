@@ -56,8 +56,6 @@ function WorkflowEdgeComponent(props: EdgeProps) {
 
   const targetRunning = targetSteps.find((s) => s.status === "running")
   const targetPending = targetSteps.find((s) => s.status === "pending")
-  const targetStep =
-    edgeStep ?? targetRunning ?? targetPending ?? targetSteps[targetSteps.length - 1]
 
   const handleId =
     (props as { sourceHandleId?: string | null; sourceHandle?: string | null })
@@ -91,9 +89,9 @@ function WorkflowEdgeComponent(props: EdgeProps) {
     (edgeStep ? (edgeStep.status === "running" || edgeStep.status === "done") : (hasTargetDone || Boolean(targetRunning)))
   )
 
-  // Edge failed if target step failed or (source failed and no target)
+  // Edge failed if the specific step initiated by this edge failed
   const isFailed = Boolean(
-    (edgeStep?.status === "failed" || targetStep?.status === "failed" || (sourceStep?.status === "failed" && !targetStep)) &&
+    edgeStep?.status === "failed" &&
     isBranchActive
   )
 

@@ -101,7 +101,6 @@ export const runWorkflowTask = task({
     }
 
     const readyQueue: QueueItem[] = [{ nodeId: triggerNode.id }]
-    const executedNodes = new Set<string>()
     const results: Record<string, unknown> = {}
     const steps: RunStep[] = []
 
@@ -149,6 +148,9 @@ export const runWorkflowTask = task({
         throw error
       }
     }
+
+    let hasFailedStep = false
+    let firstFailureError: Error | null = null
 
     try {
       while (readyQueue.length > 0) {
@@ -210,50 +212,47 @@ export const runWorkflowTask = task({
             ])
           )
 
-          let result: unknown = undefined
+          let result: unknown
 
-          if (node.data.type === "if") {
+          if (type === "if") {
             const combinator =
               (node.data.values?.combinator as LogicalCombinator) || "and"
             let conditions: ConditionCriterion[] = []
             try {
               if (node.data.values?.conditions) {
-                const parsed = JSON.parse(node.data.values.conditions)
-                if (Array.isArray(parsed)) {
-                  conditions = parsed
-                }
+                conditions = JSON.parse(node.data.values.conditions)
               }
             } catch {}
 
-            const evalResult = evaluateIfConditions(
+            const evaluationResult = evaluateIfConditions(
               conditions,
               combinator,
               results
             )
-            const activeHandle = evalResult ? "true" : "false"
-            const inactiveHandle = evalResult ? "false" : "true"
+            const activeBranch = evaluationResult ? "true" : "false"
+            const winningHandle = activeBranch
 
             result = {
-              result: evalResult,
-              branch: activeHandle,
-              reason: `Evaluated ${evalResult ? "TRUE" : "FALSE"} via ${combinator.toUpperCase()} combinator`,
+              result: evaluationResult,
+              branch: activeBranch,
+              reason: `Evaluated ${evaluationResult ? "TRUE" : "FALSE"} via ${combinator.toUpperCase()} combinator`,
             }
             results[nodeId] = result
 
-            // Activate winning handle edges; disable losing handle edges
             const outEdges = outgoingEdges.get(nodeId) || []
             for (const edge of outEdges) {
-              const handle = edge.sourceHandle || "true" // default to true if unassigned
-              if (handle === activeHandle) {
+              const handle =
+                (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
+                  .sourceHandleId ||
+                (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
+                  .sourceHandle ||
+                "true"
+
+              if (handle === winningHandle) {
                 activeEdges.add(edge.id)
-              } else if (handle === inactiveHandle) {
+              } else {
                 disabledEdges.add(edge.id)
               }
-            }
-
-            // Brief visual breath for manual canvas test runs so user sees evaluation on canvas
-            if (!triggerData) {
-              await pace(400)
             }
           } else if (node.data.type === "google-form-trigger") {
             result = triggerData ?? {
@@ -271,10 +270,6 @@ export const runWorkflowTask = task({
             const outEdges = outgoingEdges.get(nodeId) || []
             for (const edge of outEdges) {
               activeEdges.add(edge.id)
-            }
-
-            if (!triggerData) {
-              // await pace(600)
             }
           } else if (node.data.type === "stripe-trigger") {
             result = triggerData ?? {
@@ -297,10 +292,6 @@ export const runWorkflowTask = task({
             for (const edge of outEdges) {
               activeEdges.add(edge.id)
             }
-
-            if (!triggerData) {
-              // await pace(600)
-            }
           } else {
             const executor = nodeExecutors[node.data.type]
             if (executor) {
@@ -308,9 +299,6 @@ export const runWorkflowTask = task({
                 values: interpolatedValues,
                 getStagehand,
               })
-            } else {
-              // Visual pacing for instant trigger nodes (e.g. 'start')
-              // await pace(1000)
             }
             results[nodeId] = result
 
@@ -320,22 +308,27 @@ export const runWorkflowTask = task({
             }
           }
 
+          if (!triggerData) {
+            await pace(400)
+          }
+
           const completedAt = Date.now()
           step.status = "done"
           step.completedAt = completedAt
           step.duration = completedAt - startedAt
           step.durationMs = completedAt - startedAt
-          step.output = result as DeserializedJson
+          step.output = (result as DeserializedJson) ?? { completed: true }
 
-          executedNodes.add(nodeId)
-
-          // Collect downstream children ready to execute on this active branch (n8n dataflow token model)
-          const newReadyChildren: QueueItem[] = []
+          // Discover ready downstream child nodes
           const outEdges = outgoingEdges.get(nodeId) || []
+          const newReadyChildren: QueueItem[] = []
+
           for (const edge of outEdges) {
             if (!activeEdges.has(edge.id)) continue
 
             const targetId = edge.target
+            if (!targetId) continue
+
             newReadyChildren.push({ nodeId: targetId, edgeId: edge.id })
 
             // Register child node as "pending" for canvas handoff animation
@@ -358,20 +351,20 @@ export const runWorkflowTask = task({
             }
           }
 
-          // Sort sibling branch nodes visually from top-to-bottom on canvas (n8n / visual DAG convention)
-          newReadyChildren.sort((itemA, itemB) => {
-            const nodeA = byId.get(itemA.nodeId)
-            const nodeB = byId.get(itemB.nodeId)
+          // Top-to-Bottom Canvas Priority: Sort sibling branches by canvas Y-coordinate
+          newReadyChildren.sort((a, b) => {
+            const nodeA = byId.get(a.nodeId)
+            const nodeB = byId.get(b.nodeId)
             const yA = nodeA?.position?.y ?? 0
             const yB = nodeB?.position?.y ?? 0
             if (yA !== yB) return yA - yB
+
             const xA = nodeA?.position?.x ?? 0
             const xB = nodeB?.position?.x ?? 0
             return xA - xB
           })
 
           // Depth-First (DFS): Prepend direct child branch nodes to the front of readyQueue
-          // so the current pipeline runs to completion before backtracking to alternate branches (n8n style)
           readyQueue.unshift(...newReadyChildren)
 
           metadata.set("steps", steps)
@@ -394,8 +387,38 @@ export const runWorkflowTask = task({
 
           metadata.set("steps", steps)
           await metadata.flush()
-          throw error
+
+          if (isAbort) {
+            for (const s of steps) {
+              if (s.status === "pending") s.status = "skipped"
+            }
+            metadata.set("steps", steps)
+            await metadata.flush()
+            throw error
+          }
+
+          // Branch-isolated failure: record failure and allow parallel sibling branches to continue
+          hasFailedStep = true
+          if (!firstFailureError) {
+            firstFailureError =
+              error instanceof Error ? error : new Error(String(error))
+          }
+          logger.error(`Step "${title}" failed: ${step.error}. Sibling branches will continue.`)
         }
+      }
+
+      // Sweep any remaining unreached pending steps
+      for (const s of steps) {
+        if (s.status === "pending") {
+          s.status = "skipped"
+        }
+      }
+      metadata.set("steps", steps)
+      await metadata.flush()
+
+      // If any step failed, throw after all sibling branches have finished
+      if (hasFailedStep) {
+        throw firstFailureError || new Error("Workflow finished with failed steps")
       }
     } finally {
       try {

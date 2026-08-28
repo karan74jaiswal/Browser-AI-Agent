@@ -56,7 +56,8 @@ export function validateGraph({ edges, nodes }: WorkflowGraph): string[] {
     const values = node.data?.values ?? {}
     const ancestors = getAncestorNodeIds(node.id)
 
-    for (const rawVal of Object.values(values)) {
+    for (const [key, rawVal] of Object.entries(values)) {
+      if (node.data?.type === "if" && key === "conditions") continue
       if (typeof rawVal !== "string") continue
       const refs = extractAllTokenReferences(rawVal)
       for (const ref of refs) {
@@ -79,10 +80,30 @@ export function validateGraph({ edges, nodes }: WorkflowGraph): string[] {
           const criteria = JSON.parse(values.conditions)
           if (Array.isArray(criteria)) {
             for (let i = 0; i < criteria.length; i++) {
-              if (!criteria[i].left?.trim()) {
+              const criterion = criteria[i]
+              if (!criterion.left?.trim()) {
                 problems.push(
                   `Condition ${i + 1} on "${node.data?.title || "If"}" is missing a left value/token.`
                 )
+              }
+
+              const fieldValues = [criterion.left, criterion.right].filter(
+                (v): v is string => typeof v === "string" && v.length > 0
+              )
+              for (const fieldVal of fieldValues) {
+                const refs = extractAllTokenReferences(fieldVal)
+                for (const ref of refs) {
+                  const sourceNode = nodeById.get(ref.nodeId)
+                  if (!sourceNode) {
+                    problems.push(
+                      `Condition ${i + 1} on "${node.data?.title || "If"}" references a deleted step.`
+                    )
+                  } else if (!ancestors.has(ref.nodeId)) {
+                    problems.push(
+                      `Condition ${i + 1} on "${node.data?.title || "If"}" references "${sourceNode.data?.title || "Step"}", but they are not connected.`
+                    )
+                  }
+                }
               }
             }
           }
