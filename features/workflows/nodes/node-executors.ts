@@ -10,6 +10,12 @@ import { sendEmail } from "./send-email"
 import { httpRequest } from "./http-request"
 import { sendDiscordMessage } from "./discord"
 import { sendSlackMessage } from "./slack"
+import { waitNode } from "./wait"
+import {
+  evaluateIfConditions,
+  type ConditionCriterion,
+  type LogicalCombinator,
+} from "../lib/evaluate-condition"
 
 export type NodeContext = {
   values: Record<string, string>
@@ -62,4 +68,21 @@ export const nodeExecutors: Partial<Record<NodeType, NodeExecutor>> = {
       content: values.content,
       username: values.username,
     }),
+  if: async ({ values }) => {
+    const combinator = (values.combinator as LogicalCombinator) || "and"
+    let conditions: ConditionCriterion[] = []
+    try {
+      if (values.conditions) {
+        conditions = JSON.parse(values.conditions)
+      }
+    } catch {}
+    const result = evaluateIfConditions(conditions, combinator, {})
+    return {
+      result,
+      branch: result ? "true" : "false",
+      reason: `Evaluated ${result ? "TRUE" : "FALSE"} via ${combinator.toUpperCase()} combinator`,
+    }
+  },
+  wait: async ({ values }) =>
+    waitNode({ seconds: values.seconds }),
 } satisfies Record<ActionNodeType, NodeExecutor>

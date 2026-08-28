@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
   const { type, kind, title, values } = data
   const def = nodeRegistry[type]
+  const isIfNode = type === "if"
   const Icon = def.icon
   const fields = (def.fields as NodeField[])
     .map((field: NodeField) => {
@@ -59,7 +60,8 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
         isStepCanceling &&
           "border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.2)]",
         isFailed && "border-destructive",
-        selected && "ring-2 ring-ring ring-offset-2 ring-offset-background"
+        selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
+        isIfNode && "min-h-[72px] flex flex-col justify-center"
       )}
     >
       {/* Circular border beam orbiting active node */}
@@ -132,39 +134,91 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
         </div>
         <span className="text-sm font-semibold">{title}</span>
       </div>
-      {fields.length > 0 && (
+      {isIfNode ? (
         <>
-          <div className="border-t border-border" />
-          <div className="flex flex-col gap-1.5 px-3 py-2.5">
-            {fields.map(({ field, displayValue }) => (
-              <div
-                key={field.key}
-                className="flex items-center justify-between gap-4 text-xs"
-              >
-                <span className="shrink-0 text-muted-foreground">
-                  {field.label}
-                </span>
-                <span className="truncate font-medium">
-                  {displayValue}
-                </span>
-              </div>
-            ))}
+          <Handle
+            type="source"
+            position={Position.Right}
+            id="true"
+            style={{ top: "28%", transform: "translate(100%, -50%)" }}
+            className={cn(
+              "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-colors duration-300",
+              isStepCanceling
+                ? "bg-amber-500!"
+                : isRunning
+                  ? "bg-blue-500!"
+                  : "bg-border!"
+            )}
+          />
+          <div
+            style={{ top: "28%", transform: "translate(100%, -50%)" }}
+            className="pointer-events-none absolute right-0 flex items-center pl-2.5"
+          >
+            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 select-none">
+              true
+            </span>
+          </div>
+
+          <Handle
+            type="source"
+            position={Position.Right}
+            id="false"
+            style={{ top: "72%", transform: "translate(100%, -50%)" }}
+            className={cn(
+              "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-colors duration-300",
+              isStepCanceling
+                ? "bg-amber-500!"
+                : isRunning
+                  ? "bg-blue-500!"
+                  : "bg-border!"
+            )}
+          />
+          <div
+            style={{ top: "72%", transform: "translate(100%, -50%)" }}
+            className="pointer-events-none absolute right-0 flex items-center pl-2.5"
+          >
+            <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 select-none">
+              false
+            </span>
           </div>
         </>
+      ) : (
+        <>
+          {fields.length > 0 && (
+            <>
+              <div className="border-t border-border" />
+              <div className="flex flex-col gap-1.5 px-3 py-2.5">
+                {fields.map(({ field, displayValue }) => (
+                  <div
+                    key={field.key}
+                    className="flex items-center justify-between gap-4 text-xs"
+                  >
+                    <span className="shrink-0 text-muted-foreground">
+                      {field.label}
+                    </span>
+                    <span className="truncate font-medium">
+                      {displayValue}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          <Handle
+            type="source"
+            position={Position.Right}
+            style={{ transform: "translate(100%, -50%)" }}
+            className={cn(
+              "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-colors duration-300",
+              isStepCanceling
+                ? "bg-amber-500!"
+                : isRunning
+                  ? "bg-blue-500!"
+                  : "bg-border!"
+            )}
+          />
+        </>
       )}
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{ transform: "translate(100%, -50%)" }}
-        className={cn(
-          "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-colors duration-300",
-          isStepCanceling
-            ? "bg-amber-500!"
-            : isRunning
-              ? "bg-blue-500!"
-              : "bg-border!"
-        )}
-      />
     </div>
   )
 }

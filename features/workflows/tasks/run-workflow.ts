@@ -1,5 +1,4 @@
-import toposort from "toposort"
-import { logger, metadata, task, wait } from "@trigger.dev/sdk"
+import { logger, metadata, task } from "@trigger.dev/sdk"
 import { getWorkflow } from "@/features/workflows/data"
 import {
   browserbase,
@@ -8,13 +7,20 @@ import {
   type StagehandBrowser,
 } from "@browserbasehq/stagehand"
 import { nodeExecutors } from "../nodes/node-executors"
-import { interpolate } from "../lib"
+import {
+  evaluateIfConditions,
+  interpolate,
+  type ConditionCriterion,
+  type LogicalCombinator,
+} from "../lib"
 import type { DeserializedJson } from "@trigger.dev/core"
 import {
   nodeRegistry,
   type NodeType,
   type StepNodeKind,
+  type StepNodeType,
 } from "../nodes/node-registry"
+import type { Edge } from "@xyflow/react"
 
 export type RunStep = {
   id: string
@@ -30,6 +36,9 @@ export type RunStep = {
   output?: DeserializedJson
   error?: string
 }
+
+const pace = (ms: number = 600) =>
+  new Promise((resolve) => setTimeout(resolve, ms))
 
 export const runWorkflowTask = task({
   id: "run-workflow",
@@ -57,39 +66,40 @@ export const runWorkflowTask = task({
     if (!workflow?.graph) throw new Error(`Workflow ${workflowId} has no graph`)
 
     const { nodes, edges } = workflow.graph
-    const byId = new Map(nodes.map((n) => [n.id, n]))
+    const byId = new Map<string, StepNodeType>(nodes.map((n) => [n.id, n]))
 
-    const connected = new Set(
-      edges.flatMap((edge) => [edge.source, edge.target])
-    )
+    // Map incoming and outgoing connections for dependency graph execution
+    const incomingEdges = new Map<string, Edge[]>()
+    const outgoingEdges = new Map<string, Edge[]>()
 
-    const order = toposort
-      .array(
-        nodes.map((n) => n.id),
-        edges.map((e) => [e.source, e.target])
-      )
-      .filter((id) => connected.has(id))
-    logger.log(`Running Workflow ${workflow.name}`, { steps: order.length })
+    for (const edge of edges) {
+      if (!edge.source || !edge.target) continue
 
-    const steps: RunStep[] = order.map((id) => {
-      const node = byId.get(id)
-      const type = (node?.data.type ?? "start") as NodeType
-      const title =
-        node?.data.title ??
-        nodeRegistry[type]?.label ??
-        (node?.data.type || "Step")
-      const kind = node?.data.kind ?? nodeRegistry[type]?.kind ?? "action"
-      return {
-        id,
-        nodeId: id,
-        type,
-        title,
-        kind,
-        status: "pending" as const,
-      }
-    })
-    metadata.set("steps", steps)
-    await metadata.flush()
+      const inList = incomingEdges.get(edge.target) || []
+      inList.push(edge)
+      incomingEdges.set(edge.target, inList)
+
+      const outList = outgoingEdges.get(edge.source) || []
+      outList.push(edge)
+      outgoingEdges.set(edge.source, outList)
+    }
+
+    const activeEdges = new Set<string>()
+    const disabledEdges = new Set<string>()
+
+    // Determine entry point (trigger node)
+    const triggerNode =
+      nodes.find((n) => n.data?.kind === "trigger") || nodes[0]
+    if (!triggerNode) {
+      throw new Error("No start node found in workflow")
+    }
+
+    const readyQueue: string[] = [triggerNode.id]
+    const executedNodes = new Set<string>()
+    const results: Record<string, unknown> = {}
+    const steps: RunStep[] = []
+
+    logger.log(`Running Workflow: ${workflow.name}`)
 
     let stagehand: Stagehand | undefined
     let browser: StagehandBrowser | undefined
@@ -134,38 +144,51 @@ export const runWorkflowTask = task({
       }
     }
 
-    const results: Record<string, unknown> = {}
-
     try {
-      for (const id of order) {
+      while (readyQueue.length > 0) {
+        const nodeId = readyQueue.shift()!
+        if (executedNodes.has(nodeId)) continue
+
         if (signal?.aborted) {
-          const currentIndex = order.indexOf(id)
-          if (currentIndex !== -1) {
-            for (let i = currentIndex; i < order.length; i++) {
-              const remainingStep = steps.find((s) => s.id === order[i])
-              if (remainingStep && (remainingStep.status === "pending" || remainingStep.status === "running")) {
-                remainingStep.status = remainingStep.status === "running" ? "canceled" : "skipped"
-              }
-            }
+          for (const s of steps) {
+            if (s.status === "running") s.status = "canceled"
+            else if (s.status === "pending") s.status = "skipped"
           }
           metadata.set("steps", steps)
           await metadata.flush()
           throw new Error("Workflow run was canceled")
         }
 
-        const node = byId.get(id)
+        const node = byId.get(nodeId)
         if (!node) continue
 
-        logger.log(`Running step: ${node.data.title}`)
+        const def = nodeRegistry[node.data.type]
+        const type = node.data.type as NodeType
+        const title = node.data.title || def?.label || node.data.type || "Step"
+        const kind = node.data.kind || def?.kind || "action"
 
-        const step = steps.find((s) => s.id === id)
+        let step = steps.find((s) => s.id === nodeId)
         const startedAt = Date.now()
-        if (step) {
+        if (!step) {
+          step = {
+            id: nodeId,
+            nodeId,
+            type,
+            title,
+            kind,
+            status: "running",
+            startedAt,
+          }
+          steps.push(step)
+        } else {
           step.status = "running"
           step.startedAt = startedAt
-          metadata.set("steps", steps)
-          await metadata.flush()
         }
+
+        metadata.set("steps", steps)
+        await metadata.flush()
+
+        logger.log(`Running step: ${title} (${type})`)
 
         try {
           const interpolatedValues = Object.fromEntries(
@@ -175,14 +198,49 @@ export const runWorkflowTask = task({
             ])
           )
 
-          const executor = nodeExecutors[node.data.type]
           let result: unknown = undefined
-          if (executor) {
-            result = await executor({
-              values: interpolatedValues,
-              getStagehand,
-            })
-            results[id] = result
+
+          if (node.data.type === "if") {
+            const combinator =
+              (node.data.values?.combinator as LogicalCombinator) || "and"
+            let conditions: ConditionCriterion[] = []
+            try {
+              if (node.data.values?.conditions) {
+                const parsed = JSON.parse(node.data.values.conditions)
+                if (Array.isArray(parsed)) {
+                  conditions = parsed
+                }
+              }
+            } catch {}
+
+            const evalResult = evaluateIfConditions(
+              conditions,
+              combinator,
+              results
+            )
+            const activeHandle = evalResult ? "true" : "false"
+            const inactiveHandle = evalResult ? "false" : "true"
+
+            result = {
+              result: evalResult,
+              branch: activeHandle,
+              reason: `Evaluated ${evalResult ? "TRUE" : "FALSE"} via ${combinator.toUpperCase()} combinator`,
+            }
+            results[nodeId] = result
+
+            // Activate winning handle edges; disable losing handle edges
+            const outEdges = outgoingEdges.get(nodeId) || []
+            for (const edge of outEdges) {
+              const handle = edge.sourceHandle || "true" // default to true if unassigned
+              if (handle === activeHandle) {
+                activeEdges.add(edge.id)
+              } else if (handle === inactiveHandle) {
+                disabledEdges.add(edge.id)
+              }
+            }
+
+            // Brief in-process visual breath so the user sees the evaluation happen on canvas
+            await pace(400)
           } else if (node.data.type === "google-form-trigger") {
             result = triggerData ?? {
               formId: "sample-form-id",
@@ -194,10 +252,15 @@ export const runWorkflowTask = task({
                 "Sample Question": "Sample Answer",
               },
             }
-            results[id] = result
-            // Only add pacing delay during manual canvas tests; execute immediately for live webhooks
+            results[nodeId] = result
+
+            const outEdges = outgoingEdges.get(nodeId) || []
+            for (const edge of outEdges) {
+              activeEdges.add(edge.id)
+            }
+
             if (!triggerData) {
-              await wait.for({ seconds: 1 })
+              // await pace(600)
             }
           } else if (node.data.type === "stripe-trigger") {
             result = triggerData ?? {
@@ -205,7 +268,8 @@ export const runWorkflowTask = task({
               currency: "USD",
               customerEmail: "customer@example.com",
               customerId: "cus_sample12345",
-              eventType: node.data.values?.eventType || "payment_intent.succeeded",
+              eventType:
+                node.data.values?.eventType || "payment_intent.succeeded",
               status: "succeeded",
               paymentIntentId: "pi_sample12345",
               rawEvent: {
@@ -213,54 +277,101 @@ export const runWorkflowTask = task({
                 type: node.data.values?.eventType || "payment_intent.succeeded",
               },
             }
-            results[id] = result
-            // Only add pacing delay during manual canvas tests; execute immediately for live webhooks
+            results[nodeId] = result
+
+            const outEdges = outgoingEdges.get(nodeId) || []
+            for (const edge of outEdges) {
+              activeEdges.add(edge.id)
+            }
+
             if (!triggerData) {
-              await wait.for({ seconds: 1 })
+              // await pace(600)
             }
           } else {
-            // Brief visual pacing for instant trigger nodes (e.g. 'start')
-            // using Trigger.dev's durable wait mechanism.
-            await wait.for({ seconds: 1 })
+            const executor = nodeExecutors[node.data.type]
+            if (executor) {
+              result = await executor({
+                values: interpolatedValues,
+                getStagehand,
+              })
+            } else {
+              // Visual pacing for instant trigger nodes (e.g. 'start')
+              // await pace(1000)
+            }
+            results[nodeId] = result
+
+            const outEdges = outgoingEdges.get(nodeId) || []
+            for (const edge of outEdges) {
+              activeEdges.add(edge.id)
+            }
           }
 
-          if (step) {
-            const completedAt = Date.now()
-            step.status = "done"
-            step.completedAt = completedAt
-            step.duration = completedAt - startedAt
-            step.durationMs = completedAt - startedAt
-            step.output = result as DeserializedJson
-            metadata.set("steps", steps)
-            await metadata.flush()
+          const completedAt = Date.now()
+          step.status = "done"
+          step.completedAt = completedAt
+          step.duration = completedAt - startedAt
+          step.durationMs = completedAt - startedAt
+          step.output = result as DeserializedJson
+
+          executedNodes.add(nodeId)
+
+          // Enqueue downstream children whose prerequisites are fully satisfied
+          const outEdges = outgoingEdges.get(nodeId) || []
+          for (const edge of outEdges) {
+            if (!activeEdges.has(edge.id)) continue
+
+            const targetId = edge.target
+            const targetInEdges = incomingEdges.get(targetId) || []
+
+            // Child is ready when all its active (non-disabled) incoming edges have executed
+            const remainingPrereqs = targetInEdges.filter(
+              (e) => !disabledEdges.has(e.id) && !executedNodes.has(e.source)
+            )
+
+            if (
+              remainingPrereqs.length === 0 &&
+              !executedNodes.has(targetId) &&
+              !readyQueue.includes(targetId)
+            ) {
+              readyQueue.push(targetId)
+
+              // Register downstream child as "pending" for seamless canvas handoff pulse
+              const childNode = byId.get(targetId)
+              if (childNode && !steps.some((s) => s.id === targetId)) {
+                const childDef = nodeRegistry[childNode.data.type]
+                steps.push({
+                  id: targetId,
+                  nodeId: targetId,
+                  type: childNode.data.type as NodeType,
+                  title:
+                    childNode.data.title ||
+                    childDef?.label ||
+                    childNode.data.type ||
+                    "Step",
+                  kind: childNode.data.kind || childDef?.kind || "action",
+                  status: "pending",
+                })
+              }
+            }
           }
+
+          metadata.set("steps", steps)
+          await metadata.flush()
         } catch (error) {
           const isAbort =
             signal?.aborted ||
             (error instanceof Error && error.message.includes("canceled"))
-          if (step) {
-            const completedAt = Date.now()
-            step.status = isAbort ? "canceled" : "failed"
-            step.completedAt = completedAt
-            step.duration = completedAt - startedAt
-            step.durationMs = completedAt - startedAt
-            step.error = isAbort
-              ? "Workflow run was canceled"
-              : error instanceof Error
-                ? error.message
-                : String(error)
-          }
 
-          // Mark any remaining steps that never executed as skipped
-          const currentIndex = order.indexOf(id)
-          if (currentIndex !== -1) {
-            for (let i = currentIndex + 1; i < order.length; i++) {
-              const remainingStep = steps.find((s) => s.id === order[i])
-              if (remainingStep && remainingStep.status === "pending") {
-                remainingStep.status = "skipped"
-              }
-            }
-          }
+          const completedAt = Date.now()
+          step.status = isAbort ? "canceled" : "failed"
+          step.completedAt = completedAt
+          step.duration = completedAt - startedAt
+          step.durationMs = completedAt - startedAt
+          step.error = isAbort
+            ? "Workflow run was canceled"
+            : error instanceof Error
+              ? error.message
+              : String(error)
 
           metadata.set("steps", steps)
           await metadata.flush()

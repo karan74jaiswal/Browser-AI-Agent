@@ -9,19 +9,21 @@ const baseEdgeStyle: React.CSSProperties = {
   strokeWidth: 2,
 }
 
-function WorkflowEdgeComponent({
-  id,
-  source,
-  target,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  style,
-  markerEnd,
-}: EdgeProps) {
+function WorkflowEdgeComponent(props: EdgeProps) {
+  const {
+    id,
+    source,
+    target,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    style,
+    markerEnd,
+  } = props
+
   const [edgePath] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -38,13 +40,32 @@ function WorkflowEdgeComponent({
   const sourceStep = steps?.find((s) => s.id === source)
   const targetStep = steps?.find((s) => s.id === target)
 
-  // Edge is active during the handoff phase: source is finished ("done")
-  // and target is waiting to begin execution ("pending" or not yet running)
+  const handleId =
+    (props as { sourceHandleId?: string | null; sourceHandle?: string | null })
+      .sourceHandleId ||
+    (props as { sourceHandleId?: string | null; sourceHandle?: string | null })
+      .sourceHandle ||
+    "true"
+
+  const outputObj = sourceStep?.output as
+    | { branch?: string; result?: boolean }
+    | undefined
+  const activeBranch = outputObj?.branch
+
+  // If the source node is an "if" node, verify that this edge matches the winning branch
+  const isBranchActive =
+    sourceStep?.type !== "if" ||
+    !activeBranch ||
+    handleId === activeBranch
+
+  // Edge is active strictly during the handoff phase: source is finished ("done")
+  // and target is waiting to begin execution ("pending")
   const isTransferring =
     isLive &&
     !isRunCanceling &&
     sourceStep?.status === "done" &&
-    (!targetStep || targetStep.status === "pending")
+    isBranchActive &&
+    targetStep?.status === "pending"
 
   const combinedStyle = React.useMemo(() => {
     return style ? { ...baseEdgeStyle, ...style } : baseEdgeStyle

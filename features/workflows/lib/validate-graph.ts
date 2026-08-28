@@ -72,6 +72,23 @@ export function validateGraph({ edges, nodes }: WorkflowGraph): string[] {
         }
       }
     }
+
+    if (node.data?.type === "if") {
+      try {
+        if (values.conditions) {
+          const criteria = JSON.parse(values.conditions)
+          if (Array.isArray(criteria)) {
+            for (let i = 0; i < criteria.length; i++) {
+              if (!criteria[i].left?.trim()) {
+                problems.push(
+                  `Condition ${i + 1} on "${node.data?.title || "If"}" is missing a left value/token.`
+                )
+              }
+            }
+          }
+        }
+      } catch {}
+    }
   }
 
   return problems

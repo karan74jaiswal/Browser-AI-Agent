@@ -13,7 +13,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { useNodes } from "@xyflow/react"
 import { NodeIcon } from "./node-icon"
 import {
   isRunLive,
@@ -21,10 +20,6 @@ import {
   useWorkflowRuns,
   type WorkflowRun,
 } from "./workflow-runs-provider"
-import {
-  nodeRegistry,
-  type StepNodeType,
-} from "@/features/workflows/nodes/node-registry"
 import type { RunStep } from "@/features/workflows/tasks/run-workflow"
 import { cn } from "@/lib/utils"
 
@@ -38,7 +33,6 @@ export interface LogsPanelProps {
 
 function getRunStatusBadge(
   status?: string,
-  steps?: RunStep[],
   isCanceling?: boolean
 ) {
   if (isCanceling) {
@@ -49,20 +43,6 @@ function getRunStatusBadge(
       >
         <Spinner className="size-3 text-amber-500" />
         <span>Canceling</span>
-      </Badge>
-    )
-  }
-
-  const allStepsDone =
-    steps && steps.length > 0 && steps.every((s) => s.status === "done")
-  if (allStepsDone) {
-    return (
-      <Badge
-        variant="outline"
-        className="h-4.5 gap-1 border-emerald-500/30 bg-emerald-500/10 px-1.5 text-[10px] text-emerald-600 dark:text-emerald-400"
-      >
-        <CheckCircle2 className="size-3" />
-        <span>Completed</span>
       </Badge>
     )
   }
@@ -147,8 +127,6 @@ export function LogsPanel({
   const activeSelectedId = selectedId ?? selectedStepId
   const { runs, getRunSteps, cancelingRunId } = useWorkflowRuns()
   const { isPro, redirectToPricing } = useProPlan()
-  const nodes = useNodes<StepNodeType>()
-
   if (!runs || runs.length === 0) {
     return (
       <div
@@ -171,7 +149,7 @@ export function LogsPanel({
       defaultValue={runs.map((r) => r.id)}
       className={cn("px-3 py-2", className)}
     >
-      {runs.map((run, index) => {
+      {runs.map((run) => {
         const recordedSteps = getRunSteps(run) ?? []
         const isRunActive = isRunLive(run.status)
         const isRunCanceling = cancelingRunId === run.id && isRunActive
@@ -182,22 +160,7 @@ export function LogsPanel({
         const isFinished = !isRunActive
         const hasRecording = Boolean(sessionId && isFinished)
 
-        const steps: RunStep[] =
-          recordedSteps.length > 0
-            ? recordedSteps
-            : isRunActive
-              ? nodes.map((node): RunStep => {
-                  const def = nodeRegistry[node.data.type]
-                  return {
-                    id: node.id,
-                    nodeId: node.id,
-                    type: node.data.type,
-                    title: node.data.title || def?.label || "Node",
-                    kind: def?.kind || "action",
-                    status: "pending" as const,
-                  }
-                })
-              : []
+        const steps: RunStep[] = recordedSteps
 
         const formattedTime = new Date(run.createdAt).toLocaleTimeString([], {
           hour: "2-digit",
@@ -218,27 +181,37 @@ export function LogsPanel({
             <AccordionTrigger className="py-2 text-xs font-medium text-muted-foreground hover:no-underline">
               <div className="flex w-full min-w-0 items-center justify-between gap-2 pr-2">
                 <div className="flex items-center gap-2">
+                  <div className="size-2 rounded-full bg-blue-500" />
                   <span className="font-semibold text-foreground">
-                    Run #{runs.length - index}
+                    {run.tags?.find((t) => t.startsWith("trigger:"))?.replace("trigger:", "") || "Workflow Run"}
                   </span>
-                  <span className="font-mono text-[11px] text-muted-foreground">
+                  {getRunStatusBadge(run.status, isRunCanceling)}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">
                     {formattedTime}
                   </span>
-                  {getRunStatusBadge(run.status, steps, isRunCanceling)}
+                  {runDuration && (
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {runDuration}
+                    </span>
+                  )}
                 </div>
-                {runDuration && (
-                  <span className="font-mono text-[11px] text-muted-foreground">
-                    {runDuration}
-                  </span>
-                )}
               </div>
             </AccordionTrigger>
 
             <AccordionContent className="flex h-auto! flex-col gap-0.5 pt-1">
               {steps.length === 0 && !hasRecording ? (
-                <p className="px-1.5 py-1 text-xs text-muted-foreground italic">
-                  No steps recorded.
-                </p>
+                isRunActive ? (
+                  <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+                    <Spinner className="size-3 text-primary" />
+                    <span>Starting workflow...</span>
+                  </div>
+                ) : (
+                  <p className="px-1.5 py-1 text-xs text-muted-foreground italic">
+                    No steps recorded.
+                  </p>
+                )
               ) : (
                 <>
                   {steps.map((step) => {

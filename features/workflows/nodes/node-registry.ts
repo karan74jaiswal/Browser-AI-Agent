@@ -2,9 +2,11 @@ import type { Node } from "@xyflow/react"
 import {
   Bot,
   ClipboardList,
+  Clock,
   CreditCard,
   Eye,
   FileText,
+  GitBranch,
   Globe,
   Mail,
   MousePointerClick,
@@ -380,6 +382,39 @@ export const nodeRegistry = {
     outputs: [
       { path: "messageContent", label: "Message Content" },
       { path: "success", label: "Success" },
+    ],
+  },
+  if: {
+    type: "if",
+    kind: "action",
+    label: "If",
+    icon: GitBranch,
+    accent: "bg-amber-600 text-white",
+    fields: [],
+    outputs: [
+      { path: "result", label: "Result (Boolean)" },
+      { path: "branch", label: "Active Branch (true/false)" },
+      { path: "reason", label: "Reason" },
+    ],
+  },
+  wait: {
+    type: "wait",
+    kind: "action",
+    label: "Wait",
+    icon: Clock,
+    accent: "bg-indigo-600 text-white",
+    fields: [
+      {
+        key: "seconds",
+        label: "Wait Duration (seconds)",
+        placeholder: "e.g. 5",
+        defaultValue: "5",
+        required: true,
+      },
+    ],
+    outputs: [
+      { path: "seconds", label: "Seconds Waited" },
+      { path: "completedAt", label: "Completed At" },
     ],
   },
 } satisfies Record<string, NodeDefinition>
