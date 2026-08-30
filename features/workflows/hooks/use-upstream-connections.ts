@@ -124,7 +124,20 @@ export function useUpstreamConnections(
   const nodes = useNodes<StepNodeType>()
   const edges = useEdges()
 
+  // Structural fingerprint: only changes when node IDs, types, titles, or connections change (ignores x, y coordinate dragging)
+  const structuralKey = useMemo(() => {
+    if (!node?.id) return ""
+    const nodesDigest = nodes
+      .map((n) => `${n.id}:${n.data?.type ?? ""}:${n.data?.title ?? ""}`)
+      .join("|")
+    const edgesDigest = edges
+      .map((e) => `${e.source}->${e.target}`)
+      .join("|")
+    return `${node.id}#${nodesDigest}#${edgesDigest}`
+  }, [node?.id, nodes, edges])
+
   return useMemo(() => {
     return getUpstreamConnections(node, nodes, edges)
-  }, [node, nodes, edges])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structuralKey])
 }

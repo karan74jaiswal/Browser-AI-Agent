@@ -40,6 +40,19 @@ export default function Inspector({
   const [activeFieldKey, setActiveFieldKey] = useState<string | null>(null)
   const inputRefs = useRef<Map<string, TokenInputHandle>>(new Map())
 
+  // Structural fingerprint: only changes when node IDs, types, values, or connections change (ignores x, y coordinate dragging)
+  const structuralFingerprint = useMemo(() => {
+    if (!node?.id) return ""
+    const nodesDigest = allNodes
+      .map((n) => `${n.id}:${n.data?.type ?? ""}:${n.data?.title ?? ""}`)
+      .join("|")
+    const edgesDigest = allEdges
+      .map((e) => `${e.source}->${e.target}`)
+      .join("|")
+    const valuesDigest = JSON.stringify(node.data?.values || {})
+    return `${node.id}#${valuesDigest}#${nodesDigest}#${edgesDigest}`
+  }, [node?.id, node?.data?.values, allNodes, allEdges])
+
   // Find broken token references in node.data.values
   const { brokenTokens, relinkCandidates } = useMemo(() => {
     if (!node) return { brokenTokens: [], relinkCandidates: [] }
@@ -104,7 +117,8 @@ export default function Inspector({
     }
 
     return { brokenTokens: broken, relinkCandidates: candidates }
-  }, [node, allNodes, allEdges])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [node, structuralFingerprint])
 
   if (!node) {
     return (

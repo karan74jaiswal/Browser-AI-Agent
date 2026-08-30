@@ -121,6 +121,18 @@ export function Canvas({ workflowId }: CanvasProps) {
     return () => clearTimeout(timer)
   }, [nodes, edges, workflowId])
 
+  // Structural fingerprint of switch node routing rules to avoid running edge pruning on node coordinate dragging
+  const switchNodesFingerprint = React.useMemo(() => {
+    if (!nodes) return ""
+    return nodes
+      .filter((n) => n.data?.type === "switch")
+      .map((n) => {
+        const v = n.data?.values || {}
+        return `${n.id}:${v.mode ?? ""}:${v.fallbackEnabled ?? ""}:${v.rules ?? ""}:${v.cases ?? ""}`
+      })
+      .join("|")
+  }, [nodes])
+
   // Auto-prune orphaned edges on switch nodes whose handles no longer exist
   React.useEffect(() => {
     if (!nodes || !edges) return
@@ -160,7 +172,7 @@ export function Canvas({ workflowId }: CanvasProps) {
     if (orphanedEdges.length > 0) {
       onDelete({ edges: orphanedEdges, nodes: [] })
     }
-  }, [nodes, edges, onDelete])
+  }, [switchNodesFingerprint, edges, onDelete, nodes])
 
   const colorMode: ColorMode = React.useMemo(() => {
     if (!isMounted) return "light"

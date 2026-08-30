@@ -17,8 +17,8 @@ import {
   buildEdgeMaps,
   discoverNextReadyChildren,
   findTriggerNode,
-  getBranchAncestorNodeIds,
 } from "./graph-traversal"
+import { purgeUnchosenSiblingBranches } from "./merge-synchronizer"
 import { executeStep } from "./step-executor"
 
 export type {
@@ -162,50 +162,17 @@ export const runWorkflowTask = task({
           // Depth-First (DFS): Prepend direct child branch nodes to the front of readyQueue
           readyQueue.unshift(...readyChildren)
 
-          // Check if any triggered merge node is in "first" (Pass-Through / Winner) mode
-          for (const child of readyChildren) {
-            const childNode = byId.get(child.nodeId)
-            if (
-              childNode &&
-              childNode.data?.type === "merge" &&
-              childNode.data.values?.mode === "first"
-            ) {
-              const inEdges = incomingEdges.get(childNode.id) || []
-              const unchosenRootSourceIds = inEdges
-                .filter((inE) => inE.source && inE.source !== nodeId)
-                .map((inE) => inE.source)
-
-              const siblingBranchNodeIds = getBranchAncestorNodeIds(
-                unchosenRootSourceIds,
-                incomingEdges,
-                completedNodeIds
-              )
-
-              // Purge unchosen sibling branch items from readyQueue
-              for (let i = readyQueue.length - 1; i >= 0; i--) {
-                const item = readyQueue[i]
-                const qNodeId = typeof item === "string" ? item : item.nodeId
-                const qEdgeId = typeof item === "string" ? undefined : item.edgeId
-
-                if (
-                  siblingBranchNodeIds.has(qNodeId) ||
-                  (qEdgeId && disabledEdges.has(qEdgeId))
-                ) {
-                  readyQueue.splice(i, 1)
-
-                  // Mark pending step for purged node as skipped
-                  const s = steps.find(
-                    (step) =>
-                      (qEdgeId ? step.edgeId === qEdgeId : (step.nodeId === qNodeId || step.id === qNodeId)) &&
-                      step.status === "pending"
-                  )
-                  if (s) {
-                    s.status = "skipped"
-                  }
-                }
-              }
-            }
-          }
+          // If a Merge node was triggered in "first" mode, purge loser sibling branches
+          purgeUnchosenSiblingBranches({
+            readyChildren,
+            incomingEdges,
+            completedNodeIds,
+            disabledEdges,
+            readyQueue,
+            steps,
+            byId,
+            currentNodeId: nodeId,
+          })
 
           metadata.set("steps", steps)
           await metadata.flush()
@@ -260,7 +227,7 @@ export const runWorkflowTask = task({
             disabledEdges.add(edge.id)
           }
 
-          // Check if any downstream Merge node can now proceed
+          // Check if any downstream Merge node can now proceed with remaining healthy branches
           const { readyChildren, pendingSteps } = discoverNextReadyChildren({
             nodeId,
             outgoingEdges,

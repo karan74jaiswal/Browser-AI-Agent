@@ -5,6 +5,10 @@ import {
   type StepNodeType,
 } from "../nodes/node-registry"
 import type { QueueItem, RunStep } from "./types"
+import { evaluateMergeReadiness } from "./merge-synchronizer"
+
+// Re-export getBranchAncestorNodeIds for backward compatibility
+export { getBranchAncestorNodeIds } from "./merge-synchronizer"
 
 /**
  * Builds incoming and outgoing edge index maps for fast graph traversal lookups.
@@ -62,32 +66,6 @@ export function cascadeDisabledEdges(
 }
 
 /**
- * Recursively finds all ancestor nodes of unchosen incoming branches to a Merge node
- * that have not yet executed and should be pruned.
- */
-export function getBranchAncestorNodeIds(
-  rootNodeIds: string[],
-  incomingEdges: Map<string, Edge[]>,
-  completedNodeIds: Set<string>
-): Set<string> {
-  const result = new Set<string>()
-  const queue = [...rootNodeIds]
-  while (queue.length > 0) {
-    const curr = queue.shift()!
-    if (!result.has(curr) && !completedNodeIds.has(curr)) {
-      result.add(curr)
-      const inEdges = incomingEdges.get(curr) || []
-      for (const inE of inEdges) {
-        if (inE.source && !completedNodeIds.has(inE.source)) {
-          queue.push(inE.source)
-        }
-      }
-    }
-  }
-  return result
-}
-
-/**
  * Finds the starting trigger node of the workflow.
  */
 export function findTriggerNode(nodes: StepNodeType[]): StepNodeType {
@@ -103,9 +81,6 @@ export function findTriggerNode(nodes: StepNodeType[]): StepNodeType {
  * Discovers downstream connected children from active edges, registers them
  * as pending steps for canvas animation, and sorts sibling branches top-to-bottom
  * by canvas Y-coordinate for DFS prioritization.
- *
- * For "merge" nodes, it verifies that all incoming branch paths have resolved
- * (either active & completed, or disabled / failed) before enqueuing execution.
  */
 export function discoverNextReadyChildren({
   nodeId,
@@ -148,98 +123,24 @@ export function discoverNextReadyChildren({
         continue
       }
 
-      const inEdges = incomingEdges.get(targetId) || []
-      const mode = childNode.data.values?.mode || "combine"
+      const { isReady, edgeId } = evaluateMergeReadiness({
+        nodeId,
+        edge,
+        targetId,
+        childNode,
+        incomingEdges,
+        outgoingEdges,
+        activeEdges,
+        disabledEdges,
+        completedNodeIds,
+        failedNodeIds,
+        byId,
+      })
 
-      if (mode === "first") {
-        // Pass-Through / First Winner mode:
-        // The first active branch that completes triggers Merge immediately and prunes other branches
-        const isCurrentActive = activeEdges.has(edge.id)
-        const isCurrentCompleted =
-          (completedNodeIds.has(nodeId) || nodeId === edge.source) &&
-          !failedNodeIds.has(nodeId)
-
-        if (isCurrentActive && isCurrentCompleted) {
-          activeEdges.add(edge.id)
-          newReadyChildren.push({ nodeId: targetId, edgeId: edge.id })
-
-          // Prune other remaining incoming edges
-          const newlyPruned: string[] = []
-          for (const inEdge of inEdges) {
-            if (inEdge.id !== edge.id) {
-              disabledEdges.add(inEdge.id)
-              newlyPruned.push(inEdge.id)
-            }
-          }
-          if (newlyPruned.length > 0) {
-            cascadeDisabledEdges(newlyPruned, outgoingEdges, disabledEdges, byId)
-          }
-        } else {
-          // If current branch was disabled or failed, check if any other branch is still running
-          let hasPending = false
-          for (const inEdge of inEdges) {
-            if (!disabledEdges.has(inEdge.id) && !failedNodeIds.has(inEdge.source)) {
-              hasPending = true
-              break
-            }
-          }
-          if (!hasPending) {
-            const mergeOutEdges = outgoingEdges.get(targetId) || []
-            for (const outE of mergeOutEdges) {
-              disabledEdges.add(outE.id)
-            }
-          }
-          continue
-        }
-      } else {
-        // Standard "combine" and "array" modes: wait for all incoming branches to resolve
-        let allResolved = true
-        let hasActiveIncoming = false
-
-        for (const inEdge of inEdges) {
-          const isEdgeDisabled = disabledEdges.has(inEdge.id)
-          const isEdgeActive = activeEdges.has(inEdge.id)
-          const isSourceCompleted =
-            completedNodeIds.has(inEdge.source) ||
-            inEdge.source === nodeId ||
-            failedNodeIds.has(inEdge.source)
-
-          if (isEdgeDisabled) {
-            // Pruned branch is resolved
-            continue
-          }
-
-          if (isEdgeActive && isSourceCompleted) {
-            if (!failedNodeIds.has(inEdge.source)) {
-              hasActiveIncoming = true
-            }
-            continue
-          }
-
-          // Branch is still pending / unresolved upstream
-          allResolved = false
-          break
-        }
-
-        if (!allResolved) {
-          // Hold Merge node until other parallel branches finish or prune
-          continue
-        }
-
-        if (hasActiveIncoming) {
-          activeEdges.add(edge.id)
-          newReadyChildren.push({ nodeId: targetId, edgeId: edge.id })
-        } else {
-          // All incoming branches were pruned or failed -> cascade disable
-          const mergeOutEdges = outgoingEdges.get(targetId) || []
-          for (const outE of mergeOutEdges) {
-            disabledEdges.add(outE.id)
-          }
-          continue
-        }
-      }
+      if (!isReady || !edgeId) continue
+      newReadyChildren.push({ nodeId: targetId, edgeId })
     } else {
-      // Standard single-parent node
+      // Standard single-parent node (Option B: multi-trigger per active branch preserved)
       newReadyChildren.push({ nodeId: targetId, edgeId: edge.id })
     }
 
