@@ -1,4 +1,4 @@
-import { memo } from "react"
+import { memo, useMemo } from "react"
 import { Handle, Position, type NodeProps } from "@xyflow/react"
 import { Spinner } from "@/components/ui/spinner"
 
@@ -14,7 +14,47 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
   const { type, kind, title, values } = data
   const def = nodeRegistry[type]
   const isIfNode = type === "if"
+  const isSwitchNode = type === "switch"
   const Icon = def.icon
+
+  const switchOutputs = useMemo(() => {
+    if (!isSwitchNode) return []
+    const mode = values.mode || "rules"
+    const fallbackEnabled = values.fallbackEnabled !== "false"
+    const fallbackName = values.fallbackName || "fallback"
+
+    const items: { id: string; label: string }[] = []
+    if (mode === "value") {
+      try {
+        const cases = JSON.parse(values.cases || "[]")
+        if (Array.isArray(cases)) {
+          cases.forEach((c: { name?: string }, idx: number) => {
+            items.push({ id: String(idx), label: c.name || `Case ${idx + 1}` })
+          })
+        }
+      } catch {}
+    } else {
+      try {
+        const routes = JSON.parse(values.rules || "[]")
+        if (Array.isArray(routes)) {
+          routes.forEach((r: { name?: string }, idx: number) => {
+            items.push({ id: String(idx), label: r.name || `Route ${idx + 1}` })
+          })
+        }
+      } catch {}
+    }
+
+    if (items.length === 0) {
+      items.push({ id: "0", label: "0" })
+    }
+
+    if (fallbackEnabled) {
+      items.push({ id: "fallback", label: fallbackName.toLowerCase() })
+    }
+
+    return items
+  }, [isSwitchNode, values])
+
   const fields = (def.fields as NodeField[])
     .map((field: NodeField) => {
       const rawValue = values[field.key] || field.defaultValue || ""
@@ -76,8 +116,14 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
         isDone &&
           "border-emerald-500/50 dark:border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.1)]",
         selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
-        isIfNode && "min-h-[72px] flex flex-col justify-center"
+        isIfNode && "min-h-[72px] flex flex-col justify-center",
+        isSwitchNode && "min-h-[80px] flex flex-col justify-center py-2"
       )}
+      style={{
+        minHeight: isSwitchNode
+          ? `${Math.max(76, switchOutputs.length * 36)}px`
+          : undefined,
+      }}
     >
       {/* Circular border beam orbiting active node */}
       {isRunning && (
@@ -170,10 +216,10 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
             )}
           />
           <div
-            style={{ top: "28%", transform: "translate(100%, -50%)" }}
-            className="pointer-events-none absolute right-0 flex items-center pl-2.5"
+            style={{ top: "28%", transform: "translate(100%, -105%)" }}
+            className="pointer-events-none absolute right-0 z-20 flex items-center pl-2"
           >
-            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 select-none">
+            <span className="text-[10px] font-semibold text-muted-foreground select-none">
               true
             </span>
           </div>
@@ -195,13 +241,48 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
             )}
           />
           <div
-            style={{ top: "72%", transform: "translate(100%, -50%)" }}
-            className="pointer-events-none absolute right-0 flex items-center pl-2.5"
+            style={{ top: "72%", transform: "translate(100%, -105%)" }}
+            className="pointer-events-none absolute right-0 z-20 flex items-center pl-2"
           >
-            <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 select-none">
+            <span className="text-[10px] font-semibold text-muted-foreground select-none">
               false
             </span>
           </div>
+        </>
+      ) : isSwitchNode ? (
+        <>
+          {switchOutputs.map((out, idx) => {
+            const topPct = `${((idx + 0.5) / switchOutputs.length) * 100}%`
+            const isWinning = isDone && winningBranch === out.id
+            return (
+              <div key={out.id}>
+                <Handle
+                  type="source"
+                  position={Position.Right}
+                  id={out.id}
+                  style={{ top: topPct, transform: "translate(100%, -50%)" }}
+                  className={cn(
+                    "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-colors duration-300",
+                    isStepCanceling
+                      ? "bg-amber-500!"
+                      : isRunning
+                        ? "bg-blue-500!"
+                        : isWinning
+                          ? "bg-emerald-500!"
+                          : "bg-border!"
+                  )}
+                />
+                <div
+                  style={{ top: topPct, transform: "translate(100%, -105%)" }}
+                  className="pointer-events-none absolute right-0 z-20 flex items-center pl-2"
+                >
+                  <span className="text-[10px] font-semibold text-muted-foreground select-none">
+                    {out.label}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
         </>
       ) : (
         <>

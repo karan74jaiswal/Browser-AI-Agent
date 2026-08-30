@@ -1,6 +1,7 @@
 import type { Edge } from "@xyflow/react"
 import type { Stagehand } from "@browserbasehq/stagehand"
 import { nodeExecutors } from "../nodes/node-executors"
+import { switchNode } from "../nodes/switch"
 import {
   evaluateIfConditions,
   interpolate,
@@ -80,6 +81,30 @@ export async function executeStep({
         (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
           .sourceHandle ||
         "true"
+
+      if (handle === winningHandle) {
+        activeEdges.add(edge.id)
+      } else {
+        disabledEdges.add(edge.id)
+      }
+    }
+  } else if (type === "switch") {
+    const switchRes = await switchNode({
+      values: node.data.values ?? {},
+      results,
+    })
+    result = switchRes
+    results[nodeId] = result
+
+    const winningHandle = switchRes.branch
+    const outEdges = outgoingEdges.get(nodeId) || []
+    for (const edge of outEdges) {
+      const handle =
+        (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
+          .sourceHandleId ||
+        (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
+          .sourceHandle ||
+        "0"
 
       if (handle === winningHandle) {
         activeEdges.add(edge.id)

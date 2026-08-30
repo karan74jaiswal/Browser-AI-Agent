@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { useReactFlow, useNodes, useEdges } from "@xyflow/react"
-import { AlertTriangle, Sparkles } from "lucide-react"
+import { AlertTriangle, Sparkles, Workflow } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import Section from "./section"
 import { useState, useRef, useMemo } from "react"
@@ -23,6 +23,7 @@ import GoogleFormTriggerInspector from "./google-form-trigger-inspector"
 import IfInspector from "./if-inspector"
 import SlackInspector from "./slack-inspector"
 import StripeTriggerInspector from "./stripe-trigger-inspector"
+import SwitchInspector from "./switch-inspector"
 
 export default function Inspector({
   node,
@@ -205,8 +206,44 @@ export default function Inspector({
     }
   }
 
+  const hasConnections =
+    connections.length > 0 &&
+    (insertableFields.length > 0 || type === "if" || type === "switch")
+
+  const connectionsFooter = hasConnections ? (
+    <div className="flex flex-col gap-1.5 p-2.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+          <Workflow className="size-3.5 text-muted-foreground" />
+          <span>Connections</span>
+        </div>
+        <span className="text-[10px] text-muted-foreground">
+          {connections.length} {connections.length === 1 ? "variable" : "variables"}
+        </span>
+      </div>
+      <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto p-0.5 [scrollbar-width:thin]">
+        {connections.map((conn) => (
+          <button
+            key={`${conn.nodeId}-${conn.path}`}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => handleInsertToken(conn.token)}
+            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground transition-all hover:bg-accent hover:border-border/80 active:scale-95 shadow-2xs"
+            title={`Insert {{ ${conn.label} }}`}
+          >
+            <NodeIcon
+              type={conn.type}
+              className="size-3.5 rounded-xs [&_svg]:size-2.5 shrink-0"
+            />
+            <span className="truncate max-w-40 text-[11px] font-medium">{conn.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : undefined
+
   return (
-    <Section title={title} icon={<NodeIcon type={type} />}>
+    <Section title={title} icon={<NodeIcon type={type} />} footer={connectionsFooter}>
       <div className="flex flex-col gap-3 p-3">
         {brokenTokens.length > 0 && relinkCandidates.length > 0 && (
           <div className="flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-700 dark:text-amber-400">
@@ -311,31 +348,19 @@ export default function Inspector({
           />
         )}
 
-        {connections.length > 0 &&
-          (insertableFields.length > 0 || type === "if") && (
-            <div className="flex flex-col gap-1.5 border-t border-border pt-3">
-              <Label className="text-xs text-muted-foreground">
-                Connections
-              </Label>
-              <div className="flex flex-wrap gap-1.5">
-                {connections.map((conn) => (
-                  <button
-                    key={`${conn.nodeId}-${conn.path}`}
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleInsertToken(conn.token)}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <NodeIcon
-                      type={conn.type}
-                      className="size-4 rounded-xs [&_svg]:size-2.5"
-                    />
-                    <span>{conn.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+        {type === "switch" && (
+          <SwitchInspector
+            node={node}
+            onFocusField={setActiveFieldKey}
+            registerInputRef={(key, handle) => {
+              if (handle) {
+                inputRefs.current.set(key, handle)
+              } else {
+                inputRefs.current.delete(key)
+              }
+            }}
+          />
+        )}
       </div>
     </Section>
   )

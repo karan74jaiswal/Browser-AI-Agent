@@ -58,6 +58,11 @@ export function validateGraph({ edges, nodes }: WorkflowGraph): string[] {
 
     for (const [key, rawVal] of Object.entries(values)) {
       if (node.data?.type === "if" && key === "conditions") continue
+      if (
+        node.data?.type === "switch" &&
+        (key === "rules" || key === "cases")
+      )
+        continue
       if (typeof rawVal !== "string") continue
       const refs = extractAllTokenReferences(rawVal)
       for (const ref of refs) {
@@ -109,6 +114,75 @@ export function validateGraph({ edges, nodes }: WorkflowGraph): string[] {
           }
         }
       } catch {}
+    }
+
+    if (node.data?.type === "switch") {
+      const mode = values.mode || "rules"
+      if (mode === "value") {
+        try {
+          if (values.cases) {
+            const cases = JSON.parse(values.cases)
+            if (Array.isArray(cases)) {
+              for (let i = 0; i < cases.length; i++) {
+                const c = cases[i]
+                if (c.value) {
+                  const refs = extractAllTokenReferences(c.value)
+                  for (const ref of refs) {
+                    const sourceNode = nodeById.get(ref.nodeId)
+                    if (!sourceNode) {
+                      problems.push(
+                        `Case ${i + 1} on "${node.data?.title || "Switch"}" references a deleted step.`
+                      )
+                    } else if (!ancestors.has(ref.nodeId)) {
+                      problems.push(
+                        `Case ${i + 1} on "${node.data?.title || "Switch"}" references "${sourceNode.data?.title || "Step"}", but they are not connected.`
+                      )
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch {}
+      } else {
+        try {
+          if (values.rules) {
+            const routes = JSON.parse(values.rules)
+            if (Array.isArray(routes)) {
+              for (let i = 0; i < routes.length; i++) {
+                const route = routes[i]
+                const criteria = route.conditions || []
+                for (let j = 0; j < criteria.length; j++) {
+                  const criterion = criteria[j]
+                  if (!criterion.left?.trim()) {
+                    problems.push(
+                      `Route ${i + 1} Rule ${j + 1} on "${node.data?.title || "Switch"}" is missing a left value/token.`
+                    )
+                  }
+                  const fieldValues = [criterion.left, criterion.right].filter(
+                    (v): v is string => typeof v === "string" && v.length > 0
+                  )
+                  for (const fieldVal of fieldValues) {
+                    const refs = extractAllTokenReferences(fieldVal)
+                    for (const ref of refs) {
+                      const sourceNode = nodeById.get(ref.nodeId)
+                      if (!sourceNode) {
+                        problems.push(
+                          `Route ${i + 1} on "${node.data?.title || "Switch"}" references a deleted step.`
+                        )
+                      } else if (!ancestors.has(ref.nodeId)) {
+                        problems.push(
+                          `Route ${i + 1} on "${node.data?.title || "Switch"}" references "${sourceNode.data?.title || "Step"}", but they are not connected.`
+                        )
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch {}
+      }
     }
   }
 

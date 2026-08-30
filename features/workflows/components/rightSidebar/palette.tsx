@@ -94,6 +94,34 @@ export default function Palette() {
         },
       ])
     }
+    if (type === "switch") {
+      initialValues.mode = "rules"
+      initialValues.fallbackEnabled = "true"
+      initialValues.fallbackName = "Fallback"
+      initialValues.rules = JSON.stringify([
+        {
+          id: crypto.randomUUID(),
+          name: "Route 1",
+          combinator: "and",
+          conditions: [
+            {
+              id: crypto.randomUUID(),
+              left: "",
+              operator: "equals",
+              right: "",
+            },
+          ],
+        },
+      ])
+      initialValues.cases = JSON.stringify([
+        {
+          id: crypto.randomUUID(),
+          name: "Case 1",
+          operator: "equals",
+          value: "",
+        },
+      ])
+    }
 
     const newNode: StepNodeType = {
       id: crypto.randomUUID(),

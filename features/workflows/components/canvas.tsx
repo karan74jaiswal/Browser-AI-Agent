@@ -118,6 +118,47 @@ export function Canvas({ workflowId }: CanvasProps) {
     return () => clearTimeout(timer)
   }, [nodes, edges, workflowId])
 
+  // Auto-prune orphaned edges on switch nodes whose handles no longer exist
+  React.useEffect(() => {
+    if (!nodes || !edges) return
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]))
+    const orphanedEdges = edges.filter((edge) => {
+      const sourceNode = nodeMap.get(edge.source)
+      if (!sourceNode || sourceNode.data.type !== "switch") return false
+
+      const values = sourceNode.data.values || {}
+      const mode = values.mode || "rules"
+      const fallbackEnabled = values.fallbackEnabled !== "false"
+      const sourceHandle = edge.sourceHandle ?? "0"
+
+      if (sourceHandle === "fallback") {
+        return !fallbackEnabled
+      }
+
+      const handleIdx = parseInt(sourceHandle, 10)
+      if (isNaN(handleIdx)) return false
+
+      let maxCount = 1
+      if (mode === "value") {
+        try {
+          const cases = JSON.parse(values.cases || "[]")
+          if (Array.isArray(cases) && cases.length > 0) maxCount = cases.length
+        } catch {}
+      } else {
+        try {
+          const routes = JSON.parse(values.rules || "[]")
+          if (Array.isArray(routes) && routes.length > 0) maxCount = routes.length
+        } catch {}
+      }
+
+      return handleIdx >= maxCount
+    })
+
+    if (orphanedEdges.length > 0) {
+      onDelete({ edges: orphanedEdges, nodes: [] })
+    }
+  }, [nodes, edges, onDelete])
+
   const colorMode: ColorMode = React.useMemo(() => {
     if (!isMounted) return "light"
     return resolvedTheme === "dark" || resolvedTheme === "light"

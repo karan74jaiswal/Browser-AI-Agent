@@ -8,6 +8,7 @@ import {
   Eye,
   FileText,
   GitBranch,
+  GitFork,
   Globe,
   Mail,
   MousePointerClick,
@@ -396,6 +397,20 @@ export const nodeRegistry = {
       { path: "result", label: "Result (Boolean)" },
       { path: "branch", label: "Active Branch (true/false)" },
       { path: "reason", label: "Reason" },
+    ],
+  },
+  switch: {
+    type: "switch",
+    kind: "action",
+    label: "Switch",
+    icon: GitFork,
+    accent: "bg-orange-600 text-white",
+    fields: [],
+    outputs: [
+      { path: "outputIndex", label: "Matched Output Index" },
+      { path: "outputName", label: "Matched Output Name" },
+      { path: "branch", label: "Active Branch" },
+      { path: "value", label: "Evaluated Value" },
     ],
   },
   wait: {

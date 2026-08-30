@@ -68,9 +68,11 @@ function WorkflowEdgeComponent(props: EdgeProps) {
     { branch?: string; result?: boolean } | undefined
   const activeBranch = outputObj?.branch
 
-  // If the source node is an "if" node, verify that this edge matches the winning branch
+  // If the source node is an "if" or "switch" node, verify that this edge matches the winning branch
+  const isBranchingNode =
+    sourceStep?.type === "if" || sourceStep?.type === "switch"
   const isBranchActive =
-    sourceStep?.type !== "if" || !activeBranch || handleId === activeBranch
+    !isBranchingNode || !activeBranch || handleId === activeBranch
 
   // Edge is transferring/animating while live, source has completed, branch is active, and target is pending (token traveling to target)
   const isTransferring = Boolean(

@@ -12,6 +12,7 @@ import { sendDiscordMessage } from "./discord"
 import { sendSlackMessage } from "./slack"
 import { waitNode } from "./wait"
 import { throwErrorNode } from "./throw-error"
+import { switchNode } from "./switch"
 import {
   evaluateIfConditions,
   type ConditionCriterion,
@@ -84,6 +85,7 @@ export const nodeExecutors: Partial<Record<NodeType, NodeExecutor>> = {
       reason: `Evaluated ${result ? "TRUE" : "FALSE"} via ${combinator.toUpperCase()} combinator`,
     }
   },
+  switch: async ({ values }) => switchNode({ values }),
   wait: async ({ values }) =>
     waitNode({ seconds: values.seconds }),
   "throw-error": async ({ values }) =>
