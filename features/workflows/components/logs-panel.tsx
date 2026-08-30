@@ -31,10 +31,7 @@ export interface LogsPanelProps {
   className?: string
 }
 
-function getRunStatusBadge(
-  status?: string,
-  isCanceling?: boolean
-) {
+function getRunStatusBadge(status?: string, isCanceling?: boolean) {
   if (isCanceling) {
     return (
       <Badge
@@ -173,7 +170,9 @@ export function LogsPanel({
             : null
 
         const visibleSteps = steps
-          .filter((step) => step.status !== "pending")
+          .filter(
+            (step) => step.status !== "pending" && step.status !== "skipped"
+          )
           .sort((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0))
 
         return (
@@ -187,7 +186,9 @@ export function LogsPanel({
                 <div className="flex items-center gap-2">
                   <div className="size-2 rounded-full bg-blue-500" />
                   <span className="font-semibold text-foreground">
-                    {run.tags?.find((t) => t.startsWith("trigger:"))?.replace("trigger:", "") || "Workflow Run"}
+                    {run.tags
+                      ?.find((t) => t.startsWith("trigger:"))
+                      ?.replace("trigger:", "") || "Workflow Run"}
                   </span>
                   {getRunStatusBadge(run.status, isRunCanceling)}
                 </div>
@@ -370,7 +371,7 @@ export function LogsPanel({
 
                       {!isPro && (
                         <div className="flex items-center gap-1 font-sans text-[11px] text-muted-foreground">
-                          <span className="rounded bg-accent px-1 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                          <span className="rounded bg-accent px-1 py-0.5 text-[10px] font-medium tracking-wider text-muted-foreground uppercase">
                             Pro
                           </span>
                           <Lock className="size-3 text-muted-foreground" />

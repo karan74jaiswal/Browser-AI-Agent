@@ -13,6 +13,7 @@ import { sendSlackMessage } from "./slack"
 import { waitNode } from "./wait"
 import { throwErrorNode } from "./throw-error"
 import { switchNode } from "./switch"
+import { mergeNode } from "./merge"
 import {
   evaluateIfConditions,
   type ConditionCriterion,
@@ -90,4 +91,5 @@ export const nodeExecutors: Partial<Record<NodeType, NodeExecutor>> = {
     waitNode({ seconds: values.seconds }),
   "throw-error": async ({ values }) =>
     throwErrorNode({ message: values.message }),
+  merge: async ({ values }) => mergeNode({ values }),
 } satisfies Record<ActionNodeType, NodeExecutor>

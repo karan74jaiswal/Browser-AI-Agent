@@ -229,12 +229,8 @@ export function WorkflowRunsProvider({
   }, [latestRun])
 
   const isLive = useMemo(() => {
-    if (!isRunLive(latestRun?.status)) return false
-    if (steps && steps.length > 0 && steps.every((s) => s.status === "done")) {
-      return false
-    }
-    return true
-  }, [latestRun, steps])
+    return isRunLive(latestRun?.status)
+  }, [latestRun?.status])
 
   // Canceling is active strictly while the run is live
   const cancelingRunId = isLive ? rawCancelingRunId : null

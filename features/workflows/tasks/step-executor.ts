@@ -2,6 +2,8 @@ import type { Edge } from "@xyflow/react"
 import type { Stagehand } from "@browserbasehq/stagehand"
 import { nodeExecutors } from "../nodes/node-executors"
 import { switchNode } from "../nodes/switch"
+import { mergeNode } from "../nodes/merge"
+import { cascadeDisabledEdges } from "./graph-traversal"
 import {
   evaluateIfConditions,
   interpolate,
@@ -18,8 +20,11 @@ export interface ExecuteStepParams {
   results: Record<string, unknown>
   triggerData?: Record<string, unknown>
   outgoingEdges: Map<string, Edge[]>
+  incomingEdges?: Map<string, Edge[]>
   activeEdges: Set<string>
   disabledEdges: Set<string>
+  failedBranches?: Array<{ nodeId: string; title?: string; error: string }>
+  byId?: Map<string, StepNodeType>
   getStagehand: () => Promise<Stagehand>
 }
 
@@ -32,8 +37,11 @@ export async function executeStep({
   results,
   triggerData,
   outgoingEdges,
+  incomingEdges,
   activeEdges,
   disabledEdges,
+  failedBranches = [],
+  byId,
   getStagehand,
 }: ExecuteStepParams): Promise<unknown> {
   const nodeId = node.id
@@ -74,6 +82,7 @@ export async function executeStep({
     results[nodeId] = result
 
     const outEdges = outgoingEdges.get(nodeId) || []
+    const newlyDisabled: string[] = []
     for (const edge of outEdges) {
       const handle =
         (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
@@ -86,7 +95,12 @@ export async function executeStep({
         activeEdges.add(edge.id)
       } else {
         disabledEdges.add(edge.id)
+        newlyDisabled.push(edge.id)
       }
+    }
+
+    if (newlyDisabled.length > 0 && byId) {
+      cascadeDisabledEdges(newlyDisabled, outgoingEdges, disabledEdges, byId)
     }
   } else if (type === "switch") {
     const switchRes = await switchNode({
@@ -98,6 +112,7 @@ export async function executeStep({
 
     const winningHandle = switchRes.branch
     const outEdges = outgoingEdges.get(nodeId) || []
+    const newlyDisabled: string[] = []
     for (const edge of outEdges) {
       const handle =
         (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
@@ -110,7 +125,33 @@ export async function executeStep({
         activeEdges.add(edge.id)
       } else {
         disabledEdges.add(edge.id)
+        newlyDisabled.push(edge.id)
       }
+    }
+
+    if (newlyDisabled.length > 0 && byId) {
+      cascadeDisabledEdges(newlyDisabled, outgoingEdges, disabledEdges, byId)
+    }
+  } else if (type === "merge") {
+    const inEdges = incomingEdges?.get(nodeId) || []
+    const incomingNodeIds = inEdges.map((e) => e.source)
+    const activeIncomingNodeIds = inEdges
+      .filter((e) => activeEdges.has(e.id))
+      .map((e) => e.source)
+
+    const mergeRes = await mergeNode({
+      values: node.data.values ?? {},
+      results,
+      incomingNodeIds,
+      activeIncomingNodeIds,
+      failedBranches,
+    })
+    result = mergeRes
+    results[nodeId] = result
+
+    const outEdges = outgoingEdges.get(nodeId) || []
+    for (const edge of outEdges) {
+      activeEdges.add(edge.id)
     }
   } else if (node.data.type === "start") {
     result = triggerData ?? results[nodeId] ?? {

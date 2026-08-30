@@ -17,6 +17,7 @@ import {
   buildEdgeMaps,
   discoverNextReadyChildren,
   findTriggerNode,
+  getBranchAncestorNodeIds,
 } from "./graph-traversal"
 import { executeStep } from "./step-executor"
 
@@ -50,9 +51,12 @@ export const runWorkflowTask = task({
     const byId = new Map<string, StepNodeType>(nodes.map((n) => [n.id, n]))
 
     // Map incoming and outgoing connections for dependency graph execution
-    const { outgoingEdges } = buildEdgeMaps(edges)
+    const { incomingEdges, outgoingEdges } = buildEdgeMaps(edges)
     const activeEdges = new Set<string>()
     const disabledEdges = new Set<string>()
+    const completedNodeIds = new Set<string>()
+    const failedNodeIds = new Set<string>()
+    const failedBranches: Array<{ nodeId: string; title?: string; error: string }> = []
 
     // Determine entry point (trigger node)
     const triggerNode = findTriggerNode(nodes)
@@ -124,10 +128,15 @@ export const runWorkflowTask = task({
             results,
             triggerData,
             outgoingEdges,
+            incomingEdges,
             activeEdges,
             disabledEdges,
+            failedBranches,
+            byId,
             getStagehand: browserManager.getStagehand,
           })
+
+          completedNodeIds.add(nodeId)
 
           const completedAt = Date.now()
           step.status = "done"
@@ -140,7 +149,11 @@ export const runWorkflowTask = task({
           const { readyChildren, pendingSteps } = discoverNextReadyChildren({
             nodeId,
             outgoingEdges,
+            incomingEdges,
             activeEdges,
+            disabledEdges,
+            completedNodeIds,
+            failedNodeIds,
             byId,
           })
 
@@ -148,6 +161,51 @@ export const runWorkflowTask = task({
 
           // Depth-First (DFS): Prepend direct child branch nodes to the front of readyQueue
           readyQueue.unshift(...readyChildren)
+
+          // Check if any triggered merge node is in "first" (Pass-Through / Winner) mode
+          for (const child of readyChildren) {
+            const childNode = byId.get(child.nodeId)
+            if (
+              childNode &&
+              childNode.data?.type === "merge" &&
+              childNode.data.values?.mode === "first"
+            ) {
+              const inEdges = incomingEdges.get(childNode.id) || []
+              const unchosenRootSourceIds = inEdges
+                .filter((inE) => inE.source && inE.source !== nodeId)
+                .map((inE) => inE.source)
+
+              const siblingBranchNodeIds = getBranchAncestorNodeIds(
+                unchosenRootSourceIds,
+                incomingEdges,
+                completedNodeIds
+              )
+
+              // Purge unchosen sibling branch items from readyQueue
+              for (let i = readyQueue.length - 1; i >= 0; i--) {
+                const item = readyQueue[i]
+                const qNodeId = typeof item === "string" ? item : item.nodeId
+                const qEdgeId = typeof item === "string" ? undefined : item.edgeId
+
+                if (
+                  siblingBranchNodeIds.has(qNodeId) ||
+                  (qEdgeId && disabledEdges.has(qEdgeId))
+                ) {
+                  readyQueue.splice(i, 1)
+
+                  // Mark pending step for purged node as skipped
+                  const s = steps.find(
+                    (step) =>
+                      (qEdgeId ? step.edgeId === qEdgeId : (step.nodeId === qNodeId || step.id === qNodeId)) &&
+                      step.status === "pending"
+                  )
+                  if (s) {
+                    s.status = "skipped"
+                  }
+                }
+              }
+            }
+          }
 
           metadata.set("steps", steps)
           await metadata.flush()
@@ -181,13 +239,43 @@ export const runWorkflowTask = task({
 
           // Branch-isolated failure: record failure and allow parallel sibling branches to continue
           hasFailedStep = true
+          failedNodeIds.add(nodeId)
+          failedBranches.push({
+            nodeId,
+            title,
+            error: step.error || String(error),
+          })
+
           if (!firstFailureError) {
             firstFailureError =
               error instanceof Error ? error : new Error(String(error))
           }
           logger.error(
-            `Step "${title}" failed: ${step.error}. Sibling branches will continue.`
+            `Step "${title}" failed: ${step.error}. Pruning branch and synchronizing parallel branches.`
           )
+
+          // Prune outgoing edges of the failed node down this branch
+          const outEdges = outgoingEdges.get(nodeId) || []
+          for (const edge of outEdges) {
+            disabledEdges.add(edge.id)
+          }
+
+          // Check if any downstream Merge node can now proceed
+          const { readyChildren, pendingSteps } = discoverNextReadyChildren({
+            nodeId,
+            outgoingEdges,
+            incomingEdges,
+            activeEdges,
+            disabledEdges,
+            completedNodeIds,
+            failedNodeIds,
+            byId,
+          })
+          steps.push(...pendingSteps)
+          readyQueue.unshift(...readyChildren)
+
+          metadata.set("steps", steps)
+          await metadata.flush()
         }
       }
 
@@ -200,8 +288,12 @@ export const runWorkflowTask = task({
       metadata.set("steps", steps)
       await metadata.flush()
 
-      // If any step failed, throw after all sibling branches have finished
-      if (hasFailedStep) {
+      // If a step failed and was not resolved by a downstream Merge node, throw
+      const mergeNodes = nodes.filter((n) => n.data?.type === "merge")
+      const hasSuccessfulMerge = mergeNodes.some(
+        (m) => results[m.id] !== undefined
+      )
+      if (hasFailedStep && !hasSuccessfulMerge) {
         throw (
           firstFailureError || new Error("Workflow finished with failed steps")
         )

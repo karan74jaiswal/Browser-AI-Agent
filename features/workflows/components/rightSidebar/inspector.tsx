@@ -24,6 +24,7 @@ import IfInspector from "./if-inspector"
 import SlackInspector from "./slack-inspector"
 import StripeTriggerInspector from "./stripe-trigger-inspector"
 import SwitchInspector from "./switch-inspector"
+import MergeInspector from "./merge-inspector"
 
 export default function Inspector({
   node,
@@ -361,6 +362,8 @@ export default function Inspector({
             }}
           />
         )}
+
+        {type === "merge" && <MergeInspector />}
       </div>
     </Section>
   )

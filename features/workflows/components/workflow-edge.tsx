@@ -55,7 +55,6 @@ function WorkflowEdgeComponent(props: EdgeProps) {
   const sourceStep = sourceRunning ?? sourceDone ?? sourceSteps[sourceSteps.length - 1]
 
   const targetRunning = targetSteps.find((s) => s.status === "running")
-  const targetPending = targetSteps.find((s) => s.status === "pending")
 
   const handleId =
     (props as { sourceHandleId?: string | null; sourceHandle?: string | null })
@@ -74,23 +73,32 @@ function WorkflowEdgeComponent(props: EdgeProps) {
   const isBranchActive =
     !isBranchingNode || !activeBranch || handleId === activeBranch
 
-  // Edge is transferring/animating while live, source has completed, branch is active, and target is pending (token traveling to target)
+  const isEdgeSkipped = edgeStep?.status === "skipped"
+
+  // Check if target node has started executing, completed, or failed
+  const hasTargetStartedOrFinished = Boolean(
+    targetRunning ||
+    hasTargetDone ||
+    targetSteps.some((s) => s.status === "failed")
+  )
+
+  // Edge is transferring/animating while live, source has completed, branch is active, and target has not yet started
   const isTransferring = Boolean(
     isLive &&
     !isRunCanceling &&
+    !isEdgeSkipped &&
     hasSourceDone &&
     isBranchActive &&
-    (edgeStep ? edgeStep.status === "pending" : (targetPending?.status === "pending" && !targetRunning))
+    !hasTargetStartedOrFinished
   )
 
-  // Edge was traversed successfully once the token reaches the target (target is running, done, or failed)
+  // Edge was traversed successfully once the target starts running, completes, or fails
   const isTraversed = Boolean(
     !isTransferring &&
+    !isEdgeSkipped &&
     hasSourceDone &&
     isBranchActive &&
-    (edgeStep
-      ? (edgeStep.status === "running" || edgeStep.status === "done" || edgeStep.status === "failed")
-      : (hasTargetDone || Boolean(targetRunning) || targetSteps.some((s) => s.status === "failed")))
+    hasTargetStartedOrFinished
   )
 
   const combinedStyle = React.useMemo(() => {

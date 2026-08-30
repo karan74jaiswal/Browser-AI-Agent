@@ -9,6 +9,7 @@ import {
   FileText,
   GitBranch,
   GitFork,
+  GitMerge,
   Globe,
   Mail,
   MousePointerClick,
@@ -449,6 +450,60 @@ export const nodeRegistry = {
       },
     ],
     outputs: [],
+  },
+  merge: {
+    type: "merge",
+    kind: "action",
+    label: "Merge / Join",
+    icon: GitMerge,
+    accent: "bg-indigo-600 text-white",
+    fields: [
+      {
+        key: "mode",
+        label: "Merge Mode",
+        defaultValue: "combine",
+        required: true,
+        options: [
+          {
+            label: "Combine All Active (Object Map)",
+            value: "combine",
+          },
+          {
+            label: "Flatten into Array (List)",
+            value: "array",
+          },
+          {
+            label: "Pass-Through / Winner (Single Active Branch)",
+            value: "first",
+          },
+        ],
+      },
+      {
+        key: "onBranchFailure",
+        label: "On Branch Failure",
+        defaultValue: "continue",
+        required: false,
+        options: [
+          {
+            label: "Continue with Successful Branches",
+            value: "continue",
+          },
+          {
+            label: "Halt Workflow if Any Branch Fails",
+            value: "halt",
+          },
+        ],
+      },
+    ],
+    outputs: [
+      { path: "merged", label: "Merged Object Map" },
+      { path: "items", label: "Merged Items Array" },
+      { path: "result", label: "Pass-Through / Winner Result" },
+      { path: "activeCount", label: "Active Branch Count" },
+      { path: "failedCount", label: "Failed Branch Count" },
+      { path: "hasErrors", label: "Has Failed Branches" },
+      { path: "errors", label: "Branch Error Details" },
+    ],
   },
 } satisfies Record<string, NodeDefinition>
 
