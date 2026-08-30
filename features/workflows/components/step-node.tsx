@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react"
-import { Handle, Position, type NodeProps } from "@xyflow/react"
+import { Handle, Position, useNodeConnections, type NodeProps } from "@xyflow/react"
 import { Spinner } from "@/components/ui/spinner"
 
 import {
@@ -16,6 +16,9 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
   const isIfNode = type === "if"
   const isSwitchNode = type === "switch"
   const Icon = def.icon
+
+  const outgoingConnections = useNodeConnections({ handleType: "source" })
+  const isLeafNode = outgoingConnections.length === 0
 
   const switchOutputs = useMemo(() => {
     if (!isSwitchNode) return []
@@ -198,62 +201,97 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
         <span className="text-sm font-semibold">{title}</span>
       </div>
       {isIfNode ? (
-        <>
-          <Handle
-            type="source"
-            position={Position.Right}
-            id="true"
-            style={{ top: "28%", transform: "translate(100%, -50%)" }}
-            className={cn(
-              "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-colors duration-300",
-              isStepCanceling
-                ? "bg-amber-500!"
-                : isRunning
-                  ? "bg-blue-500!"
-                  : isDone && winningBranch === "true"
-                    ? "bg-emerald-500!"
-                    : "bg-border!"
-            )}
-          />
-          <div
-            style={{ top: "28%", transform: "translate(100%, -105%)" }}
-            className="pointer-events-none absolute right-0 z-20 flex items-center pl-2"
-          >
-            <span className="text-[10px] font-semibold text-muted-foreground select-none">
-              true
-            </span>
-          </div>
+        (() => {
+          const hasTrueEdge = outgoingConnections.some(
+            (c) =>
+              ((c as { sourceHandleId?: string | null }).sourceHandleId ||
+                c.sourceHandle) === "true"
+          )
+          const hasFalseEdge = outgoingConnections.some(
+            (c) =>
+              ((c as { sourceHandleId?: string | null }).sourceHandleId ||
+                c.sourceHandle) === "false"
+          )
+          const hideTrueHandle = isLive && !hasTrueEdge
+          const hideFalseHandle = isLive && !hasFalseEdge
 
-          <Handle
-            type="source"
-            position={Position.Right}
-            id="false"
-            style={{ top: "72%", transform: "translate(100%, -50%)" }}
-            className={cn(
-              "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-colors duration-300",
-              isStepCanceling
-                ? "bg-amber-500!"
-                : isRunning
-                  ? "bg-blue-500!"
-                  : isDone && winningBranch === "false"
-                    ? "bg-emerald-500!"
-                    : "bg-border!"
-            )}
-          />
-          <div
-            style={{ top: "72%", transform: "translate(100%, -105%)" }}
-            className="pointer-events-none absolute right-0 z-20 flex items-center pl-2"
-          >
-            <span className="text-[10px] font-semibold text-muted-foreground select-none">
-              false
-            </span>
-          </div>
-        </>
+          return (
+            <>
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="true"
+                style={{ top: "28%", transform: "translate(100%, -50%)" }}
+                className={cn(
+                  "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
+                  hideTrueHandle
+                    ? "opacity-0 pointer-events-none"
+                    : isStepCanceling
+                      ? "bg-amber-500!"
+                      : isRunning
+                        ? "bg-blue-500!"
+                        : isDone && winningBranch === "true"
+                          ? "bg-emerald-500!"
+                          : "bg-border!"
+                )}
+              />
+              <div
+                style={{ top: "28%", transform: "translate(100%, -105%)" }}
+                className={cn(
+                  "pointer-events-none absolute right-0 z-20 flex items-center pl-2 transition-opacity duration-300",
+                  hideTrueHandle && "opacity-0"
+                )}
+              >
+                <span className="text-[10px] font-semibold text-muted-foreground select-none">
+                  true
+                </span>
+              </div>
+
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="false"
+                style={{ top: "72%", transform: "translate(100%, -50%)" }}
+                className={cn(
+                  "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
+                  hideFalseHandle
+                    ? "opacity-0 pointer-events-none"
+                    : isStepCanceling
+                      ? "bg-amber-500!"
+                      : isRunning
+                        ? "bg-blue-500!"
+                        : isDone && winningBranch === "false"
+                          ? "bg-emerald-500!"
+                          : "bg-border!"
+                )}
+              />
+              <div
+                style={{ top: "72%", transform: "translate(100%, -105%)" }}
+                className={cn(
+                  "pointer-events-none absolute right-0 z-20 flex items-center pl-2 transition-opacity duration-300",
+                  hideFalseHandle && "opacity-0"
+                )}
+              >
+                <span className="text-[10px] font-semibold text-muted-foreground select-none">
+                  false
+                </span>
+              </div>
+            </>
+          )
+        })()
       ) : isSwitchNode ? (
         <>
           {switchOutputs.map((out, idx) => {
             const topPct = `${((idx + 0.5) / switchOutputs.length) * 100}%`
             const isWinning = isDone && winningBranch === out.id
+            const hasOutEdge = outgoingConnections.some(
+              (c) =>
+                (((c as { sourceHandleId?: string | null }).sourceHandleId ||
+                  c.sourceHandle ||
+                  "0") === out.id)
+            )
+            const hideSwitchHandle = isLive && !hasOutEdge
+
             return (
               <div key={out.id}>
                 <Handle
@@ -262,19 +300,24 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
                   id={out.id}
                   style={{ top: topPct, transform: "translate(100%, -50%)" }}
                   className={cn(
-                    "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-colors duration-300",
-                    isStepCanceling
-                      ? "bg-amber-500!"
-                      : isRunning
-                        ? "bg-blue-500!"
-                        : isWinning
-                          ? "bg-emerald-500!"
-                          : "bg-border!"
+                    "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
+                    hideSwitchHandle
+                      ? "opacity-0 pointer-events-none"
+                      : isStepCanceling
+                        ? "bg-amber-500!"
+                        : isRunning
+                          ? "bg-blue-500!"
+                          : isWinning
+                            ? "bg-emerald-500!"
+                            : "bg-border!"
                   )}
                 />
                 <div
                   style={{ top: topPct, transform: "translate(100%, -105%)" }}
-                  className="pointer-events-none absolute right-0 z-20 flex items-center pl-2"
+                  className={cn(
+                    "pointer-events-none absolute right-0 z-20 flex items-center pl-2 transition-opacity duration-300",
+                    hideSwitchHandle && "opacity-0"
+                  )}
                 >
                   <span className="text-[10px] font-semibold text-muted-foreground select-none">
                     {out.label}
@@ -311,14 +354,16 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
             position={Position.Right}
             style={{ transform: "translate(100%, -50%)" }}
             className={cn(
-              "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-colors duration-300",
-              isStepCanceling
-                ? "bg-amber-500!"
-                : isRunning
-                  ? "bg-blue-500!"
-                  : isDone
-                    ? "bg-emerald-500!"
-                    : "bg-border!"
+              "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
+              isLive && isLeafNode
+                ? "opacity-0 pointer-events-none"
+                : isStepCanceling
+                  ? "bg-amber-500!"
+                  : isRunning
+                    ? "bg-blue-500!"
+                    : isDone
+                      ? "bg-emerald-500!"
+                      : "bg-border!"
             )}
           />
         </>
