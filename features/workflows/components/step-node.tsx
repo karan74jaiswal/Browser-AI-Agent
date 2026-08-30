@@ -111,10 +111,11 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
   return (
     <div
       className={cn(
-        "relative max-w-80 min-w-50 rounded-(--radius) border-2 border-border bg-card text-card-foreground transition-all duration-300 ease-in-out",
-        isRunning && "border-blue-500/40 shadow-[0_0_16px_rgba(59,130,246,0.15)]",
+        "relative max-w-80 min-w-50 rounded-(--radius) border-2 border-border bg-card text-card-foreground transition-all duration-300 ease-out will-change-transform",
+        isRunning &&
+          "scale-[1.035] z-20 border-blue-500/40 shadow-[0_8px_24px_rgba(59,130,246,0.18)]",
         isStepCanceling &&
-          "border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.2)]",
+          "scale-[1.02] border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.2)]",
         isFailed && "border-destructive shadow-[0_0_16px_rgba(239,68,68,0.15)]",
         isDone &&
           "border-emerald-500/50 dark:border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.1)]",
@@ -172,13 +173,15 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
           style={{ transform: "translate(-100%, -50%)" }}
           className={cn(
             "h-3.5! w-1.5! min-w-0! rounded-l-xs! rounded-r-none! border-0! transition-colors duration-300",
-            isStepCanceling
-              ? "bg-amber-500!"
-              : isRunning
-                ? "bg-blue-500!"
-                : isDone
-                  ? "bg-emerald-500!"
-                  : "bg-border!"
+            isFailed
+              ? "bg-destructive!"
+              : isStepCanceling
+                ? "bg-amber-500!"
+                : isRunning
+                  ? "bg-blue-500!"
+                  : isDone
+                    ? "bg-emerald-500!"
+                    : "bg-border!"
           )}
         />
       )}
@@ -226,13 +229,15 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
                   "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
                   hideTrueHandle
                     ? "opacity-0 pointer-events-none"
-                    : isStepCanceling
-                      ? "bg-amber-500!"
-                      : isRunning
-                        ? "bg-blue-500!"
-                        : isDone && winningBranch === "true"
-                          ? "bg-emerald-500!"
-                          : "bg-border!"
+                    : isFailed
+                      ? "bg-destructive!"
+                      : isStepCanceling
+                        ? "bg-amber-500!"
+                        : isRunning
+                          ? "bg-blue-500!"
+                          : isDone && winningBranch === "true"
+                            ? "bg-emerald-500!"
+                            : "bg-border!"
                 )}
               />
               <div
@@ -256,13 +261,15 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
                   "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
                   hideFalseHandle
                     ? "opacity-0 pointer-events-none"
-                    : isStepCanceling
-                      ? "bg-amber-500!"
-                      : isRunning
-                        ? "bg-blue-500!"
-                        : isDone && winningBranch === "false"
-                          ? "bg-emerald-500!"
-                          : "bg-border!"
+                    : isFailed
+                      ? "bg-destructive!"
+                      : isStepCanceling
+                        ? "bg-amber-500!"
+                        : isRunning
+                          ? "bg-blue-500!"
+                          : isDone && winningBranch === "false"
+                            ? "bg-emerald-500!"
+                            : "bg-border!"
                 )}
               />
               <div
@@ -303,13 +310,15 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
                     "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
                     hideSwitchHandle
                       ? "opacity-0 pointer-events-none"
-                      : isStepCanceling
-                        ? "bg-amber-500!"
-                        : isRunning
-                          ? "bg-blue-500!"
-                          : isWinning
-                            ? "bg-emerald-500!"
-                            : "bg-border!"
+                      : isFailed
+                        ? "bg-destructive!"
+                        : isStepCanceling
+                          ? "bg-amber-500!"
+                          : isRunning
+                            ? "bg-blue-500!"
+                            : isWinning
+                              ? "bg-emerald-500!"
+                              : "bg-border!"
                   )}
                 />
                 <div
@@ -357,13 +366,15 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
               "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
               isLive && isLeafNode
                 ? "opacity-0 pointer-events-none"
-                : isStepCanceling
-                  ? "bg-amber-500!"
-                  : isRunning
-                    ? "bg-blue-500!"
-                    : isDone
-                      ? "bg-emerald-500!"
-                      : "bg-border!"
+                : isFailed
+                  ? "bg-destructive!"
+                  : isStepCanceling
+                    ? "bg-amber-500!"
+                    : isRunning
+                      ? "bg-blue-500!"
+                      : isDone
+                        ? "bg-emerald-500!"
+                        : "bg-border!"
             )}
           />
         </>

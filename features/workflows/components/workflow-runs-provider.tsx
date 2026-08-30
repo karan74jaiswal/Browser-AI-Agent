@@ -9,6 +9,12 @@ import React, {
 } from "react"
 import { useRealtimeRunsWithTag } from "@trigger.dev/react-hooks"
 import { cancelWorkflowAction } from "@/features/workflows/actions"
+import {
+  playStepStartSound,
+  playStepSuccessSound,
+  playStepErrorSound,
+  playWorkflowSuccessSound,
+} from "@/features/workflows/lib/workflow-sound"
 import type {
   runWorkflowTask,
   RunStep,
@@ -232,6 +238,54 @@ export function WorkflowRunsProvider({
 
   // Canceling is active strictly while the run is live
   const cancelingRunId = isLive ? rawCancelingRunId : null
+
+  // Sound effects on step and run lifecycle transitions
+  const prevStepStatusesRef = React.useRef<Map<string, string>>(new Map())
+  const prevRunStatusRef = React.useRef<string | undefined>(undefined)
+
+  React.useEffect(() => {
+    if (!latestRun) {
+      prevStepStatusesRef.current.clear()
+      prevRunStatusRef.current = undefined
+      return
+    }
+
+    const currentStatus = latestRun.status?.toUpperCase()
+    const prevRunStatus = prevRunStatusRef.current
+
+    // Detect overall run completion
+    if (
+      prevRunStatus &&
+      isRunLive(prevRunStatus) &&
+      currentStatus === "COMPLETED"
+    ) {
+      playWorkflowSuccessSound()
+    }
+    prevRunStatusRef.current = currentStatus
+
+    if (!steps || steps.length === 0) return
+
+    const prevMap = prevStepStatusesRef.current
+    for (const step of steps) {
+      const prevStatus = prevMap.get(step.id)
+      if (prevStatus !== step.status) {
+        if (step.status === "running" && prevStatus !== "running") {
+          playStepStartSound()
+        } else if (
+          step.status === "done" &&
+          (prevStatus === "running" || prevStatus === "pending")
+        ) {
+          playStepSuccessSound()
+        } else if (
+          step.status === "failed" &&
+          prevStatus !== "failed"
+        ) {
+          playStepErrorSound()
+        }
+        prevMap.set(step.id, step.status)
+      }
+    }
+  }, [steps, latestRun])
 
   const cancelRun = useCallback(async (runId: string) => {
     setRawCancelingRunId(runId)

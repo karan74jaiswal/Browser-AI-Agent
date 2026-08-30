@@ -83,18 +83,14 @@ function WorkflowEdgeComponent(props: EdgeProps) {
     (edgeStep ? edgeStep.status === "pending" : (targetPending?.status === "pending" && !targetRunning))
   )
 
-  // Edge was traversed successfully once the token reaches the target (target is running or done)
+  // Edge was traversed successfully once the token reaches the target (target is running, done, or failed)
   const isTraversed = Boolean(
     !isTransferring &&
     hasSourceDone &&
     isBranchActive &&
-    (edgeStep ? (edgeStep.status === "running" || edgeStep.status === "done") : (hasTargetDone || Boolean(targetRunning)))
-  )
-
-  // Edge failed if the specific step initiated by this edge failed
-  const isFailed = Boolean(
-    edgeStep?.status === "failed" &&
-    isBranchActive
+    (edgeStep
+      ? (edgeStep.status === "running" || edgeStep.status === "done" || edgeStep.status === "failed")
+      : (hasTargetDone || Boolean(targetRunning) || targetSteps.some((s) => s.status === "failed")))
   )
 
   const combinedStyle = React.useMemo(() => {
@@ -106,15 +102,8 @@ function WorkflowEdgeComponent(props: EdgeProps) {
         strokeWidth: 2,
       }
     }
-    if (isFailed) {
-      return {
-        ...base,
-        stroke: "var(--destructive)",
-        strokeWidth: 2,
-      }
-    }
     return base
-  }, [isTraversed, isFailed, style])
+  }, [isTraversed, style])
 
   return (
     <>

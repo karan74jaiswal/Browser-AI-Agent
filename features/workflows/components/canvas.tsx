@@ -4,6 +4,7 @@ import * as React from "react"
 import {
   ReactFlow,
   Controls,
+  ControlButton,
   type Edge,
   type ColorMode,
   type EdgeTypes,
@@ -12,10 +13,12 @@ import {
   Panel,
 } from "@xyflow/react"
 import { useTheme } from "next-themes"
+import { Volume2, VolumeX } from "lucide-react"
 import { StepNode } from "@/features/workflows/components/step-node"
 import { WorkflowEdge } from "@/features/workflows/components/workflow-edge"
 import { DevWorkflowDebugger } from "@/features/workflows/components/dev-workflow-debugger"
 import { type StepNodeType } from "@/features/workflows/nodes/node-registry"
+import { isSoundMuted, toggleSoundMuted } from "@/features/workflows/lib/workflow-sound"
 import { useLiveblocksFlow, Cursors } from "@liveblocks/react-flow"
 import { AvatarStack } from "@liveblocks/react-ui"
 import "@xyflow/react/dist/style.css"
@@ -166,6 +169,16 @@ export function Canvas({ workflowId }: CanvasProps) {
       : "system"
   }, [isMounted, resolvedTheme])
 
+  const soundMuted = React.useSyncExternalStore(
+    (callback) => {
+      window.addEventListener("workflow-sound-muted-change", callback)
+      return () =>
+        window.removeEventListener("workflow-sound-muted-change", callback)
+    },
+    () => isSoundMuted(),
+    () => false
+  )
+
   return (
     <div className="size-full">
       <ReactFlow
@@ -187,7 +200,23 @@ export function Canvas({ workflowId }: CanvasProps) {
         proOptions={proOptions}
       >
         <Cursors />
-        <Controls />
+        <Controls>
+          <ControlButton
+            onClick={() => {
+              toggleSoundMuted()
+            }}
+            title={soundMuted ? "Unmute execution sounds" : "Mute execution sounds"}
+            aria-label={
+              soundMuted ? "Unmute execution sounds" : "Mute execution sounds"
+            }
+          >
+            {soundMuted ? (
+              <VolumeX className="size-3.5 text-muted-foreground" />
+            ) : (
+              <Volume2 className="size-3.5 text-primary" />
+            )}
+          </ControlButton>
+        </Controls>
         <Panel position="top-right">
           <AvatarStack />
         </Panel>
