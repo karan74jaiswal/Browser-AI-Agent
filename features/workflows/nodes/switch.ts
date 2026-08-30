@@ -105,9 +105,9 @@ export async function switchNode({
   }
 
   return {
-    outputIndex: "fallback",
+    outputIndex: -1,
     outputName: "None",
-    branch: "fallback",
+    branch: "none",
     reason: "No rules matched and fallback is disabled",
   }
 }

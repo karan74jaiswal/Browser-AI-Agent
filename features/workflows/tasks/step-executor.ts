@@ -112,6 +112,16 @@ export async function executeStep({
         disabledEdges.add(edge.id)
       }
     }
+  } else if (node.data.type === "start") {
+    result = triggerData ?? results[nodeId] ?? {
+      startedAt: new Date().toISOString(),
+    }
+    results[nodeId] = result
+
+    const outEdges = outgoingEdges.get(nodeId) || []
+    for (const edge of outEdges) {
+      activeEdges.add(edge.id)
+    }
   } else if (node.data.type === "google-form-trigger") {
     result = triggerData ?? {
       formId: "sample-form-id",
