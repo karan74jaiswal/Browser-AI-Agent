@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/select"
 import { NodeField } from "../../nodes/node-registry"
 import { type TokenInputHandle, TokenInput } from "../token-input"
+import { CodeEditor } from "../code-editor"
 
 // A single editor field for a node property.
 export default function FieldInput({
@@ -50,6 +51,20 @@ export default function FieldInput({
           ))}
         </SelectContent>
       </Select>
+    )
+  }
+
+  if (field.language) {
+    return (
+      <CodeEditor
+        id={field.key}
+        ref={inputRef}
+        value={value}
+        language={field.language}
+        placeholder={field.placeholder}
+        onChange={onChange}
+        onFocus={onFocus}
+      />
     )
   }
 

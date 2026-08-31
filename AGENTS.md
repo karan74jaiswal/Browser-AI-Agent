@@ -28,12 +28,14 @@ Workflows distinguish between two kinds of nodes: **Action Nodes** (execute duri
 Action nodes perform an operation during workflow execution (e.g. `open-url`, `act`, `extract`, `observe`, `agent`, `send-email`, `http-request`).
 
 ### Step 1: Create the Executor File (`features/workflows/nodes/<node-name>.ts`)
+
 - Export an async executor function (e.g., `export async function httpRequest({ ... })`).
 - Sanitize string inputs if URLs or tokens might contain zero-width spaces: `.trim().replace(/[\u200B\uFEFF\u00A0]/g, "")`.
 - Return a serializable object containing the output variables defined in the manifest.
 - Throw descriptive `Error` instances on failure (these are caught by the execution runner and recorded in the step log).
 
 ### Step 2: Register in `features/workflows/nodes/node-executors.ts`
+
 - Import the executor function.
 - Add the entry to `nodeExecutors`:
   ```typescript
@@ -45,6 +47,7 @@ Action nodes perform an operation during workflow execution (e.g. `open-url`, `a
 - The `satisfies Record<ActionNodeType, NodeExecutor>` contract enforces compile-time safety: forgetting to register an action node will cause TypeScript compilation to fail.
 
 ### Step 3: Register Manifest in `features/workflows/nodes/node-registry.ts`
+
 - Import the relevant Lucide icon from `lucide-react`.
 - Add an entry to `nodeRegistry` with:
   - `type`: string key matching the executor name (e.g. `"my-action"`).
@@ -57,6 +60,7 @@ Action nodes perform an operation during workflow execution (e.g. `open-url`, `a
   - `requiredPlan`: Optional plan gating (`"pro"` or `"enterprise"`).
 
 ### Step 4: Register Icon SVG Path in `features/workflows/components/token-input.tsx`
+
 - Add the node's SVG path to `nodeIconSvgPaths` so dynamic token pills in input fields display the branded icon badge.
 
 ---
@@ -66,13 +70,16 @@ Action nodes perform an operation during workflow execution (e.g. `open-url`, `a
 Trigger nodes initiate workflow runs (e.g. `start`, `google-form-trigger`, `stripe-trigger`).
 
 ### Step 1: Register Manifest in `features/workflows/nodes/node-registry.ts`
+
 - Add an entry to `nodeRegistry` with `kind: "trigger"`, `icon`, `accent`, `fields`, and `outputs`.
 
 ### Step 2: Configure Inspector & Palette in `features/workflows/components/right-sidebar.tsx`
+
 - **Initial Values**: In `Palette.add()`, initialize default values or generated secrets (e.g., `whsec_${crypto.randomUUID()}`).
 - **Inspector Panel**: If the trigger requires webhook URLs or setup instructions, create a dedicated inspector component (e.g., `<StripeTriggerInspector>`, `<GoogleFormTriggerInspector>`) and render it in `Inspector` when `type === "<your-trigger>"`.
 
 ### Step 3: Create Webhook Route (`app/api/webhooks/<provider>/route.ts`)
+
 - Parse query parameters: `workflowId`, `orgId`, `secret`.
 - Verify workflow existence via `getWorkflow(orgId, workflowId)`.
 - Verify secret authentication token against `node.data.values.secret`.
@@ -87,9 +94,11 @@ Trigger nodes initiate workflow runs (e.g. `start`, `google-form-trigger`, `stri
   ```
 
 ### Step 4: Add Trigger Handling in `features/workflows/tasks/run-workflow.ts`
+
 - In the execution loop, handle `node.data.type === "<your-trigger>"` by populating `results[id]` with `triggerData ?? { /* fallback mock data for canvas test runs */ }`.
 
 ### Step 5: Register Icon SVG Path in `features/workflows/components/token-input.tsx`
+
 - Add the trigger's SVG path to `nodeIconSvgPaths`.
 
 ---
@@ -131,6 +140,18 @@ consult the official LLM docs index at https://reactflow.dev/llms.txt and follow
 the linked pages relevant to what you're building. Do not rely on memory for
 component names, props, hook signatures, or usage patterns.
 
+# E2B — don't trust training data
+
+This project uses E2B (`@e2b/code-interpreter` / `@e2b/desktop` / E2B SDK) for
+secure cloud sandboxes and multi-language code execution (Python, JavaScript/TypeScript,
+R, Bash). Its APIs, SDK methods (e.g., `Sandbox.create()`, `runCode()`, filesystem
+methods, streaming, templates, and lifecycle management) evolve rapidly and may
+differ from your training data. Before writing or changing any E2B integration
+code, fetch and consult the official LLM docs index at https://docs.e2b.dev/llms.txt
+and follow the linked documentation pages relevant to what you're building. Do
+not rely on memory for SDK method names, parameter shapes, lifecycle hooks, or
+execution patterns.
+
 # Database types
 
 Derive database types from the Drizzle schema — never hand-write custom or partial
@@ -148,6 +169,7 @@ This project has Strip agent skills installed in `.agents/skills/`. Before writi
 <!-- STRIPE SKILLS END -->
 
 <!-- TRIGGER.DEV SKILLS START -->
+
 ## Trigger.dev agent skills
 
 This project has Trigger.dev agent skills installed in `.agents/skills/`. Before writing or changing Trigger.dev code (background tasks, scheduled tasks, realtime, or chat.agent AI agents), load the most relevant skill: `trigger-authoring-chat-agent`, `trigger-authoring-tasks`, `trigger-chat-agent-advanced`, `trigger-cost-savings`, `trigger-getting-started`, `trigger-realtime-and-frontend`.

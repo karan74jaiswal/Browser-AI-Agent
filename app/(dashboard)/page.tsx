@@ -1,4 +1,10 @@
+import type { Metadata } from "next"
 import { WorkflowIcon } from "lucide-react"
+
+export const metadata: Metadata = {
+  title: "Workflows",
+  description: "Create, orchestrate, and manage your autonomous AI workflows.",
+}
 
 import {
   Empty,

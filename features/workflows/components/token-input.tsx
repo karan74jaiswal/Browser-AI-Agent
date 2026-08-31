@@ -129,6 +129,8 @@ const nodeIconSvgPaths: Record<string, string> = {
   merge: `<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M6 9v3a6 6 0 0 0 6 6h3"/>`,
   wait: `<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`,
   "throw-error": `<polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>`,
+  "js-code": `<rect width="20" height="18" x="2" y="3" rx="2.5" stroke-width="1.8"/><line x1="2" y1="8.5" x2="22" y2="8.5" stroke-width="1.2"/><circle cx="5.5" cy="5.75" r="0.8" fill="currentColor" stroke="none"/><circle cx="8.5" cy="5.75" r="0.8" fill="currentColor" stroke="none"/><path d="M7.5 16.2c.3.5.7.8 1.4.8.8 0 1.3-.4 1.3-1.1v-3.7h-1.2" stroke-width="1.8"/><path d="M13.2 16c.4.6 1 .9 1.7.9.9 0 1.5-.5 1.5-1.1 0-.6-.5-.9-1.4-1.2l-.5-.2c-1.1-.3-1.7-.7-1.7-1.6 0-1 .8-1.7 1.9-1.7.9 0 1.5.3 1.9.9" stroke-width="1.8"/>`,
+  "python-code": `<rect width="20" height="18" x="2" y="3" rx="2.5" stroke-width="1.8"/><line x1="2" y1="8.5" x2="22" y2="8.5" stroke-width="1.2"/><circle cx="5.5" cy="5.75" r="0.8" fill="currentColor" stroke="none"/><circle cx="8.5" cy="5.75" r="0.8" fill="currentColor" stroke="none"/><path d="M12 11.2h2a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1h-2a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1H11a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1Z" stroke-width="1.5"/><circle cx="9.5" cy="12.5" r="0.6" fill="currentColor" stroke="none"/><circle cx="14.5" cy="14.5" r="0.6" fill="currentColor" stroke="none"/>`,
 }
 
 export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(

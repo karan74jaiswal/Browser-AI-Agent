@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { DiscordIcon } from "./discord"
 import { SlackIcon } from "./slack"
+import { JsCodeIcon, PythonCodeIcon } from "./code-icons"
 
 export type StepNodeKind = "trigger" | "action"
 
@@ -35,6 +36,7 @@ export type NodeField = {
   required?: boolean
   options?: NodeFieldOption[]
   defaultValue?: string
+  language?: "javascript" | "python"
 }
 
 export type NodeOutput = {
@@ -503,6 +505,52 @@ export const nodeRegistry = {
       { path: "failedCount", label: "Failed Branch Count" },
       { path: "hasErrors", label: "Has Failed Branches" },
       { path: "errors", label: "Branch Error Details" },
+    ],
+  },
+  "js-code": {
+    type: "js-code",
+    kind: "action",
+    label: "JavaScript",
+    icon: JsCodeIcon,
+    accent: "bg-amber-600 text-white",
+    fields: [
+      {
+        key: "code",
+        label: "JavaScript / TypeScript Code",
+        language: "javascript",
+        placeholder: `const greeting = "Hello world!";\nconsole.log(greeting);\nreturn greeting;`,
+        defaultValue: `const greeting = "Hello world!";\nconsole.log(greeting);\nreturn greeting;`,
+        multiline: true,
+        required: true,
+      },
+    ],
+    outputs: [
+      { path: "result", label: "Result" },
+      { path: "stdout", label: "Standard Output (stdout)" },
+      { path: "stderr", label: "Standard Error (stderr)" },
+    ],
+  },
+  "python-code": {
+    type: "python-code",
+    kind: "action",
+    label: "Python",
+    icon: PythonCodeIcon,
+    accent: "bg-sky-600 text-white",
+    fields: [
+      {
+        key: "code",
+        label: "Python Code",
+        language: "python",
+        placeholder: `greeting = "Hello world!"\nprint(greeting)\ngreeting`,
+        defaultValue: `greeting = "Hello world!"\nprint(greeting)\ngreeting`,
+        multiline: true,
+        required: true,
+      },
+    ],
+    outputs: [
+      { path: "result", label: "Result" },
+      { path: "stdout", label: "Standard Output (stdout)" },
+      { path: "stderr", label: "Standard Error (stderr)" },
     ],
   },
 } satisfies Record<string, NodeDefinition>

@@ -22,7 +22,11 @@ export default defineConfig({
   },
   dirs: ["features", "trigger"],
   build: {
-    external: ["@browserbasehq/stagehand", "@browserbasehq/sdk"],
+    external: [
+      "@browserbasehq/stagehand",
+      "@browserbasehq/sdk",
+      "@e2b/code-interpreter",
+    ],
     extensions: [
       esbuildPlugin(
         sentryEsbuildPlugin({

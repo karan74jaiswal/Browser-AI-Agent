@@ -59,6 +59,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
   }, [isSwitchNode, values])
 
   const fields = (def.fields as NodeField[])
+    .filter((field: NodeField) => !field.language && field.key !== "code")
     .map((field: NodeField) => {
       const rawValue = values[field.key] || field.defaultValue || ""
       if (!rawValue) return null

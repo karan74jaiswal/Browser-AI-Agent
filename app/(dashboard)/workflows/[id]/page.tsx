@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { ReactFlowProvider } from "@xyflow/react"
 import { auth } from "@trigger.dev/sdk"
@@ -11,6 +12,18 @@ interface PageProps {
   params: Promise<{
     id: string
   }>
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params
+  const workflow = await getWorkflowAction(id)
+  if (!workflow) {
+    return { title: "Workflow Editor" }
+  }
+  return {
+    title: workflow.name,
+    description: `Edit and orchestrate the ${workflow.name} workflow on Nodus.`,
+  }
 }
 
 export default async function Page({ params }: PageProps) {

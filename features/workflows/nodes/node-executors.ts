@@ -14,6 +14,8 @@ import { waitNode } from "./wait"
 import { throwErrorNode } from "./throw-error"
 import { switchNode } from "./switch"
 import { mergeNode } from "./merge"
+import { executeJsCode } from "./js-code"
+import { executePythonCode } from "./python-code"
 import {
   evaluateIfConditions,
   type ConditionCriterion,
@@ -92,4 +94,12 @@ export const nodeExecutors: Partial<Record<NodeType, NodeExecutor>> = {
   "throw-error": async ({ values }) =>
     throwErrorNode({ message: values.message }),
   merge: async ({ values }) => mergeNode({ values }),
+  "js-code": async ({ values }) =>
+    executeJsCode({
+      code: values.code,
+    }),
+  "python-code": async ({ values }) =>
+    executePythonCode({
+      code: values.code,
+    }),
 } satisfies Record<ActionNodeType, NodeExecutor>

@@ -1,4 +1,10 @@
+import type { Metadata } from "next"
 import { PricingTable } from "@clerk/nextjs"
+
+export const metadata: Metadata = {
+  title: "Plans & Pricing",
+  description: "Choose a plan that fits your organization's workflow automation needs.",
+}
 
 export default function PricingPage() {
   return (
