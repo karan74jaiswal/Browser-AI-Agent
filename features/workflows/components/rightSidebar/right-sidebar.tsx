@@ -2,8 +2,9 @@
 
 import { useCallback, useState } from "react"
 
-import { useOnSelectionChange, useStore } from "@xyflow/react"
-import { Pencil, Trash2 } from "lucide-react"
+import { useOnSelectionChange, useStore, useReactFlow } from "@xyflow/react"
+import { Download, Pencil, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 import { EditWorkflowDialog } from "../edit-workflow-dialog"
 import { DeleteWorkflowDialog } from "../delete-workflow-dialog"
@@ -14,6 +15,8 @@ import { ResizablePanel } from "@/components/ui/resizable"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import { type StepNodeType } from "@/features/workflows/nodes/node-registry"
+import { downloadWorkflowJson } from "@/features/workflows/lib/workflow-export-import"
+import type { WorkflowGraph } from "@/lib/db"
 
 import Inspector from "./inspector"
 import Palette from "./palette"
@@ -39,6 +42,17 @@ export function RightSidebar({
   const [tab, setTab] = useState("toolbar")
   const [isRenameOpen, setIsRenameOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+
+  const { getNodes, getEdges } = useReactFlow<StepNodeType>()
+
+  const handleExport = useCallback(() => {
+    const currentGraph: WorkflowGraph = {
+      nodes: getNodes(),
+      edges: getEdges(),
+    }
+    downloadWorkflowJson(workflowName || "workflow", currentGraph)
+    toast.success(`Workflow "${workflowName || "Workflow"}" exported`)
+  }, [getNodes, getEdges, workflowName])
 
   // Read the currently selected node from React Flow.
   const selected = useStore((s) => s.nodes.find((node) => node.selected)) as
@@ -72,6 +86,15 @@ export function RightSidebar({
             >
               <Pencil className="size-4" />
               <span className="sr-only">Rename workflow</span>
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              title="Export workflow (JSON)"
+              onClick={handleExport}
+            >
+              <Download className="size-4" />
+              <span className="sr-only">Export workflow</span>
             </Button>
             <Button
               size="icon"

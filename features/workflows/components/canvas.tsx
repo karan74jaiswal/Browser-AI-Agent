@@ -37,7 +37,7 @@ const edgeTypes: EdgeTypes = {
   default: WorkflowEdge,
   workflow: WorkflowEdge,
 }
-const initialNodes: StepNodeType[] = [
+const defaultInitialNodes: StepNodeType[] = [
   {
     id: "1",
     type: "step",
@@ -46,7 +46,7 @@ const initialNodes: StepNodeType[] = [
   },
 ]
 
-const initialEdges: Edge[] = []
+const defaultInitialEdges: Edge[] = []
 
 const defaultConnectionLineStyle: React.CSSProperties = {
   stroke: "var(--border)",
@@ -69,15 +69,26 @@ const proOptions = {
 
 interface CanvasProps {
   workflowId?: string
+  initialGraph?: WorkflowGraph | null
 }
 
-export function Canvas({ workflowId }: CanvasProps) {
+export function Canvas({ workflowId, initialGraph }: CanvasProps) {
   const { resolvedTheme } = useTheme()
   const isMounted = React.useSyncExternalStore(
     emptySubscribe,
     () => true,
     () => false
   )
+
+  const initialNodes =
+    initialGraph?.nodes && initialGraph.nodes.length > 0
+      ? initialGraph.nodes
+      : defaultInitialNodes
+
+  const initialEdges =
+    initialGraph?.edges && initialGraph.edges.length > 0
+      ? initialGraph.edges
+      : defaultInitialEdges
 
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } =
     useLiveblocksFlow({

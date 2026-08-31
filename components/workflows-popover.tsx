@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { PlusIcon, WorkflowIcon } from "lucide-react"
+import { PlusIcon, Upload, WorkflowIcon } from "lucide-react"
 
 import type { Workflow } from "@/lib/db"
 import { cn } from "@/lib/utils"
@@ -23,6 +23,7 @@ interface WorkflowsPopoverProps {
   activeWorkflowId?: string
   onSelectWorkflow?: (id: string) => void
   onNewWorkflow?: () => void
+  onImportWorkflow?: () => void
   className?: string
 }
 
@@ -31,6 +32,7 @@ export function WorkflowsPopover({
   activeWorkflowId,
   onSelectWorkflow,
   onNewWorkflow,
+  onImportWorkflow,
   className,
 }: WorkflowsPopoverProps) {
   return (
@@ -64,6 +66,17 @@ export function WorkflowsPopover({
               <span>New workflow</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          {onImportWorkflow && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={onImportWorkflow}
+                className="h-9 px-3 text-sm font-medium"
+              >
+                <Upload className="size-4" />
+                <span>Import workflow</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
 
         <SidebarSeparator className="mx-0 my-1.5" />

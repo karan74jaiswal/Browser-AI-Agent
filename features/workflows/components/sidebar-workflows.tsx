@@ -3,13 +3,13 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Pencil, PlusIcon, Trash2 } from "lucide-react"
+import { Download, Pencil, PlusIcon, Trash2, Upload } from "lucide-react"
+import { toast } from "sonner"
 
 import type { Workflow } from "@/lib/db"
 import { WorkflowsPopover } from "@/components/workflows-popover"
 import {
   SidebarGroup,
-  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
@@ -18,7 +18,9 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { createWorkflowAction as defaultCreateWorkflowAction } from "@/features/workflows/actions"
+import { downloadWorkflowJson } from "@/features/workflows/lib/workflow-export-import"
 import { CreateWorkflowDialog } from "./create-workflow-dialog"
+import { ImportWorkflowDialog } from "./import-workflow-dialog"
 import { EditWorkflowDialog } from "./edit-workflow-dialog"
 import { DeleteWorkflowDialog } from "./delete-workflow-dialog"
 
@@ -37,6 +39,7 @@ export function SidebarWorkflows({
   const { state, isMobile } = useSidebar()
   const isCollapsed = state === "collapsed" && !isMobile
   const [isCreateOpen, setIsCreateOpen] = React.useState(false)
+  const [isImportOpen, setIsImportOpen] = React.useState(false)
   const [editingWorkflow, setEditingWorkflow] = React.useState<Workflow | null>(
     null
   )
@@ -47,12 +50,24 @@ export function SidebarWorkflows({
     ? pathname.split("/")[2]
     : undefined
 
+  const handleExport = (e: React.MouseEvent, workflow: Workflow) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const graph = workflow.graph || { nodes: [], edges: [] }
+    downloadWorkflowJson(workflow.name, graph)
+    toast.success(`Workflow "${workflow.name}" exported`)
+  }
+
   return (
     <>
       <CreateWorkflowDialog
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         createWorkflowAction={createWorkflowAction}
+      />
+      <ImportWorkflowDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
       />
       {editingWorkflow && (
         <EditWorkflowDialog
@@ -77,6 +92,7 @@ export function SidebarWorkflows({
             workflows={workflows}
             activeWorkflowId={activeWorkflowId}
             onNewWorkflow={() => setIsCreateOpen(true)}
+            onImportWorkflow={() => setIsImportOpen(true)}
           />
         </div>
       ) : (
@@ -84,13 +100,26 @@ export function SidebarWorkflows({
           <SidebarGroupLabel className="text-sm font-medium text-foreground">
             Workflows
           </SidebarGroupLabel>
-          <SidebarGroupAction
-            title="Create workflow"
-            onClick={() => setIsCreateOpen(true)}
-          >
-            <PlusIcon className="size-4" />
-            <span className="sr-only">Create workflow</span>
-          </SidebarGroupAction>
+          <div className="absolute top-3.5 right-3 flex items-center gap-1">
+            <button
+              type="button"
+              title="Import workflow (JSON)"
+              onClick={() => setIsImportOpen(true)}
+              className="flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <Upload className="size-3.5" />
+              <span className="sr-only">Import workflow</span>
+            </button>
+            <button
+              type="button"
+              title="Create workflow"
+              onClick={() => setIsCreateOpen(true)}
+              className="flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <PlusIcon className="size-3.5" />
+              <span className="sr-only">Create workflow</span>
+            </button>
+          </div>
           <SidebarGroupContent className="mt-1">
             <SidebarMenu className="gap-y-0.5">
               {workflows.map((workflow) => {
@@ -103,13 +132,21 @@ export function SidebarWorkflows({
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
-                      className="h-9 px-3 pr-14 text-sm font-normal data-[active=true]:bg-accent data-[active=true]:font-medium data-[active=true]:text-accent-foreground"
+                      className="h-9 px-3 pr-20 text-sm font-normal data-[active=true]:bg-accent data-[active=true]:font-medium data-[active=true]:text-accent-foreground"
                     >
                       <Link href={`/workflows/${workflow.id}`}>
                         <span className="truncate">{workflow.name}</span>
                       </Link>
                     </SidebarMenuButton>
                     <div className="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover/item:opacity-100 group-focus-within/item:opacity-100">
+                      <button
+                        type="button"
+                        onClick={(e) => handleExport(e, workflow)}
+                        title="Export workflow (JSON)"
+                        className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      >
+                        <Download className="size-3.5" />
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => {

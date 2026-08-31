@@ -25,6 +25,9 @@ import {
   getWorkflowLimit,
   PLAN_LIMITS,
 } from "@/features/workflows/lib/plan-limits"
+import { parseAndValidateWorkflowJson } from "@/features/workflows/lib/workflow-export-import"
+import type { Edge } from "@xyflow/react"
+import type { StepNodeType } from "@/features/workflows/nodes/node-registry"
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
@@ -226,4 +229,69 @@ export async function cancelWorkflowAction(runId: string) {
   })
 
   return result
+}
+
+export async function importWorkflowAction(fileContent: string) {
+  const { orgId, has } = await auth()
+
+  if (!orgId) throw new Error("Unauthorized: No active organization found")
+
+  const validation = parseAndValidateWorkflowJson(fileContent)
+  if (!validation.success || !validation.data) {
+    throw new Error(validation.error || "Invalid workflow file")
+  }
+
+  const { name, graph } = validation.data
+
+  const isPro = has({ plan: "pro" }) || has({ plan: "org:pro" })
+  const currentPlan = isPro ? "pro" : "free"
+  const limit = getWorkflowLimit(currentPlan)
+
+  const currentCount = await countWorkflows(orgId)
+  if (currentCount >= limit) {
+    const planConfig = PLAN_LIMITS[currentPlan] ?? PLAN_LIMITS.free
+    const upgradeSuggestion =
+      currentPlan === "free"
+        ? " Upgrade to Pro to create up to 20 workflows."
+        : ""
+    throw new Error(
+      `Workflow limit reached: Your ${planConfig.name} plan allows up to ${limit} workflows.${upgradeSuggestion}`
+    )
+  }
+
+  // Create workflow record in DB
+  const workflow = await createWorkflow(orgId, name.trim())
+
+  // Save the imported nodes and edges
+  await saveWorkflowGraph(workflow.id, orgId, {
+    nodes: graph.nodes as StepNodeType[],
+    edges: graph.edges as Edge[],
+  })
+
+  try {
+    await liveblocks.updateRoom(workflow.id, {
+      metadata: {
+        title: name.trim(),
+      },
+    })
+  } catch (error) {
+    Sentry.logger.warn(
+      "Failed to initialize Liveblocks room metadata for imported workflow",
+      {
+        "workflow.id": workflow.id,
+        "org.id": orgId,
+        reason: errorMessage(error),
+      }
+    )
+  }
+
+  Sentry.logger.info("Workflow imported", {
+    "workflow.id": workflow.id,
+    "org.id": orgId,
+    "node.count": graph.nodes.length,
+    plan: currentPlan,
+  })
+
+  revalidatePath("/workflows", "layout")
+  return workflow
 }

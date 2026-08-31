@@ -51,6 +51,7 @@ export default async function Page({ params }: PageProps) {
           <WorkflowShell
             workflowId={workflow.id}
             workflowName={workflow.name}
+            initialGraph={workflow.graph}
           />
         </WorkflowRunsProvider>
       </ReactFlowProvider>
