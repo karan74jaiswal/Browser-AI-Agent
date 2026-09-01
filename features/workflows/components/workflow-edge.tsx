@@ -2,7 +2,7 @@
 
 import React, { memo } from "react"
 import { BaseEdge, getSmoothStepPath, type EdgeProps } from "@xyflow/react"
-import { useLatestRunSteps } from "./workflow-runs-provider"
+import { useEdgeRunStatus } from "./workflow-runs-provider"
 
 const baseEdgeStyle: React.CSSProperties = {
   stroke: "var(--border)",
@@ -33,29 +33,6 @@ function WorkflowEdgeComponent(props: EdgeProps) {
     targetPosition,
   })
 
-  const { steps, isLive, cancelingRunId, latestRun } = useLatestRunSteps()
-  const isRunCanceling = Boolean(
-    cancelingRunId && latestRun?.id === cancelingRunId && isLive
-  )
-  // Find the exact step instance initiated by this specific edge (prioritize active running/pending pass)
-  const edgeSteps = steps?.filter((s) => s.edgeId === id) ?? []
-  const edgeRunning = edgeSteps.find((s) => s.status === "running")
-  const edgePending = edgeSteps.find((s) => s.status === "pending")
-  const edgeDone = [...edgeSteps].reverse().find((s) => s.status === "done")
-  const edgeStep = edgeRunning ?? edgePending ?? edgeDone ?? edgeSteps[edgeSteps.length - 1]
-
-  const sourceSteps = steps?.filter((s) => s.nodeId === source || s.id === source) ?? []
-  const targetSteps = steps?.filter((s) => s.nodeId === target || s.id === target) ?? []
-
-  const hasSourceDone = sourceSteps.some((s) => s.status === "done")
-  const hasTargetDone = targetSteps.some((s) => s.status === "done")
-
-  const sourceRunning = sourceSteps.find((s) => s.status === "running")
-  const sourceDone = sourceSteps.find((s) => s.status === "done")
-  const sourceStep = sourceRunning ?? sourceDone ?? sourceSteps[sourceSteps.length - 1]
-
-  const targetRunning = targetSteps.find((s) => s.status === "running")
-
   const handleId =
     (props as { sourceHandleId?: string | null; sourceHandle?: string | null })
       .sourceHandleId ||
@@ -63,43 +40,12 @@ function WorkflowEdgeComponent(props: EdgeProps) {
       .sourceHandle ||
     "true"
 
-  const outputObj = sourceStep?.output as
-    { branch?: string; result?: boolean } | undefined
-  const activeBranch = outputObj?.branch
-
-  // If the source node is an "if" or "switch" node, verify that this edge matches the winning branch
-  const isBranchingNode =
-    sourceStep?.type === "if" || sourceStep?.type === "switch"
-  const isBranchActive =
-    !isBranchingNode || !activeBranch || handleId === activeBranch
-
-  const isEdgeSkipped = edgeStep?.status === "skipped"
-
-  // Check if target node has started executing, completed, or failed
-  const hasTargetStartedOrFinished = Boolean(
-    targetRunning ||
-    hasTargetDone ||
-    targetSteps.some((s) => s.status === "failed")
-  )
-
-  // Edge is transferring/animating while live, source has completed, branch is active, and target has not yet started
-  const isTransferring = Boolean(
-    isLive &&
-    !isRunCanceling &&
-    !isEdgeSkipped &&
-    hasSourceDone &&
-    isBranchActive &&
-    !hasTargetStartedOrFinished
-  )
-
-  // Edge was traversed successfully once the target starts running, completes, or fails
-  const isTraversed = Boolean(
-    !isTransferring &&
-    !isEdgeSkipped &&
-    hasSourceDone &&
-    isBranchActive &&
-    hasTargetStartedOrFinished
-  )
+  const { isTransferring, isTraversed } = useEdgeRunStatus({
+    edgeId: id,
+    source,
+    target,
+    handleId,
+  })
 
   const combinedStyle = React.useMemo(() => {
     const base = { ...baseEdgeStyle, ...style }

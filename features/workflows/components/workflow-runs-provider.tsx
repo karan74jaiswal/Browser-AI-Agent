@@ -6,6 +6,7 @@ import React, {
   useContext,
   useMemo,
   useState,
+  useSyncExternalStore,
 } from "react"
 import { useRealtimeRunsWithTag } from "@trigger.dev/react-hooks"
 import { cancelWorkflowAction } from "@/features/workflows/actions"
@@ -154,7 +155,174 @@ export interface WorkflowRunsContextValue {
   cancelRun: (runId: string) => Promise<void>
 }
 
+export interface NodeRunStatus {
+  isRunning: boolean
+  isDone: boolean
+  isFailed: boolean
+  isStepCanceling: boolean
+  winningBranch?: string
+  isLive: boolean
+}
+
+export interface EdgeRunStatus {
+  isTransferring: boolean
+  isTraversed: boolean
+  isLive: boolean
+  isRunCanceling: boolean
+}
+
+export const DEFAULT_NODE_RUN_STATUS: NodeRunStatus = {
+  isRunning: false,
+  isDone: false,
+  isFailed: false,
+  isStepCanceling: false,
+  isLive: false,
+}
+
+export const DEFAULT_EDGE_RUN_STATUS: EdgeRunStatus = {
+  isTransferring: false,
+  isTraversed: false,
+  isLive: false,
+  isRunCanceling: false,
+}
+
+export function computeNodeRunStatus(
+  nodeId: string,
+  kind: string | undefined,
+  steps: RunStep[] | undefined,
+  isLive: boolean,
+  cancelingRunId: string | null,
+  latestRunId?: string
+): NodeRunStatus {
+  const isRunCanceling = Boolean(
+    cancelingRunId && latestRunId === cancelingRunId && isLive
+  )
+  const nodeSteps = steps?.filter((s) => s.nodeId === nodeId || s.id === nodeId) ?? []
+  const hasRunning = nodeSteps.some((s) => s.status === "running")
+  const hasDone = nodeSteps.some((s) => s.status === "done")
+  const hasFailed = nodeSteps.some((s) => s.status === "failed")
+
+  const runningStep = nodeSteps.find((s) => s.status === "running")
+  const doneStep = [...nodeSteps].reverse().find((s) => s.status === "done")
+  const latestStep = nodeSteps[nodeSteps.length - 1]
+  const step = runningStep ?? doneStep ?? latestStep
+
+  const isFailed = hasFailed && !hasRunning
+  const isStepCanceling =
+    isRunCanceling &&
+    (hasRunning || (kind === "trigger" && !hasDone && !isFailed))
+  const isRunning =
+    isLive &&
+    !isRunCanceling &&
+    (hasRunning || (kind === "trigger" && !hasDone && !isFailed))
+  const isDone = Boolean(hasDone && !isRunning && !isStepCanceling && !isFailed)
+  const winningBranch = (step?.output as { branch?: string } | undefined)?.branch
+
+  return {
+    isRunning,
+    isDone,
+    isFailed,
+    isStepCanceling,
+    winningBranch,
+    isLive,
+  }
+}
+
+export function computeEdgeRunStatus({
+  edgeId,
+  source,
+  target,
+  handleId = "true",
+  steps,
+  isLive,
+  cancelingRunId,
+  latestRunId,
+}: {
+  edgeId: string
+  source: string
+  target: string
+  handleId?: string
+  steps: RunStep[] | undefined
+  isLive: boolean
+  cancelingRunId: string | null
+  latestRunId?: string
+}): EdgeRunStatus {
+  const isRunCanceling = Boolean(
+    cancelingRunId && latestRunId === cancelingRunId && isLive
+  )
+  const edgeSteps = steps?.filter((s) => s.edgeId === edgeId) ?? []
+  const edgeRunning = edgeSteps.find((s) => s.status === "running")
+  const edgePending = edgeSteps.find((s) => s.status === "pending")
+  const edgeDone = [...edgeSteps].reverse().find((s) => s.status === "done")
+  const edgeStep = edgeRunning ?? edgePending ?? edgeDone ?? edgeSteps[edgeSteps.length - 1]
+
+  const sourceSteps = steps?.filter((s) => s.nodeId === source || s.id === source) ?? []
+  const targetSteps = steps?.filter((s) => s.nodeId === target || s.id === target) ?? []
+
+  const hasSourceDone = sourceSteps.some((s) => s.status === "done")
+  const hasTargetDone = targetSteps.some((s) => s.status === "done")
+
+  const sourceRunning = sourceSteps.find((s) => s.status === "running")
+  const sourceDone = sourceSteps.find((s) => s.status === "done")
+  const sourceStep = sourceRunning ?? sourceDone ?? sourceSteps[sourceSteps.length - 1]
+
+  const targetRunning = targetSteps.find((s) => s.status === "running")
+
+  const outputObj = sourceStep?.output as
+    { branch?: string; result?: boolean } | undefined
+  const activeBranch = outputObj?.branch
+
+  const isBranchingNode =
+    sourceStep?.type === "if" || sourceStep?.type === "switch"
+  const isBranchActive =
+    !isBranchingNode || !activeBranch || handleId === activeBranch
+
+  const isEdgeSkipped = edgeStep?.status === "skipped"
+
+  const hasTargetStartedOrFinished = Boolean(
+    targetRunning ||
+    hasTargetDone ||
+    targetSteps.some((s) => s.status === "failed")
+  )
+
+  const isTransferring = Boolean(
+    isLive &&
+    !isRunCanceling &&
+    !isEdgeSkipped &&
+    hasSourceDone &&
+    isBranchActive &&
+    !hasTargetStartedOrFinished
+  )
+
+  const isTraversed = Boolean(
+    !isTransferring &&
+    !isEdgeSkipped &&
+    hasSourceDone &&
+    isBranchActive &&
+    hasTargetStartedOrFinished
+  )
+
+  return {
+    isTransferring,
+    isTraversed,
+    isLive,
+    isRunCanceling,
+  }
+}
+
+export interface ExecutionStore {
+  subscribe: (listener: () => void) => () => void
+  getNodeStatus: (nodeId: string, kind?: string) => NodeRunStatus
+  getEdgeStatus: (params: {
+    edgeId: string
+    source: string
+    target: string
+    handleId?: string
+  }) => EdgeRunStatus
+}
+
 const WorkflowRunsContext = createContext<WorkflowRunsContextValue | null>(null)
+const ExecutionStoreContext = createContext<ExecutionStore | null>(null)
 
 export interface WorkflowRunsProviderProps {
   workflowId: string
@@ -283,6 +451,108 @@ export function WorkflowRunsProvider({
     }
   }, [steps, latestRun])
 
+  // Granular Node & Edge Execution Store with referential snapshot caching
+  const listenersRef = React.useRef<Set<() => void>>(new Set())
+  const nodeCacheRef = React.useRef<Map<string, NodeRunStatus>>(new Map())
+  const edgeCacheRef = React.useRef<Map<string, EdgeRunStatus>>(new Map())
+
+  React.useEffect(() => {
+    // Recompute cached entries
+    for (const [key, prev] of nodeCacheRef.current.entries()) {
+      const [nodeId, kind] = key.split(":")
+      const next = computeNodeRunStatus(
+        nodeId,
+        kind,
+        steps,
+        isLive,
+        cancelingRunId,
+        latestRun?.id
+      )
+      if (
+        prev.isRunning !== next.isRunning ||
+        prev.isDone !== next.isDone ||
+        prev.isFailed !== next.isFailed ||
+        prev.isStepCanceling !== next.isStepCanceling ||
+        prev.winningBranch !== next.winningBranch ||
+        prev.isLive !== next.isLive
+      ) {
+        nodeCacheRef.current.set(key, next)
+      }
+    }
+
+    for (const [key, prev] of edgeCacheRef.current.entries()) {
+      const [edgeId, source, target, handleId] = key.split(":")
+      const next = computeEdgeRunStatus({
+        edgeId,
+        source,
+        target,
+        handleId,
+        steps,
+        isLive,
+        cancelingRunId,
+        latestRunId: latestRun?.id,
+      })
+      if (
+        prev.isTransferring !== next.isTransferring ||
+        prev.isTraversed !== next.isTraversed ||
+        prev.isLive !== next.isLive ||
+        prev.isRunCanceling !== next.isRunCanceling
+      ) {
+        edgeCacheRef.current.set(key, next)
+      }
+    }
+
+    // Broadcast to active node and edge listeners
+    listenersRef.current.forEach((listener) => listener())
+  }, [steps, isLive, cancelingRunId, latestRun?.id])
+
+  const executionStore = useMemo<ExecutionStore>(() => {
+    return {
+      subscribe: (listener: () => void) => {
+        listenersRef.current.add(listener)
+        return () => {
+          listenersRef.current.delete(listener)
+        }
+      },
+      getNodeStatus: (nodeId: string, kind?: string) => {
+        const key = `${nodeId}:${kind ?? ""}`
+        let cached = nodeCacheRef.current.get(key)
+        if (!cached) {
+          cached = computeNodeRunStatus(
+            nodeId,
+            kind,
+            steps,
+            isLive,
+            cancelingRunId,
+            latestRun?.id
+          )
+          nodeCacheRef.current.set(key, cached)
+        }
+        return cached
+      },
+      getEdgeStatus: (params: {
+        edgeId: string
+        source: string
+        target: string
+        handleId?: string
+      }) => {
+        const key = `${params.edgeId}:${params.source}:${params.target}:${params.handleId ?? "true"}`
+        let cached = edgeCacheRef.current.get(key)
+        if (!cached) {
+          cached = computeEdgeRunStatus({
+            ...params,
+            steps,
+            isLive,
+            cancelingRunId,
+            latestRunId: latestRun?.id,
+          })
+          edgeCacheRef.current.set(key, cached)
+        }
+        return cached
+      },
+    }
+  }, [steps, isLive, cancelingRunId, latestRun?.id])
+
   const cancelRun = useCallback(async (runId: string) => {
     setRawCancelingRunId(runId)
     try {
@@ -343,9 +613,11 @@ export function WorkflowRunsProvider({
   )
 
   return (
-    <WorkflowRunsContext.Provider value={value}>
-      {children}
-    </WorkflowRunsContext.Provider>
+    <ExecutionStoreContext.Provider value={executionStore}>
+      <WorkflowRunsContext.Provider value={value}>
+        {children}
+      </WorkflowRunsContext.Provider>
+    </ExecutionStoreContext.Provider>
   )
 }
 
@@ -383,4 +655,27 @@ export function useLatestRunSteps() {
     selectedRunSteps: context.selectedRunSteps,
     selectedRunSessionId: context.selectedRunSessionId,
   }
+}
+
+export function useNodeRunStatus(nodeId: string, kind?: string): NodeRunStatus {
+  const store = useContext(ExecutionStoreContext)
+  return useSyncExternalStore(
+    store ? store.subscribe : () => () => {},
+    () => (store ? store.getNodeStatus(nodeId, kind) : DEFAULT_NODE_RUN_STATUS),
+    () => DEFAULT_NODE_RUN_STATUS
+  )
+}
+
+export function useEdgeRunStatus(params: {
+  edgeId: string
+  source: string
+  target: string
+  handleId?: string
+}): EdgeRunStatus {
+  const store = useContext(ExecutionStoreContext)
+  return useSyncExternalStore(
+    store ? store.subscribe : () => () => {},
+    () => (store ? store.getEdgeStatus(params) : DEFAULT_EDGE_RUN_STATUS),
+    () => DEFAULT_EDGE_RUN_STATUS
+  )
 }

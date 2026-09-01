@@ -7,7 +7,7 @@ import {
   type NodeField,
   type StepNodeType,
 } from "@/features/workflows/nodes/node-registry"
-import { useLatestRunSteps } from "@/features/workflows/hooks"
+import { useNodeRunStatus } from "./workflow-runs-provider"
 import { cn } from "@/lib/utils"
 
 function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
@@ -77,34 +77,14 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
 
-  const { steps, isLive, cancelingRunId, latestRun } = useLatestRunSteps()
-  const isRunCanceling = Boolean(
-    cancelingRunId && latestRun?.id === cancelingRunId && isLive
-  )
-  const nodeSteps = steps?.filter((s) => s.nodeId === id || s.id === id) ?? []
-  const hasRunning = nodeSteps.some((s) => s.status === "running")
-  const hasDone = nodeSteps.some((s) => s.status === "done")
-  const hasFailed = nodeSteps.some((s) => s.status === "failed")
-
-  const runningStep = nodeSteps.find((s) => s.status === "running")
-  const doneStep = [...nodeSteps].reverse().find((s) => s.status === "done")
-  const latestStep = nodeSteps[nodeSteps.length - 1]
-  const step = runningStep ?? doneStep ?? latestStep
-
-  const isFailed = hasFailed && !hasRunning
-  const isStepCanceling =
-    isRunCanceling &&
-    (hasRunning ||
-      (kind === "trigger" && !hasDone && !isFailed))
-  const isRunning =
-    isLive &&
-    !isRunCanceling &&
-    (hasRunning ||
-      (kind === "trigger" && !hasDone && !isFailed))
-  const isDone = Boolean(
-    hasDone && !isRunning && !isStepCanceling && !isFailed
-  )
-  const winningBranch = (step?.output as { branch?: string } | undefined)?.branch
+  const {
+    isRunning,
+    isDone,
+    isFailed,
+    isStepCanceling,
+    winningBranch,
+    isLive,
+  } = useNodeRunStatus(id, kind)
 
   // A trigger starts the flow and takes no input, so it has no target handle.
   const hasTarget = kind !== "trigger"
