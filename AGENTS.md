@@ -103,21 +103,61 @@ Trigger nodes initiate workflow runs (e.g. `start`, `google-form-trigger`, `stri
 
 ---
 
-## 3. Architecture Rules & Guardrails
+## 3. Secret & Credential Vault Management
+
+Workflows support multi-tenant, encrypted secret storage via the **Credential Vault** (`AES-256-GCM`). Follow these standards when adding nodes that require API keys or external authentication:
+
+### 1. Declaring Secret Fields in Node Manifests
+- Declare secret or API key fields with a helpful placeholder demonstrating vault token usage:
+  ```typescript
+  {
+    key: "apiKey",
+    label: "API Key",
+    placeholder: "e.g. {{ secrets.MY_API_KEY }}",
+    required: true,
+  }
+  ```
+- **Do not** hardcode default API keys in `defaultValue`.
+
+### 2. Resolving Secrets in Executors
+- Upstream template variables (e.g. `{{ secrets.STRIPE_SECRET_KEY }}`) are automatically decrypted and interpolated by the runner before the executor is called.
+- The executor receives the decrypted plaintext string in `values[key]`.
+- Always validate that the key is non-empty and throw a descriptive error when missing:
+  ```typescript
+  const apiKey = (values.apiKey ?? "").trim().replace(/[\u200B\uFEFF\u00A0]/g, "")
+  if (!apiKey) {
+    throw new Error(
+      "Missing API key. Please insert a secret from your Credential Vault (e.g. {{ secrets.RESEND_API_KEY }})."
+    )
+  }
+  ```
+
+### 3. Automatic Environment Variable Injection in Sandboxes
+- When implementing or extending code execution sandboxes (like `js-code` or `python-code`), all decrypted organization vault secrets are automatically injected as sandbox environment variables (`process.env.KEY` in JS / `os.environ["KEY"]` in Python).
+- Sandbox code can access secrets both through direct template token replacement and native environment variable lookups.
+
+### 4. Pre-Flight Validation Engine (`features/workflows/lib/validate-graph.ts`)
+- The pre-flight `validateGraph(graph, availableSecretKeys)` engine scans all input strings for `{{ secrets.KEY }}` tokens.
+- If a workflow references a secret that was deleted or does not exist in the active organization, execution is halted with an informative alert before background tasks are dispatched.
+
+---
+
+## 4. Architecture Rules & Guardrails
 
 - **Registry-driven**: The canvas step node (`step-node.tsx`) and the run loop (`run-workflow.ts`) are registry-driven. Never hardcode node-specific UI or execution logic inside the canvas components.
-- **Variable Interpolation**: Token inputs automatically support `{{ <nodeId>.<output-path> }}` variable references. Downstream executors receive interpolated string values.
+- **Variable Interpolation**: Token inputs automatically support `{{ <nodeId>.<output-path> }}` and `{{ secrets.<KEY> }}` variable references. Downstream executors receive interpolated string values.
 - **Select Dropdowns**: Always use shadcn/ui components (`@/components/ui/select`), never native OS `<select>`/`<option>`.
 
 ---
 
-## 4. What NOT to Do (Anti-Patterns & Pitfalls)
+## 5. What NOT to Do (Anti-Patterns & Pitfalls)
 
+- ❌ **DO NOT fallback to server `process.env` in action executors**: Never write `process.env.RESEND_API_KEY` inside action executors (e.g. `send-email`). All third-party credentials must be provided via node values or the organization's encrypted vault (`{{ secrets.KEY }}`) to maintain multi-tenant organization isolation.
 - ❌ **DO NOT modify `step-node.tsx` or `canvas.tsx` for new action nodes**: The canvas node component is 100% generic and reads everything dynamically from `nodeRegistry`. Never hardcode `if (type === "my-action")` in canvas components.
 - ❌ **DO NOT touch `run-workflow.ts` for action nodes**: The Trigger.dev execution runner automatically looks up and invokes `nodeExecutors[node.data.type]`. You only ever add a branch to `run-workflow.ts` for **trigger** nodes (to handle `triggerData`).
 - ❌ **DO NOT create custom modal dialogs (`<Dialog>`) or form popups for node configuration**: Node properties are managed exclusively through the Right Sidebar Inspector. When you declare `fields` in `nodeRegistry`, the inspector automatically renders corresponding inputs and handles state persistence.
 - ❌ **DO NOT use native HTML `<select>` / `<option>` or `<NativeSelect>`**: Always use shadcn/ui Select (`@/components/ui/select`). Native OS dropdowns break dark mode, theme consistency, and custom styling.
-- ❌ **DO NOT perform manual token substitution inside action executors**: Upstream template variables (e.g. `{{ Step 1 · URL }}`) are already resolved by the runner before your executor function is called. Executors always receive cleanly interpolated string values.
+- ❌ **DO NOT perform manual token substitution inside action executors**: Upstream template variables (e.g. `{{ Step 1 · URL }}` and `{{ secrets.KEY }}`) are already resolved by the runner before your executor function is called. Executors always receive cleanly interpolated string values.
 - ❌ **DO NOT silently catch and swallow errors in executors**: Always let errors bubble up or throw descriptive `Error` instances (e.g. `throw new Error("HTTP 404: Not Found")`). This ensures Trigger.dev logs the failure, marks the step as failed, and renders the red failure boundary on the canvas.
 - ❌ **DO NOT bypass the `satisfies Record<ActionNodeType, NodeExecutor>` type contract**: Never use `as any` in `node-executors.ts`. The type contract guarantees every action node in `nodeRegistry` has a corresponding executor.
 - ❌ **DO NOT use ad-hoc `any` or untyped `Record<string, unknown>` for third-party SDK payloads**: Always import and use official SDK types (e.g. `Stripe.Event`, `Stripe.PaymentIntent`, etc.) to maintain type safety.
