@@ -20,6 +20,7 @@ import {
 } from "./graph-traversal"
 import { purgeUnchosenSiblingBranches } from "./merge-synchronizer"
 import { executeStep } from "./step-executor"
+import { getDecryptedOrgSecrets } from "@/features/credentials/data"
 
 export type {
   RunStep,
@@ -50,6 +51,9 @@ export const runWorkflowTask = task({
     const { nodes, edges } = workflow.graph
     const byId = new Map<string, StepNodeType>(nodes.map((n) => [n.id, n]))
 
+    // Load and decrypt organization credentials in-memory for this run
+    const orgSecrets = await getDecryptedOrgSecrets(orgId)
+
     // Map incoming and outgoing connections for dependency graph execution
     const { incomingEdges, outgoingEdges } = buildEdgeMaps(edges)
     const activeEdges = new Set<string>()
@@ -61,7 +65,9 @@ export const runWorkflowTask = task({
     // Determine entry point (trigger node)
     const triggerNode = findTriggerNode(nodes)
     const readyQueue: QueueItem[] = [{ nodeId: triggerNode.id }]
-    const results: Record<string, unknown> = {}
+    const results: Record<string, unknown> = {
+      secrets: orgSecrets,
+    }
     const steps: RunStep[] = []
 
     logger.log(`Running Workflow: ${workflow.name}`)
@@ -126,6 +132,7 @@ export const runWorkflowTask = task({
           const result = await executeStep({
             node,
             results,
+            secrets: orgSecrets,
             triggerData,
             outgoingEdges,
             incomingEdges,

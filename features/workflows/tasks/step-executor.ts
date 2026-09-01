@@ -18,6 +18,7 @@ export const pace = (ms: number = 600) =>
 export interface ExecuteStepParams {
   node: StepNodeType
   results: Record<string, unknown>
+  secrets?: Record<string, string>
   triggerData?: Record<string, unknown>
   outgoingEdges: Map<string, Edge[]>
   incomingEdges?: Map<string, Edge[]>
@@ -35,6 +36,7 @@ export interface ExecuteStepParams {
 export async function executeStep({
   node,
   results,
+  secrets,
   triggerData,
   outgoingEdges,
   incomingEdges,
@@ -206,6 +208,7 @@ export async function executeStep({
     if (executor) {
       result = await executor({
         values: interpolatedValues,
+        secrets,
         getStagehand,
       })
     }

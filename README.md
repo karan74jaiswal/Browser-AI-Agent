@@ -344,7 +344,7 @@ Navigate to [http://localhost:3000](http://localhost:3000) and build your first 
 - [x] **Multi-Language Cloud Code Sandboxes (`JavaScript`, `Python` via E2B)**
 - [x] **Real-Time Static Infinite Loop Detection & CodeMirror 6 Editor**
 - [x] **Universal JSON Workflow Import / Export Engine**
-- [ ] **Credential Vault (AES-256-GCM Encrypted Secret Manager)**
+- [x] **Credential Vault (AES-256-GCM Encrypted Secret Manager)**
 - [ ] **Loop & Batch Iteration Nodes (`forEach`, `while`)**
 - [ ] **Multi-Agent Orchestration Teams (Supervisor + Specialized Subagents)**
 - [ ] **Pre-built Connector Marketplace (Notion, GitHub, PostgreSQL, Linear)**

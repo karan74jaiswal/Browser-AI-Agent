@@ -10,10 +10,12 @@ import { runWorkflowAction } from "../../actions"
 import { validateGraph } from "../../lib"
 import { StepNodeType } from "../../nodes/node-registry"
 import { useWorkflowRuns } from "../workflow-runs-provider"
+import { useCredentials } from "@/features/credentials/components/credentials-provider"
 
 export default function RunButton({ workflowId }: { workflowId: string }) {
   const { getNodes, getEdges } = useReactFlow<StepNodeType>()
   const { latestRun, isLive, cancelingRunId, cancelRun } = useWorkflowRuns()
+  const { availableSecretKeys } = useCredentials()
   const [isTriggering, startTriggerTransition] = useTransition()
 
   const isCanceling = Boolean(
@@ -22,11 +24,14 @@ export default function RunButton({ workflowId }: { workflowId: string }) {
 
   const handleRun = () => {
     const graph = { nodes: getNodes(), edges: getEdges() }
-    const problems = validateGraph(graph)
+
+    // Instant in-memory validation using the organization's cached credentials (0ms delay)
+    const problems = validateGraph(graph, availableSecretKeys)
     if (problems.length > 0) {
       toast.error(problems[0])
       return
     }
+
     startTriggerTransition(async () => {
       try {
         await runWorkflowAction(workflowId, graph)

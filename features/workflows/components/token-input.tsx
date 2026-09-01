@@ -13,6 +13,7 @@ import {
   type NodeType,
   type StepNodeType,
 } from "@/features/workflows/nodes/node-registry"
+import { useOptionalCredentials } from "@/features/credentials/components/credentials-provider"
 import { cn } from "@/lib/utils"
 
 export type TokenInputHandle = {
@@ -131,6 +132,8 @@ const nodeIconSvgPaths: Record<string, string> = {
   "throw-error": `<polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>`,
   "js-code": `<rect width="20" height="18" x="2" y="3" rx="2.5" stroke-width="1.8"/><line x1="2" y1="8.5" x2="22" y2="8.5" stroke-width="1.2"/><circle cx="5.5" cy="5.75" r="0.8" fill="currentColor" stroke="none"/><circle cx="8.5" cy="5.75" r="0.8" fill="currentColor" stroke="none"/><path d="M7.5 16.2c.3.5.7.8 1.4.8.8 0 1.3-.4 1.3-1.1v-3.7h-1.2" stroke-width="1.8"/><path d="M13.2 16c.4.6 1 .9 1.7.9.9 0 1.5-.5 1.5-1.1 0-.6-.5-.9-1.4-1.2l-.5-.2c-1.1-.3-1.7-.7-1.7-1.6 0-1 .8-1.7 1.9-1.7.9 0 1.5.3 1.9.9" stroke-width="1.8"/>`,
   "python-code": `<rect width="20" height="18" x="2" y="3" rx="2.5" stroke-width="1.8"/><line x1="2" y1="8.5" x2="22" y2="8.5" stroke-width="1.2"/><circle cx="5.5" cy="5.75" r="0.8" fill="currentColor" stroke="none"/><circle cx="8.5" cy="5.75" r="0.8" fill="currentColor" stroke="none"/><path d="M12 11.2h2a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1h-2a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1H11a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1Z" stroke-width="1.5"/><circle cx="9.5" cy="12.5" r="0.6" fill="currentColor" stroke="none"/><circle cx="14.5" cy="14.5" r="0.6" fill="currentColor" stroke="none"/>`,
+  secrets: `<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`,
+  vault: `<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`,
 }
 
 export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
@@ -152,6 +155,8 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
     const containerRef = useRef<HTMLDivElement>(null)
     const nodes = useNodes<StepNodeType>()
     const edges = useEdges()
+    const credentialsCtx = useOptionalCredentials()
+    const availableSecretKeys = credentialsCtx?.availableSecretKeys ?? []
     const lastSerializedValueRef = useRef<string | null>(null)
     const isComposingRef = useRef(false)
     const onChangeRef = useRef(onChange)
@@ -159,6 +164,39 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
 
     const getNodeInfo = useCallback(
       (nodeId: string, path: string) => {
+        const lowerNodeId = (nodeId || "").toLowerCase().trim()
+        if (
+          lowerNodeId === "secrets" ||
+          lowerNodeId === "vault" ||
+          lowerNodeId === "secret"
+        ) {
+          const upperSecretKeys = new Set(
+            availableSecretKeys.map((k) => k.toUpperCase())
+          )
+          const isConfigured =
+            availableSecretKeys.length === 0 ||
+            upperSecretKeys.has((path || "").toUpperCase())
+
+          if (isConfigured) {
+            return {
+              label: `Vault · ${path || "secret"}`,
+              accent:
+                "bg-amber-600 text-white dark:bg-amber-500 dark:text-zinc-950",
+              nodeType: "secrets",
+              status: "connected" as const,
+              tooltip: `Organization Secret: ${path}`,
+            }
+          }
+
+          return {
+            label: `Missing Secret · ${path || "secret"}`,
+            accent: "bg-destructive text-destructive-foreground",
+            nodeType: "secrets",
+            status: "deleted" as const,
+            tooltip: `Secret "${path}" is missing from your Credential Vault.`,
+          }
+        }
+
         const sourceNode = nodes.find((n) => n.id === nodeId)
         if (!sourceNode) {
           return {
@@ -229,7 +267,7 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
           tooltip: "",
         }
       },
-      [nodes, edges, currentNodeId]
+      [nodes, edges, currentNodeId, availableSecretKeys]
     )
 
     const buildTokenElement = useCallback(
@@ -252,9 +290,17 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
         const iconWrapper = document.createElement("span")
         iconWrapper.className = `flex size-3.5 shrink-0 items-center justify-center rounded-xs ${info.accent}`
         const warningSvg = `<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`
+        const lowerNodeId = (nodeId || "").toLowerCase().trim()
+        const isVault =
+          lowerNodeId === "secrets" ||
+          lowerNodeId === "vault" ||
+          lowerNodeId === "secret" ||
+          info.nodeType === "secrets"
         const normalSvg =
-          (info.nodeType && nodeIconSvgPaths[info.nodeType]) ||
-          `<circle cx="12" cy="12" r="10"/>`
+          isVault
+            ? nodeIconSvgPaths.secrets
+            : (info.nodeType && nodeIconSvgPaths[info.nodeType]) ||
+              `<circle cx="12" cy="12" r="10"/>`
         const svgPath =
           info.status === "deleted" || info.status === "disconnected"
             ? warningSvg

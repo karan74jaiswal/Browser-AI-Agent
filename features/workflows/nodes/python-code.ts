@@ -4,6 +4,7 @@ export interface ExecutePythonCodeParams {
   code: string
   apiKey?: string
   timeoutMs?: number
+  envs?: Record<string, string>
 }
 
 export interface CodeExecutionOutput {
@@ -68,7 +69,13 @@ export function formatPythonExecutionError(
     )
   }
 
-  const details = `${name}: ${value}${traceback ? `\n${traceback}` : ""}`
+  let extraHint = ""
+  if (name === "NameError" || value.includes("is not defined")) {
+    extraHint =
+      "\n\n💡 Tip: To access Organization Vault secrets in Python, use os.environ[\"YOUR_SECRET_NAME\"] or wrap tokens in quotes."
+  }
+
+  const details = `${name}: ${value}${traceback ? `\n${traceback}` : ""}${extraHint}`
   return new Error(`Python Execution Error: ${details}`)
 }
 
@@ -76,6 +83,7 @@ export async function executePythonCode({
   code,
   apiKey,
   timeoutMs = 60_000,
+  envs,
 }: ExecutePythonCodeParams): Promise<CodeExecutionOutput> {
   if (!code || !code.trim()) {
     throw new Error("Python Code node: Code is required")
@@ -95,12 +103,14 @@ export async function executePythonCode({
     sandbox = await Sandbox.create({
       apiKey: effectiveApiKey,
       timeoutMs,
+      envs,
     })
 
     let execution: Awaited<ReturnType<typeof sandbox.runCode>>
     try {
       execution = await sandbox.runCode(cleanCode, {
         language: "python",
+        envs,
       })
     } catch (runErr) {
       throw formatPythonExecutionError(runErr)

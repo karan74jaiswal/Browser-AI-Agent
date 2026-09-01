@@ -6,6 +6,7 @@ export interface WorkflowGraph {
   nodes: StepNodeType[]
   edges: Edge[]
 }
+
 export const workflows = pgTable(
   "workflows",
   {
@@ -28,3 +29,31 @@ export const workflows = pgTable(
 
 export type Workflow = typeof workflows.$inferSelect
 export type NewWorkflow = typeof workflows.$inferInsert
+
+export const credentials = pgTable(
+  "credentials",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: text("org_id").notNull(),
+    name: text("name").notNull(),
+    type: text("type").default("generic").notNull(),
+    description: text("description"),
+    encryptedValue: text("encrypted_value").notNull(),
+    iv: text("iv").notNull(),
+    authTag: text("auth_tag").notNull(),
+    lastFour: text("last_four").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("credentials_org_id_idx").on(table.orgId),
+    index("credentials_org_id_name_idx").on(table.orgId, table.name),
+  ]
+)
+
+export type Credential = typeof credentials.$inferSelect
+export type NewCredential = typeof credentials.$inferInsert

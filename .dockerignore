@@ -2,3 +2,9 @@
 .agents/
 design/
 skills-lock.json
+AGENTS.md
+GEMINI.md
+specs/
+.mcp.json
+README.md
+.env.example

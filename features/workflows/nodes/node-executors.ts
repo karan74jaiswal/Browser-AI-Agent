@@ -24,6 +24,7 @@ import {
 
 export type NodeContext = {
   values: Record<string, string>
+  secrets?: Record<string, string>
   getStagehand(): Promise<Stagehand>
 }
 
@@ -48,11 +49,12 @@ export const nodeExecutors: Partial<Record<NodeType, NodeExecutor>> = {
       maxSteps,
     })
   },
-  "send-email": async ({ values }) =>
+  "send-email": async ({ values, secrets }) =>
     sendEmail({
       to: values.to,
       subject: values.subject,
       body: values.body,
+      apiKey: secrets?.RESEND_API_KEY,
     }),
   "http-request": async ({ values }) =>
     httpRequest({
@@ -94,12 +96,14 @@ export const nodeExecutors: Partial<Record<NodeType, NodeExecutor>> = {
   "throw-error": async ({ values }) =>
     throwErrorNode({ message: values.message }),
   merge: async ({ values }) => mergeNode({ values }),
-  "js-code": async ({ values }) =>
+  "js-code": async ({ values, secrets }) =>
     executeJsCode({
       code: values.code,
+      envs: secrets,
     }),
-  "python-code": async ({ values }) =>
+  "python-code": async ({ values, secrets }) =>
     executePythonCode({
       code: values.code,
+      envs: secrets,
     }),
 } satisfies Record<ActionNodeType, NodeExecutor>

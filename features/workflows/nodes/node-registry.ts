@@ -44,6 +44,13 @@ export type NodeOutput = {
   label: string
 }
 
+export type NodeSecretRequirement = {
+  key: string
+  label: string
+  description?: string
+  optional?: boolean
+}
+
 // A node type's manifest entry. Add a node by adding an entry to nodeRegistry.
 export type NodeDefinition = {
   type: string
@@ -53,6 +60,7 @@ export type NodeDefinition = {
   accent: string // Tailwind classes for the icon chip color
   fields: NodeField[]
   outputs: NodeOutput[]
+  requiredSecrets?: NodeSecretRequirement[]
   requiredPlan?: "pro" | "enterprise" | (string & {})
   requiredFeature?: string
 }
@@ -259,6 +267,13 @@ export const nodeRegistry = {
     label: "Send Email",
     icon: Mail,
     accent: "bg-sky-500 text-white",
+    requiredSecrets: [
+      {
+        key: "RESEND_API_KEY",
+        label: "Resend API Key",
+        description: "Required to send emails from your organization",
+      },
+    ],
     fields: [
       {
         key: "to",
@@ -518,8 +533,8 @@ export const nodeRegistry = {
         key: "code",
         label: "JavaScript / TypeScript Code",
         language: "javascript",
-        placeholder: `const greeting = "Hello world!";\nconsole.log(greeting);\nreturn greeting;`,
-        defaultValue: `const greeting = "Hello world!";\nconsole.log(greeting);\nreturn greeting;`,
+        placeholder: `// Access Organization Vault secrets via process.env.MY_SECRET\nconst greeting = "Hello world!";\nconsole.log(greeting);\nreturn greeting;`,
+        defaultValue: `// Access Organization Vault secrets via process.env.MY_SECRET\nconst greeting = "Hello world!";\nconsole.log(greeting);\nreturn greeting;`,
         multiline: true,
         required: true,
       },
@@ -541,8 +556,8 @@ export const nodeRegistry = {
         key: "code",
         label: "Python Code",
         language: "python",
-        placeholder: `greeting = "Hello world!"\nprint(greeting)\ngreeting`,
-        defaultValue: `greeting = "Hello world!"\nprint(greeting)\ngreeting`,
+        placeholder: `# Access Organization Vault secrets via os.environ["MY_SECRET"]\nimport os\n\ngreeting = "Hello world!"\nprint(greeting)\ngreeting`,
+        defaultValue: `# Access Organization Vault secrets via os.environ["MY_SECRET"]\nimport os\n\ngreeting = "Hello world!"\nprint(greeting)\ngreeting`,
         multiline: true,
         required: true,
       },
@@ -571,3 +586,12 @@ export type StepNodeType = Node<StepNodeData, "step">
 export type ActionNodeType = {
   [K in NodeType]: (typeof nodeRegistry)[K]["kind"] extends "action" ? K : never
 }[NodeType]
+
+/**
+ * Safely retrieve a node's definition manifest by node type.
+ */
+export function getNodeDefinition(type?: string): NodeDefinition | undefined {
+  if (!type) return undefined
+  return (nodeRegistry as Record<string, NodeDefinition>)[type]
+}
+

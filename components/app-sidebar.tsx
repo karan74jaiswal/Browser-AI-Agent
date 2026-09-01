@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server"
 import { SidebarWorkflows } from "@/features/workflows/components/sidebar-workflows"
 import { createWorkflowAction } from "@/features/workflows/actions"
 import { listWorkflows } from "@/features/workflows/data"
+import { VaultSidebarButton } from "@/features/credentials/components/vault-sidebar-button"
 import {
   Sidebar,
   SidebarContent,
@@ -45,7 +46,8 @@ export async function AppSidebar({
         />
       </SidebarContent>
 
-      <SidebarFooter className="p-2 group-data-[collapsible=icon]:items-center">
+      <SidebarFooter className="p-2 gap-2 group-data-[collapsible=icon]:items-center">
+        <VaultSidebarButton />
         <UserButton
           appearance={{
             elements: {

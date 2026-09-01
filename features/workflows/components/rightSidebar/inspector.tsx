@@ -1,11 +1,17 @@
-"use client"
-
 import { Button } from "@/components/ui/button"
 import { useReactFlow, useNodes, useEdges } from "@xyflow/react"
-import { AlertTriangle, Sparkles, Workflow } from "lucide-react"
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Lock,
+  Plus,
+  Sparkles,
+  Workflow,
+} from "lucide-react"
 import { Label } from "@/components/ui/label"
 import Section from "./section"
-import { useState, useRef, useMemo } from "react"
+import { useState, useRef, useMemo, useEffect } from "react"
 import { toast } from "sonner"
 import { useUpstreamConnections } from "../../hooks"
 import { extractAllTokenReferences, ConditionCriterion } from "../../lib"
@@ -17,6 +23,7 @@ import {
 } from "../../nodes/node-registry"
 import { NodeIcon } from "../node-icon"
 import { TokenInputHandle } from "../token-input"
+import { useCredentials } from "@/features/credentials/components/credentials-provider"
 import DiscordInspector from "./discord-inspector"
 import FieldInput from "./field-input"
 import GoogleFormTriggerInspector from "./google-form-trigger-inspector"
@@ -37,6 +44,7 @@ export default function Inspector({
   const connections = useUpstreamConnections(node)
   const allNodes = useNodes<StepNodeType>()
   const allEdges = useEdges()
+  const { credentials, openVault } = useCredentials()
   const [activeFieldKey, setActiveFieldKey] = useState<string | null>(null)
   const inputRefs = useRef<Map<string, TokenInputHandle>>(new Map())
 
@@ -93,7 +101,10 @@ export default function Inspector({
       if (typeof rawVal !== "string") continue
       const refs = extractAllTokenReferences(rawVal)
       for (const ref of refs) {
-        if (!nodeById.has(ref.nodeId) || !ancestors.has(ref.nodeId)) {
+        if (
+          ref.nodeId !== "secrets" &&
+          (!nodeById.has(ref.nodeId) || !ancestors.has(ref.nodeId))
+        ) {
           broken.push({
             raw: `{{ ${ref.nodeId}.${ref.path} }}`,
             nodeId: ref.nodeId,
@@ -221,45 +232,167 @@ export default function Inspector({
     }
   }
 
+  const handleInsertSecret = (secretName: string) => {
+    if (type === "js-code") {
+      handleInsertToken(`process.env.${secretName}`)
+    } else if (type === "python-code") {
+      handleInsertToken(`os.environ["${secretName}"]`)
+    } else {
+      handleInsertToken(`{{ secrets.${secretName} }}`)
+    }
+  }
+
   const hasConnections =
     connections.length > 0 &&
     (insertableFields.length > 0 || type === "if" || type === "switch")
 
-  const connectionsFooter = hasConnections ? (
-    <div className="flex flex-col gap-1.5 p-2.5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
-          <Workflow className="size-3.5 text-muted-foreground" />
-          <span>Connections</span>
-        </div>
-        <span className="text-[10px] text-muted-foreground">
-          {connections.length} {connections.length === 1 ? "variable" : "variables"}
-        </span>
+  const connectionsFooter =
+    hasConnections || credentials.length > 0 ? (
+      <div className="flex flex-col gap-2.5 p-2.5">
+        {hasConnections && (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+                <Workflow className="size-3.5 text-muted-foreground" />
+                <span>Connections</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">
+                {connections.length}{" "}
+                {connections.length === 1 ? "variable" : "variables"}
+              </span>
+            </div>
+            <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto p-0.5 [scrollbar-width:thin]">
+              {connections.map((conn) => (
+                <button
+                  key={`${conn.nodeId}-${conn.path}`}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleInsertToken(conn.token)}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground transition-all hover:bg-accent hover:border-border/80 active:scale-95 shadow-2xs"
+                  title={`Insert {{ ${conn.label} }}`}
+                >
+                  <NodeIcon
+                    type={conn.type}
+                    className="size-3.5 rounded-xs [&_svg]:size-2.5 shrink-0"
+                  />
+                  <span className="truncate max-w-40 text-[11px] font-medium">
+                    {conn.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {credentials.length > 0 && (
+          <div className="flex flex-col gap-1.5 pt-1 border-t border-border/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+                <Lock className="size-3.5 text-amber-500" />
+                <span>Vault Secrets</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => openVault()}
+                className="text-[10px] text-muted-foreground hover:text-foreground cursor-pointer underline"
+              >
+                Manage ({credentials.length})
+              </button>
+            </div>
+            <div className="flex max-h-20 flex-wrap gap-1.5 overflow-y-auto p-0.5 [scrollbar-width:thin]">
+              {credentials.map((cred) => (
+                <button
+                  key={cred.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleInsertSecret(cred.name)}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-xs text-foreground transition-all hover:bg-amber-500/10 hover:border-amber-500/50 active:scale-95 shadow-2xs"
+                  title={
+                    type === "js-code"
+                      ? `Insert process.env.${cred.name}`
+                      : type === "python-code"
+                        ? `Insert os.environ["${cred.name}"]`
+                        : `Insert {{ secrets.${cred.name} }}`
+                  }
+                >
+                  <Lock className="size-3 text-amber-500 shrink-0" />
+                  <span className="truncate max-w-36 font-mono text-[11px] font-medium">
+                    {cred.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-      <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto p-0.5 [scrollbar-width:thin]">
-        {connections.map((conn) => (
-          <button
-            key={`${conn.nodeId}-${conn.path}`}
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => handleInsertToken(conn.token)}
-            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground transition-all hover:bg-accent hover:border-border/80 active:scale-95 shadow-2xs"
-            title={`Insert {{ ${conn.label} }}`}
-          >
-            <NodeIcon
-              type={conn.type}
-              className="size-3.5 rounded-xs [&_svg]:size-2.5 shrink-0"
-            />
-            <span className="truncate max-w-40 text-[11px] font-medium">{conn.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  ) : undefined
+    ) : undefined
 
   return (
     <Section title={title} icon={<NodeIcon type={type} />} footer={connectionsFooter}>
       <div className="flex flex-col gap-3 p-3">
+        {def.requiredSecrets && def.requiredSecrets.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {def.requiredSecrets.map((req) => {
+              const matchingCred = credentials.find(
+                (c) => c.name.toUpperCase() === req.key.toUpperCase()
+              )
+
+              if (matchingCred) {
+                return (
+                  <div
+                    key={req.key}
+                    className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="size-3.5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground truncate">{req.label}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono">
+                          Connected (••••{matchingCred.lastFour})
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[11px] text-muted-foreground hover:text-foreground shrink-0"
+                      onClick={() => openVault({ prefillName: req.key })}
+                    >
+                      Manage
+                    </Button>
+                  </div>
+                )
+              }
+
+              return (
+                <div
+                  key={req.key}
+                  className="flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs"
+                >
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium">
+                    <AlertCircle className="size-4 shrink-0" />
+                    <span>Missing Credential: {req.label}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    {req.description ||
+                      `This node requires "${req.key}" in your organization's Credential Vault to execute.`}
+                  </p>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs gap-1.5 w-fit bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:text-zinc-950 shadow-2xs"
+                    onClick={() => openVault({ prefillName: req.key })}
+                  >
+                    <Plus className="size-3" />
+                    Add {req.key} to Vault
+                  </Button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         {brokenTokens.length > 0 && relinkCandidates.length > 0 && (
           <div className="flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-700 dark:text-amber-400">
             <div className="flex items-center gap-1.5 font-medium">

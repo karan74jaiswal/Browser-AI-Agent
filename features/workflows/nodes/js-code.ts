@@ -4,6 +4,7 @@ export interface ExecuteJsCodeParams {
   code: string
   apiKey?: string
   timeoutMs?: number
+  envs?: Record<string, string>
 }
 
 export interface CodeExecutionOutput {
@@ -94,7 +95,13 @@ export function formatJsExecutionError(
     )
   }
 
-  const details = `${name}: ${value}${traceback ? `\n${traceback}` : ""}`
+  let extraHint = ""
+  if (name === "ReferenceError" || value.includes("is not defined")) {
+    extraHint =
+      "\n\n💡 Tip: To access Organization Vault secrets in JavaScript, use process.env.YOUR_SECRET_NAME or wrap tokens in quotes."
+  }
+
+  const details = `${name}: ${value}${traceback ? `\n${traceback}` : ""}${extraHint}`
   return new Error(`JavaScript Execution Error: ${details}`)
 }
 
@@ -102,6 +109,7 @@ export async function executeJsCode({
   code,
   apiKey,
   timeoutMs = 60_000,
+  envs,
 }: ExecuteJsCodeParams): Promise<CodeExecutionOutput> {
   if (!code || !code.trim()) {
     throw new Error("JavaScript Code node: Code is required")
@@ -121,12 +129,14 @@ export async function executeJsCode({
     sandbox = await Sandbox.create({
       apiKey: effectiveApiKey,
       timeoutMs,
+      envs,
     })
 
     let execution: Awaited<ReturnType<typeof sandbox.runCode>>
     try {
       execution = await sandbox.runCode(cleanCode, {
         language: "js",
+        envs,
       })
     } catch (runErr) {
       throw formatJsExecutionError(runErr)

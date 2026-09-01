@@ -3,11 +3,12 @@
 import { useCallback, useState } from "react"
 
 import { useOnSelectionChange, useStore, useReactFlow } from "@xyflow/react"
-import { Download, Pencil, Trash2 } from "lucide-react"
+import { Download, Lock, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { EditWorkflowDialog } from "../edit-workflow-dialog"
 import { DeleteWorkflowDialog } from "../delete-workflow-dialog"
+import { useCredentials } from "@/features/credentials/components/credentials-provider"
 
 import { Button } from "@/components/ui/button"
 
@@ -42,6 +43,7 @@ export function RightSidebar({
   const [tab, setTab] = useState("toolbar")
   const [isRenameOpen, setIsRenameOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const { openVault } = useCredentials()
 
   const { getNodes, getEdges } = useReactFlow<StepNodeType>()
 
@@ -56,28 +58,37 @@ export function RightSidebar({
 
   // Read the currently selected node from React Flow.
   const selected = useStore((s) => s.nodes.find((node) => node.selected)) as
-    StepNodeType | undefined
+    | StepNodeType
+    | undefined
 
   // Auto-switch to the Editor tab when the selection changes.
   useOnSelectionChange({
-    onChange: useCallback(({ nodes }) => {
-      if (nodes.length == 1) {
+    onChange: ({ nodes }) => {
+      if (nodes.length > 0) {
         setTab("editor")
       }
-    }, []),
+    },
   })
 
   return (
     <ResizablePanel
-      className="bg-background"
       defaultSize="16rem"
       minSize="14rem"
       maxSize="36rem"
-      groupResizeBehavior="preserve-pixel-size"
+      className="bg-background"
     >
       <Tabs value={tab} onValueChange={setTab} className="size-full gap-0">
         <div className="flex items-center justify-between border-b border-border p-2">
           <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              title="Credential Vault"
+              onClick={() => openVault()}
+            >
+              <Lock className="size-4 text-amber-500/80" />
+              <span className="sr-only">Credential Vault</span>
+            </Button>
             <Button
               size="icon"
               variant="ghost"
