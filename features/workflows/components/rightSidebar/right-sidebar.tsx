@@ -56,10 +56,23 @@ export function RightSidebar({
     toast.success(`Workflow "${workflowName || "Workflow"}" exported`)
   }, [getNodes, getEdges, workflowName])
 
-  // Read the currently selected node from React Flow.
-  const selected = useStore((s) => s.nodes.find((node) => node.selected)) as
-    | StepNodeType
-    | undefined
+  // Read the currently selected node from React Flow without triggering re-renders on position/coordinate dragging.
+  const selected = useStore(
+    useCallback((s) => {
+      const found = s.nodes.find((node) => node.selected)
+      if (!found) return undefined
+      return {
+        id: found.id,
+        type: found.type,
+        data: found.data,
+      } as StepNodeType
+    }, []),
+    (a, b) => {
+      if (a === b) return true
+      if (!a || !b) return false
+      return a.id === b.id && a.data === b.data
+    }
+  )
 
   // Auto-switch to the Editor tab when the selection changes.
   useOnSelectionChange({
