@@ -69,8 +69,7 @@ export function cascadeDisabledEdges(
  * Finds the starting trigger node of the workflow.
  */
 export function findTriggerNode(nodes: StepNodeType[]): StepNodeType {
-  const triggerNode =
-    nodes.find((n) => n.data?.kind === "trigger") || nodes[0]
+  const triggerNode = nodes.find((n) => n.data?.kind === "trigger") || nodes[0]
   if (!triggerNode) {
     throw new Error("No start node found in workflow")
   }
@@ -119,7 +118,10 @@ export function discoverNextReadyChildren({
 
     // Handle Merge / Join node synchronization across multiple branches
     if (childNode.data?.type === "merge" && incomingEdges) {
-      if (completedNodeIds.has(targetId) || newReadyChildren.some((c) => c.nodeId === targetId)) {
+      if (
+        completedNodeIds.has(targetId) ||
+        newReadyChildren.some((c) => c.nodeId === targetId)
+      ) {
         continue
       }
 

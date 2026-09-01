@@ -18,7 +18,10 @@ import { StepNode } from "@/features/workflows/components/step-node"
 import { WorkflowEdge } from "@/features/workflows/components/workflow-edge"
 import { DevWorkflowDebugger } from "@/features/workflows/components/dev-workflow-debugger"
 import { type StepNodeType } from "@/features/workflows/nodes/node-registry"
-import { isSoundMuted, toggleSoundMuted } from "@/features/workflows/lib/workflow-sound"
+import {
+  isSoundMuted,
+  toggleSoundMuted,
+} from "@/features/workflows/lib/workflow-sound"
 import { useLiveblocksFlow, Cursors } from "@liveblocks/react-flow"
 import { AvatarStack } from "@liveblocks/react-ui"
 import "@xyflow/react/dist/style.css"
@@ -173,7 +176,8 @@ export function Canvas({ workflowId, initialGraph }: CanvasProps) {
       } else {
         try {
           const routes = JSON.parse(values.rules || "[]")
-          if (Array.isArray(routes) && routes.length > 0) maxCount = routes.length
+          if (Array.isArray(routes) && routes.length > 0)
+            maxCount = routes.length
         } catch {}
       }
 
@@ -228,7 +232,9 @@ export function Canvas({ workflowId, initialGraph }: CanvasProps) {
             onClick={() => {
               toggleSoundMuted()
             }}
-            title={soundMuted ? "Unmute execution sounds" : "Mute execution sounds"}
+            title={
+              soundMuted ? "Unmute execution sounds" : "Mute execution sounds"
+            }
             aria-label={
               soundMuted ? "Unmute execution sounds" : "Mute execution sounds"
             }

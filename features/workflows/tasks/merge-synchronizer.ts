@@ -100,7 +100,10 @@ export function evaluateMergeReadiness({
       // If current branch was disabled or failed, check if any other branch is still running
       let hasPending = false
       for (const inEdge of inEdges) {
-        if (!disabledEdges.has(inEdge.id) && !failedNodeIds.has(inEdge.source)) {
+        if (
+          !disabledEdges.has(inEdge.id) &&
+          !failedNodeIds.has(inEdge.source)
+        ) {
           hasPending = true
           break
         }
@@ -220,7 +223,9 @@ export function purgeUnchosenSiblingBranches({
           // Mark pending step for purged node as skipped
           const s = steps.find(
             (step) =>
-              (qEdgeId ? step.edgeId === qEdgeId : (step.nodeId === qNodeId || step.id === qNodeId)) &&
+              (qEdgeId
+                ? step.edgeId === qEdgeId
+                : step.nodeId === qNodeId || step.id === qNodeId) &&
               step.status === "pending"
           )
           if (s) {

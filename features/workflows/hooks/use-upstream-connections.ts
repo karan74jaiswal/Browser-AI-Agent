@@ -130,9 +130,7 @@ export function useUpstreamConnections(
     const nodesDigest = nodes
       .map((n) => `${n.id}:${n.data?.type ?? ""}:${n.data?.title ?? ""}`)
       .join("|")
-    const edgesDigest = edges
-      .map((e) => `${e.source}->${e.target}`)
-      .join("|")
+    const edgesDigest = edges.map((e) => `${e.source}->${e.target}`).join("|")
     return `${node.id}#${nodesDigest}#${edgesDigest}`
   }, [node?.id, nodes, edges])
 

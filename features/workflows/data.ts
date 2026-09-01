@@ -158,4 +158,3 @@ export async function updateWorkflowName(
 
   return workflow
 }
-

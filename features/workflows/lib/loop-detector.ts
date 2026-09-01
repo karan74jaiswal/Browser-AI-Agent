@@ -8,27 +8,53 @@ export interface LoopWarning {
 /**
  * Strips comments and string literals so regex/AST checks aren't tricked by text inside strings or comments.
  */
-function stripCommentsAndStrings(code: string, language: "javascript" | "python"): string {
+function stripCommentsAndStrings(
+  code: string,
+  language: "javascript" | "python"
+): string {
   if (language === "javascript") {
     // Strip multi-line comments /* ... */
-    let clean = code.replace(/\/\*[\s\S]*?\*\//g, (match) => " ".repeat(match.length))
+    let clean = code.replace(/\/\*[\s\S]*?\*\//g, (match) =>
+      " ".repeat(match.length)
+    )
     // Strip single-line comments // ...
     clean = clean.replace(/\/\/.*$/gm, (match) => " ".repeat(match.length))
     // Strip template literals `...`
-    clean = clean.replace(/`[\s\S]*?`/g, (match) => `"${" ".repeat(Math.max(0, match.length - 2))}"`)
+    clean = clean.replace(
+      /`[\s\S]*?`/g,
+      (match) => `"${" ".repeat(Math.max(0, match.length - 2))}"`
+    )
     // Strip double and single quoted strings
-    clean = clean.replace(/"(?:[^"\\]|\\.)*"/g, (match) => `"${" ".repeat(Math.max(0, match.length - 2))}"`)
-    clean = clean.replace(/'(?:[^'\\]|\\.)*'/g, (match) => `'${" ".repeat(Math.max(0, match.length - 2))}'`)
+    clean = clean.replace(
+      /"(?:[^"\\]|\\.)*"/g,
+      (match) => `"${" ".repeat(Math.max(0, match.length - 2))}"`
+    )
+    clean = clean.replace(
+      /'(?:[^'\\]|\\.)*'/g,
+      (match) => `'${" ".repeat(Math.max(0, match.length - 2))}'`
+    )
     return clean
   } else {
     // Python comments # ...
     let clean = code.replace(/#.*$/gm, (match) => " ".repeat(match.length))
     // Python triple-quoted strings
-    clean = clean.replace(/"""[\s\S]*?"""/g, (match) => `"""${" ".repeat(Math.max(0, match.length - 6))}"""`)
-    clean = clean.replace(/'''[\s\S]*?'''/g, (match) => `'''${" ".repeat(Math.max(0, match.length - 6))}'''`)
+    clean = clean.replace(
+      /"""[\s\S]*?"""/g,
+      (match) => `"""${" ".repeat(Math.max(0, match.length - 6))}"""`
+    )
+    clean = clean.replace(
+      /'''[\s\S]*?'''/g,
+      (match) => `'''${" ".repeat(Math.max(0, match.length - 6))}'''`
+    )
     // Single / double quoted strings
-    clean = clean.replace(/"(?:[^"\\]|\\.)*"/g, (match) => `"${" ".repeat(Math.max(0, match.length - 2))}"`)
-    clean = clean.replace(/'(?:[^'\\]|\\.)*'/g, (match) => `'${" ".repeat(Math.max(0, match.length - 2))}'`)
+    clean = clean.replace(
+      /"(?:[^"\\]|\\.)*"/g,
+      (match) => `"${" ".repeat(Math.max(0, match.length - 2))}"`
+    )
+    clean = clean.replace(
+      /'(?:[^'\\]|\\.)*'/g,
+      (match) => `'${" ".repeat(Math.max(0, match.length - 2))}'`
+    )
     return clean
   }
 }
@@ -53,7 +79,10 @@ function extractBraceBlock(code: string, openBraceIndex: number): string {
 /**
  * Extracts a Python block indented under a `while ...:` statement.
  */
-function extractPythonIndentedBlock(lines: string[], startLineIndex: number): string {
+function extractPythonIndentedBlock(
+  lines: string[],
+  startLineIndex: number
+): string {
   if (startLineIndex >= lines.length) return ""
   const headerLine = lines[startLineIndex]
   const baseIndent = headerLine.search(/\S/)
@@ -76,7 +105,10 @@ function extractPythonIndentedBlock(lines: string[], startLineIndex: number): st
 /**
  * Checks if a code block contains an exit statement (break, return, throw/raise).
  */
-function hasExitStatement(body: string, language: "javascript" | "python"): boolean {
+function hasExitStatement(
+  body: string,
+  language: "javascript" | "python"
+): boolean {
   if (language === "javascript") {
     return /\b(break|return|throw|process\.exit)\b/.test(body)
   } else {
@@ -87,7 +119,11 @@ function hasExitStatement(body: string, language: "javascript" | "python"): bool
 /**
  * Checks if a variable name is mutated or reassigned inside a block.
  */
-function isVariableMutated(varName: string, body: string, language: "javascript" | "python"): boolean {
+function isVariableMutated(
+  varName: string,
+  body: string,
+  language: "javascript" | "python"
+): boolean {
   const escaped = varName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   if (language === "javascript") {
     // e.g. i++, ++i, i--, --i, i +=, i -=, i *=, i /=, i =
@@ -121,7 +157,8 @@ export function detectPotentialInfiniteLoops(
 
   if (language === "javascript") {
     // 1. Unbounded `while (true)` / `while (1)` / `while (!0)`
-    const whileTrueRegex = /\bwhile\s*\(\s*(true|1|!0|true\s*===?\s*true)\s*\)\s*\{/g
+    const whileTrueRegex =
+      /\bwhile\s*\(\s*(true|1|!0|true\s*===?\s*true)\s*\)\s*\{/g
     let match: RegExpExecArray | null
 
     while ((match = whileTrueRegex.exec(cleanCode)) !== null) {
@@ -155,13 +192,17 @@ export function detectPotentialInfiniteLoops(
     }
 
     // 3. Simple invariant counter while loop: `while (i < N)` or `while (count > 0)` where var is never modified
-    const simpleWhileRegex = /\bwhile\s*\(\s*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(<|<=|>|>=|!==|!=)\s*([0-9a-zA-Z_$]+)\s*\)\s*\{/g
+    const simpleWhileRegex =
+      /\bwhile\s*\(\s*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(<|<=|>|>=|!==|!=)\s*([0-9a-zA-Z_$]+)\s*\)\s*\{/g
     while ((match = simpleWhileRegex.exec(cleanCode)) !== null) {
       const varName = match[1]
       const openBraceIdx = match.index + match[0].length - 1
       const body = extractBraceBlock(cleanCode, openBraceIdx)
 
-      if (!hasExitStatement(body, "javascript") && !isVariableMutated(varName, body, "javascript")) {
+      if (
+        !hasExitStatement(body, "javascript") &&
+        !isVariableMutated(varName, body, "javascript")
+      ) {
         const lineNum = cleanCode.slice(0, match.index).split("\n").length
         warnings.push({
           message: `Loop condition variable \`${varName}\` is never updated or reassigned inside the \`while\` loop body.`,
@@ -190,7 +231,9 @@ export function detectPotentialInfiniteLoops(
       const trimmed = line.trim()
 
       // 1. Unbounded `while True:` or `while 1:`
-      const pythonWhileTrueMatch = trimmed.match(/^while\s+(True|1|\(True\)|\(1\))\s*:/)
+      const pythonWhileTrueMatch = trimmed.match(
+        /^while\s+(True|1|\(True\)|\(1\))\s*:/
+      )
       if (pythonWhileTrueMatch) {
         const body = extractPythonIndentedBlock(lines, i)
         if (!hasExitStatement(body, "python")) {
@@ -204,12 +247,17 @@ export function detectPotentialInfiniteLoops(
       }
 
       // 2. Simple invariant counter while loop in Python: `while i < N:`
-      const pythonWhileVarMatch = trimmed.match(/^while\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(<|<=|>|>=|!=|==)\s*([0-9a-zA-Z_]+)\s*:/)
+      const pythonWhileVarMatch = trimmed.match(
+        /^while\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(<|<=|>|>=|!=|==)\s*([0-9a-zA-Z_]+)\s*:/
+      )
       if (pythonWhileVarMatch) {
         const varName = pythonWhileVarMatch[1]
         const body = extractPythonIndentedBlock(lines, i)
 
-        if (!hasExitStatement(body, "python") && !isVariableMutated(varName, body, "python")) {
+        if (
+          !hasExitStatement(body, "python") &&
+          !isVariableMutated(varName, body, "python")
+        ) {
           warnings.push({
             message: `Loop condition variable \`${varName}\` is never updated or reassigned inside the \`while\` loop.`,
             line: i + 1,
@@ -220,7 +268,9 @@ export function detectPotentialInfiniteLoops(
       }
 
       // 3. Single-line infinite loop: `while True: pass`
-      const singleLineWhile = trimmed.match(/^while\s+(True|1)\s*:\s*(pass|\.\.\.)\s*$/)
+      const singleLineWhile = trimmed.match(
+        /^while\s+(True|1)\s*:\s*(pass|\.\.\.)\s*$/
+      )
       if (singleLineWhile) {
         warnings.push({
           message: `Empty infinite loop \`while ${singleLineWhile[1]}: pass\` will freeze execution.`,

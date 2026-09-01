@@ -325,13 +325,15 @@ export const nodeRegistry = {
       {
         key: "headers",
         label: "Headers (JSON)",
-        placeholder: '{\n  "Authorization": "Bearer ...",\n  "Content-Type": "application/json"\n}',
+        placeholder:
+          '{\n  "Authorization": "Bearer ...",\n  "Content-Type": "application/json"\n}',
         multiline: true,
       },
       {
         key: "body",
         label: "Request Body",
-        placeholder: '{\n  "name": "Jane Doe",\n  "email": "jane@example.com"\n}',
+        placeholder:
+          '{\n  "name": "Jane Doe",\n  "email": "jane@example.com"\n}',
         multiline: true,
       },
     ],
@@ -594,4 +596,3 @@ export function getNodeDefinition(type?: string): NodeDefinition | undefined {
   if (!type) return undefined
   return (nodeRegistry as Record<string, NodeDefinition>)[type]
 }
-

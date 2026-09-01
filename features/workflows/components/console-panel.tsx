@@ -50,8 +50,9 @@ export function ConsolePanel({ className }: ConsolePanelProps) {
         : selection
     } else if (selection.type === "replay") {
       const currentRun =
-        runs.find((r) => `${r.id}-replay` === selectedKey || r.id === selection.run.id) ??
-        selection.run
+        runs.find(
+          (r) => `${r.id}-replay` === selectedKey || r.id === selection.run.id
+        ) ?? selection.run
 
       liveSelection = {
         type: "replay",

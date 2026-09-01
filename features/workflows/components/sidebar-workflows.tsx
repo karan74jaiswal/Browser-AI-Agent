@@ -138,7 +138,7 @@ export function SidebarWorkflows({
                         <span className="truncate">{workflow.name}</span>
                       </Link>
                     </SidebarMenuButton>
-                    <div className="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover/item:opacity-100 group-focus-within/item:opacity-100">
+                    <div className="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-focus-within/item:opacity-100 group-hover/item:opacity-100">
                       <button
                         type="button"
                         onClick={(e) => handleExport(e, workflow)}
@@ -182,4 +182,3 @@ export function SidebarWorkflows({
     </>
   )
 }
-

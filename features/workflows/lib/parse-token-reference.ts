@@ -47,4 +47,3 @@ export function extractAllTokenReferences(template: string): TokenReference[] {
 
   return results
 }
-

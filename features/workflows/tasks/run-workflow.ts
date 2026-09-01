@@ -60,7 +60,11 @@ export const runWorkflowTask = task({
     const disabledEdges = new Set<string>()
     const completedNodeIds = new Set<string>()
     const failedNodeIds = new Set<string>()
-    const failedBranches: Array<{ nodeId: string; title?: string; error: string }> = []
+    const failedBranches: Array<{
+      nodeId: string
+      title?: string
+      error: string
+    }> = []
 
     // Determine entry point (trigger node)
     const triggerNode = findTriggerNode(nodes)
@@ -102,7 +106,9 @@ export const runWorkflowTask = task({
 
         let step = steps.find(
           (s) =>
-            (edgeId ? s.edgeId === edgeId : (s.nodeId === nodeId || s.id === nodeId)) &&
+            (edgeId
+              ? s.edgeId === edgeId
+              : s.nodeId === nodeId || s.id === nodeId) &&
             s.status === "pending"
         )
         const startedAt = Date.now()

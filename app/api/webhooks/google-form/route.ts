@@ -52,7 +52,9 @@ export async function POST(req: NextRequest) {
 
     if (!triggerNode) {
       return NextResponse.json(
-        { error: "This workflow does not contain an active Google Form trigger" },
+        {
+          error: "This workflow does not contain an active Google Form trigger",
+        },
         { status: 400 }
       )
     }
@@ -125,8 +127,7 @@ export async function POST(req: NextRequest) {
       if (!isMember) {
         return NextResponse.json(
           {
-            error:
-              `Unauthorized: The submitting email (${respondentEmail}) is not a registered member of this organization.`,
+            error: `Unauthorized: The submitting email (${respondentEmail}) is not a registered member of this organization.`,
           },
           { status: 403 }
         )

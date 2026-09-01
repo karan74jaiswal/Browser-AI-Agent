@@ -26,10 +26,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  createCredentialAction,
-  deleteCredentialAction,
-} from "../actions"
+import { createCredentialAction, deleteCredentialAction } from "../actions"
 import type { SafeCredential } from "../data"
 import { useCredentials } from "./credentials-provider"
 
@@ -137,22 +134,21 @@ export function CredentialVaultDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {trigger ? (
-        <DialogTrigger asChild>{trigger}</DialogTrigger>
-      ) : null}
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-4 border-b">
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <DialogHeader className="border-b p-6 pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="flex size-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <div className="flex size-9 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400">
                 <Lock className="size-4.5" />
               </div>
               <div>
                 <DialogTitle className="text-lg font-semibold">
                   Organization Credential Vault
                 </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  AES-256-GCM encrypted secrets available across your workflows and cloud sandboxes.
+                <DialogDescription className="mt-0.5 text-xs text-muted-foreground">
+                  AES-256-GCM encrypted secrets available across your workflows
+                  and cloud sandboxes.
                 </DialogDescription>
               </div>
             </div>
@@ -160,7 +156,7 @@ export function CredentialVaultDialog({
               <Button
                 size="sm"
                 onClick={() => setShowAddForm(true)}
-                className="gap-1.5 h-8 text-xs"
+                className="h-8 gap-1.5 text-xs"
               >
                 <Plus className="size-3.5" />
                 Add Secret
@@ -169,13 +165,13 @@ export function CredentialVaultDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto p-6">
           {showAddForm && (
             <form
               onSubmit={handleCreate}
-              className="rounded-lg border bg-muted/30 p-4 space-y-3.5 animate-in fade-in-50 duration-200"
+              className="animate-in space-y-3.5 rounded-lg border bg-muted/30 p-4 duration-200 fade-in-50"
             >
-              <div className="flex items-center justify-between pb-1 border-b">
+              <div className="flex items-center justify-between border-b pb-1">
                 <span className="text-xs font-semibold text-foreground">
                   New Organization Secret
                 </span>
@@ -198,12 +194,23 @@ export function CredentialVaultDialog({
                   id="cred-name"
                   placeholder="OPENAI_API_KEY"
                   value={name}
-                  onChange={(e) => setName(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "_"))}
+                  onChange={(e) =>
+                    setName(
+                      e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "_")
+                    )
+                  }
                   className="h-8 font-mono text-xs uppercase"
                   required
                 />
                 <p className="text-[10px] text-muted-foreground">
-                  Referenced in workflows as <code className="text-amber-600 dark:text-amber-400 font-mono">{"{{ secrets." + (name || "NAME") + " }}"}</code> or <code className="text-amber-600 dark:text-amber-400 font-mono">{"process.env." + (name || "NAME")}</code>
+                  Referenced in workflows as{" "}
+                  <code className="font-mono text-amber-600 dark:text-amber-400">
+                    {"{{ secrets." + (name || "NAME") + " }}"}
+                  </code>{" "}
+                  or{" "}
+                  <code className="font-mono text-amber-600 dark:text-amber-400">
+                    {"process.env." + (name || "NAME")}
+                  </code>
                 </p>
               </div>
 
@@ -218,22 +225,29 @@ export function CredentialVaultDialog({
                     placeholder="sk-proj-..."
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
-                    className="h-8 font-mono text-xs pr-8"
+                    className="h-8 pr-8 font-mono text-xs"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowSecret(!showSecret)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
-                    {showSecret ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    {showSecret ? (
+                      <EyeOff className="size-3.5" />
+                    ) : (
+                      <Eye className="size-3.5" />
+                    )}
                   </button>
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="cred-desc" className="text-xs">
-                  Description <span className="text-[10px] text-muted-foreground">(Optional)</span>
+                  Description{" "}
+                  <span className="text-[10px] text-muted-foreground">
+                    (Optional)
+                  </span>
                 </Label>
                 <Input
                   id="cred-desc"
@@ -258,7 +272,7 @@ export function CredentialVaultDialog({
                   type="submit"
                   size="sm"
                   disabled={isCreating || !name.trim() || !value.trim()}
-                  className="h-8 text-xs gap-1.5"
+                  className="h-8 gap-1.5 text-xs"
                 >
                   {isCreating ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -277,17 +291,21 @@ export function CredentialVaultDialog({
             </div>
           ) : credentials.length === 0 && !showAddForm ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground mb-3">
+              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <KeyRound className="size-6" />
               </div>
-              <h3 className="text-sm font-medium text-foreground">No secrets stored yet</h3>
-              <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                Add your API keys and secrets here. They are AES-256-GCM encrypted and securely injected into your workflows and sandboxes.
+              <h3 className="text-sm font-medium text-foreground">
+                No secrets stored yet
+              </h3>
+              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                Add your API keys and secrets here. They are AES-256-GCM
+                encrypted and securely injected into your workflows and
+                sandboxes.
               </p>
               <Button
                 size="sm"
                 onClick={() => setShowAddForm(true)}
-                className="mt-4 gap-1.5 h-8 text-xs"
+                className="mt-4 h-8 gap-1.5 text-xs"
               >
                 <Plus className="size-3.5" />
                 Add Your First Secret
@@ -298,30 +316,30 @@ export function CredentialVaultDialog({
               {credentials.map((cred) => (
                 <div
                   key={cred.id}
-                  className="flex items-center justify-between rounded-lg border p-3 bg-card hover:bg-muted/20 transition-colors"
+                  className="flex items-center justify-between rounded-lg border bg-card p-3 transition-colors hover:bg-muted/20"
                 >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground mt-0.5">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                       <KeyRound className="size-4" />
                     </div>
                     <div className="min-w-0 space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-xs font-semibold text-foreground truncate">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate font-mono text-xs font-semibold text-foreground">
                           {cred.name}
                         </span>
-                        <span className="text-[11px] font-mono text-muted-foreground">
+                        <span className="font-mono text-[11px] text-muted-foreground">
                           ••••{cred.lastFour}
                         </span>
                       </div>
                       {cred.description && (
-                        <p className="text-[11px] text-muted-foreground truncate">
+                        <p className="truncate text-[11px] text-muted-foreground">
                           {cred.description}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  <div className="ml-2 flex shrink-0 items-center gap-1.5">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -340,7 +358,7 @@ export function CredentialVaultDialog({
                       size="icon"
                       onClick={() => handleDelete(cred.id, cred.name)}
                       title="Delete credential"
-                      className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      className="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="size-3.5" />
                     </Button>

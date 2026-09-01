@@ -51,12 +51,17 @@ export function DeleteWorkflowDialog({
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={(val) => !isPending && onOpenChange(val)}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(val) => !isPending && onOpenChange(val)}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete workflow</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete {workflowName ? `"${workflowName}"` : "this workflow"}? This action cannot be undone.
+            Are you sure you want to delete{" "}
+            {workflowName ? `"${workflowName}"` : "this workflow"}? This action
+            cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -66,7 +71,7 @@ export function DeleteWorkflowDialog({
             onClick={handleDelete}
             disabled={isPending}
           >
-            {isPending && <Loader2 className="size-4 animate-spin mr-2" />}
+            {isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
             Delete
           </Button>
         </AlertDialogFooter>

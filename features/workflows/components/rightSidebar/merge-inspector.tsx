@@ -13,8 +13,11 @@ export default function MergeInspector() {
         <div className="flex items-start gap-1.5">
           <Layers className="mt-0.5 size-3.5 shrink-0 text-indigo-500" />
           <div>
-            <span className="font-semibold text-foreground">Combine All Active:</span>{" "}
-            Waits for all parallel steps to finish and bundles their outputs into a map (
+            <span className="font-semibold text-foreground">
+              Combine All Active:
+            </span>{" "}
+            Waits for all parallel steps to finish and bundles their outputs
+            into a map (
             <code className="rounded bg-muted px-1 text-[10px] text-foreground">
               &#123;&#123; Merge.merged.&lt;nodeId&gt; &#125;&#125;
             </code>
@@ -24,8 +27,11 @@ export default function MergeInspector() {
         <div className="flex items-start gap-1.5">
           <ListFilter className="mt-0.5 size-3.5 shrink-0 text-indigo-500" />
           <div>
-            <span className="font-semibold text-foreground">Flatten into Array:</span>{" "}
-            Flattens lists and items from all incoming branches into a single array (
+            <span className="font-semibold text-foreground">
+              Flatten into Array:
+            </span>{" "}
+            Flattens lists and items from all incoming branches into a single
+            array (
             <code className="rounded bg-muted px-1 text-[10px] text-foreground">
               &#123;&#123; Merge.items &#125;&#125;
             </code>
@@ -35,10 +41,18 @@ export default function MergeInspector() {
         <div className="flex items-start gap-1.5">
           <Zap className="mt-0.5 size-3.5 shrink-0 text-amber-500" />
           <div>
-            <span className="font-semibold text-foreground">Pass-Through / Winner:</span>{" "}
-            Ideal for <code className="rounded bg-muted px-1 text-[10px] text-foreground">If</code> and{" "}
-            <code className="rounded bg-muted px-1 text-[10px] text-foreground">Switch</code> paths.
-            Forwards whichever branch executed as{" "}
+            <span className="font-semibold text-foreground">
+              Pass-Through / Winner:
+            </span>{" "}
+            Ideal for{" "}
+            <code className="rounded bg-muted px-1 text-[10px] text-foreground">
+              If
+            </code>{" "}
+            and{" "}
+            <code className="rounded bg-muted px-1 text-[10px] text-foreground">
+              Switch
+            </code>{" "}
+            paths. Forwards whichever branch executed as{" "}
             <code className="rounded bg-muted px-1 text-[10px] text-foreground">
               &#123;&#123; Merge.result &#125;&#125;
             </code>

@@ -46,13 +46,21 @@ export function compareValues(
       // Check numeric equality (e.g. "100" == "100.00")
       const numLeft = Number(leftTrim)
       const numRight = Number(rightTrim)
-      if (leftTrim !== "" && rightTrim !== "" && !isNaN(numLeft) && !isNaN(numRight)) {
+      if (
+        leftTrim !== "" &&
+        rightTrim !== "" &&
+        !isNaN(numLeft) &&
+        !isNaN(numRight)
+      ) {
         return numLeft === numRight
       }
       // Check boolean equality
       const lLower = leftTrim.toLowerCase()
       const rLower = rightTrim.toLowerCase()
-      if ((lLower === "true" || lLower === "false") && (rLower === "true" || rLower === "false")) {
+      if (
+        (lLower === "true" || lLower === "false") &&
+        (rLower === "true" || rLower === "false")
+      ) {
         return lLower === rLower
       }
       return leftTrim === rightTrim
@@ -75,7 +83,12 @@ export function compareValues(
     case "greater_than": {
       const numLeft = Number(leftTrim)
       const numRight = Number(rightTrim)
-      if (!isNaN(numLeft) && !isNaN(numRight) && leftTrim !== "" && rightTrim !== "") {
+      if (
+        !isNaN(numLeft) &&
+        !isNaN(numRight) &&
+        leftTrim !== "" &&
+        rightTrim !== ""
+      ) {
         return numLeft > numRight
       }
       return leftTrim > rightTrim
@@ -83,7 +96,12 @@ export function compareValues(
     case "less_than": {
       const numLeft = Number(leftTrim)
       const numRight = Number(rightTrim)
-      if (!isNaN(numLeft) && !isNaN(numRight) && leftTrim !== "" && rightTrim !== "") {
+      if (
+        !isNaN(numLeft) &&
+        !isNaN(numRight) &&
+        leftTrim !== "" &&
+        rightTrim !== ""
+      ) {
         return numLeft < numRight
       }
       return leftTrim < rightTrim
@@ -91,7 +109,12 @@ export function compareValues(
     case "greater_than_or_equal": {
       const numLeft = Number(leftTrim)
       const numRight = Number(rightTrim)
-      if (!isNaN(numLeft) && !isNaN(numRight) && leftTrim !== "" && rightTrim !== "") {
+      if (
+        !isNaN(numLeft) &&
+        !isNaN(numRight) &&
+        leftTrim !== "" &&
+        rightTrim !== ""
+      ) {
         return numLeft >= numRight
       }
       return leftTrim >= rightTrim
@@ -99,7 +122,12 @@ export function compareValues(
     case "less_than_or_equal": {
       const numLeft = Number(leftTrim)
       const numRight = Number(rightTrim)
-      if (!isNaN(numLeft) && !isNaN(numRight) && leftTrim !== "" && rightTrim !== "") {
+      if (
+        !isNaN(numLeft) &&
+        !isNaN(numRight) &&
+        leftTrim !== "" &&
+        rightTrim !== ""
+      ) {
         return numLeft <= numRight
       }
       return leftTrim <= rightTrim

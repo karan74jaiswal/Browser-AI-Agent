@@ -36,9 +36,15 @@ export const nodeExecutors: Partial<Record<NodeType, NodeExecutor>> = {
   act: async ({ values, getStagehand }) =>
     act({ stagehand: await getStagehand(), instruction: values.instruction }),
   extract: async ({ values, getStagehand }) =>
-    extract({ stagehand: await getStagehand(), instruction: values.instruction }),
+    extract({
+      stagehand: await getStagehand(),
+      instruction: values.instruction,
+    }),
   observe: async ({ values, getStagehand }) =>
-    observe({ stagehand: await getStagehand(), instruction: values.instruction }),
+    observe({
+      stagehand: await getStagehand(),
+      instruction: values.instruction,
+    }),
   agent: async ({ values, getStagehand }) => {
     const rawSteps = values.maxSteps ? parseInt(values.maxSteps, 10) : 10
     const allowedSteps = [10, 15, 20, 25, 30]
@@ -91,8 +97,7 @@ export const nodeExecutors: Partial<Record<NodeType, NodeExecutor>> = {
     }
   },
   switch: async ({ values }) => switchNode({ values }),
-  wait: async ({ values }) =>
-    waitNode({ seconds: values.seconds }),
+  wait: async ({ values }) => waitNode({ seconds: values.seconds }),
   "throw-error": async ({ values }) =>
     throwErrorNode({ message: values.message }),
   merge: async ({ values }) => mergeNode({ values }),

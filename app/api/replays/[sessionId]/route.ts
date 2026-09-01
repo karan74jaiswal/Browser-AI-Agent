@@ -16,12 +16,15 @@ export async function GET(
 
   const isPro = has({ plan: "pro" }) || has({ plan: "org:pro" })
   if (!isPro) {
-    return new Response("Forbidden: Pro plan required to view session recordings", {
-      status: 403,
-      headers: {
-        "Content-Type": "text/plain",
-      },
-    })
+    return new Response(
+      "Forbidden: Pro plan required to view session recordings",
+      {
+        status: 403,
+        headers: {
+          "Content-Type": "text/plain",
+        },
+      }
+    )
   }
 
   const { sessionId } = await params

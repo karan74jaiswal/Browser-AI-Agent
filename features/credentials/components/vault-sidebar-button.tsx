@@ -2,7 +2,11 @@
 
 import * as React from "react"
 import { Lock } from "lucide-react"
-import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar"
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar"
 import { useCredentials } from "./credentials-provider"
 
 export function VaultSidebarButton() {

@@ -39,9 +39,7 @@ function normalizeStripeEvent(event: Stripe.Event): NormalizedStripeEventData {
       status = pi.status
       paymentIntentId = pi.id
       customerId =
-        typeof pi.customer === "string"
-          ? pi.customer
-          : pi.customer?.id ?? ""
+        typeof pi.customer === "string" ? pi.customer : (pi.customer?.id ?? "")
       customerEmail = pi.receipt_email ?? ""
       break
     }
@@ -59,13 +57,13 @@ function normalizeStripeEvent(event: Stripe.Event): NormalizedStripeEventData {
       customerId =
         typeof session.customer === "string"
           ? session.customer
-          : session.customer?.id ?? ""
+          : (session.customer?.id ?? "")
       customerEmail =
         session.customer_details?.email ?? session.customer_email ?? ""
       paymentIntentId =
         typeof session.payment_intent === "string"
           ? session.payment_intent
-          : session.payment_intent?.id ?? ""
+          : (session.payment_intent?.id ?? "")
       break
     }
 
@@ -81,13 +79,13 @@ function normalizeStripeEvent(event: Stripe.Event): NormalizedStripeEventData {
       customerId =
         typeof charge.customer === "string"
           ? charge.customer
-          : charge.customer?.id ?? ""
+          : (charge.customer?.id ?? "")
       customerEmail =
         charge.billing_details?.email ?? charge.receipt_email ?? ""
       paymentIntentId =
         typeof charge.payment_intent === "string"
           ? charge.payment_intent
-          : charge.payment_intent?.id ?? ""
+          : (charge.payment_intent?.id ?? "")
       break
     }
 
@@ -107,7 +105,7 @@ function normalizeStripeEvent(event: Stripe.Event): NormalizedStripeEventData {
       customerId =
         typeof invoice.customer === "string"
           ? invoice.customer
-          : invoice.customer?.id ?? ""
+          : (invoice.customer?.id ?? "")
       customerEmail = invoice.customer_email ?? ""
       paymentIntentId = invoice.id
       break
@@ -123,7 +121,7 @@ function normalizeStripeEvent(event: Stripe.Event): NormalizedStripeEventData {
       customerId =
         typeof sub.customer === "string"
           ? sub.customer
-          : sub.customer?.id ?? ""
+          : (sub.customer?.id ?? "")
       const firstItem = sub.items?.data?.[0]
       if (
         firstItem?.price?.unit_amount !== null &&
@@ -142,17 +140,13 @@ function normalizeStripeEvent(event: Stripe.Event): NormalizedStripeEventData {
           "amount" in generic &&
           typeof (generic as { amount?: number }).amount === "number"
         ) {
-          amount = (
-            (generic as { amount: number }).amount / 100
-          ).toFixed(2)
+          amount = ((generic as { amount: number }).amount / 100).toFixed(2)
         }
         if (
           "currency" in generic &&
           typeof (generic as { currency?: string }).currency === "string"
         ) {
-          currency = (
-            generic as { currency: string }
-          ).currency.toUpperCase()
+          currency = (generic as { currency: string }).currency.toUpperCase()
         }
         if (
           "customer" in generic &&

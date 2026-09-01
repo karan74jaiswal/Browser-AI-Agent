@@ -102,10 +102,7 @@ export function validateGraph(
 
     for (const [key, rawVal] of Object.entries(values)) {
       if (node.data?.type === "if" && key === "conditions") continue
-      if (
-        node.data?.type === "switch" &&
-        (key === "rules" || key === "cases")
-      )
+      if (node.data?.type === "switch" && (key === "rules" || key === "cases"))
         continue
       if (typeof rawVal !== "string") continue
       const refs = extractAllTokenReferences(rawVal)

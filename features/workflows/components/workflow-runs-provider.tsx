@@ -32,22 +32,29 @@ export type WorkflowRun = ReturnType<
 export function getRunSessionId(
   run:
     | WorkflowRun
-    | { output?: unknown; metadata?: unknown; status?: string; sessionId?: string }
+    | {
+        output?: unknown
+        metadata?: unknown
+        status?: string
+        sessionId?: string
+      }
     | undefined
     | null
 ): string | undefined {
   if (!run) return undefined
 
   // Read session id from the run's final output (not live metadata)
-  const output = run.output as
-    | { sessionId?: string }
-    | undefined
+  const output = run.output as { sessionId?: string } | undefined
 
   if (output && typeof output.sessionId === "string" && output.sessionId) {
     return output.sessionId
   }
 
-  if ("sessionId" in run && typeof run.sessionId === "string" && run.sessionId) {
+  if (
+    "sessionId" in run &&
+    typeof run.sessionId === "string" &&
+    run.sessionId
+  ) {
     return run.sessionId
   }
 
@@ -66,10 +73,7 @@ export function getRunSteps(
   let rawSteps: RunStep[] | undefined = undefined
 
   // Prefer final output steps
-  const output = run.output as
-    | { steps?: RunStep[] }
-    | RunStep[]
-    | undefined
+  const output = run.output as { steps?: RunStep[] } | RunStep[] | undefined
 
   if (output) {
     if (Array.isArray(output)) {
@@ -142,7 +146,12 @@ export interface WorkflowRunsContextValue {
   getRunSessionId: (
     run:
       | WorkflowRun
-      | { output?: unknown; metadata?: unknown; status?: string; sessionId?: string }
+      | {
+          output?: unknown
+          metadata?: unknown
+          status?: string
+          sessionId?: string
+        }
       | undefined
       | null
   ) => string | undefined
@@ -197,7 +206,8 @@ export function computeNodeRunStatus(
   const isRunCanceling = Boolean(
     cancelingRunId && latestRunId === cancelingRunId && isLive
   )
-  const nodeSteps = steps?.filter((s) => s.nodeId === nodeId || s.id === nodeId) ?? []
+  const nodeSteps =
+    steps?.filter((s) => s.nodeId === nodeId || s.id === nodeId) ?? []
   const hasRunning = nodeSteps.some((s) => s.status === "running")
   const hasDone = nodeSteps.some((s) => s.status === "done")
   const hasFailed = nodeSteps.some((s) => s.status === "failed")
@@ -216,7 +226,8 @@ export function computeNodeRunStatus(
     !isRunCanceling &&
     (hasRunning || (kind === "trigger" && !hasDone && !isFailed))
   const isDone = Boolean(hasDone && !isRunning && !isStepCanceling && !isFailed)
-  const winningBranch = (step?.output as { branch?: string } | undefined)?.branch
+  const winningBranch = (step?.output as { branch?: string } | undefined)
+    ?.branch
 
   return {
     isRunning,
@@ -254,17 +265,21 @@ export function computeEdgeRunStatus({
   const edgeRunning = edgeSteps.find((s) => s.status === "running")
   const edgePending = edgeSteps.find((s) => s.status === "pending")
   const edgeDone = [...edgeSteps].reverse().find((s) => s.status === "done")
-  const edgeStep = edgeRunning ?? edgePending ?? edgeDone ?? edgeSteps[edgeSteps.length - 1]
+  const edgeStep =
+    edgeRunning ?? edgePending ?? edgeDone ?? edgeSteps[edgeSteps.length - 1]
 
-  const sourceSteps = steps?.filter((s) => s.nodeId === source || s.id === source) ?? []
-  const targetSteps = steps?.filter((s) => s.nodeId === target || s.id === target) ?? []
+  const sourceSteps =
+    steps?.filter((s) => s.nodeId === source || s.id === source) ?? []
+  const targetSteps =
+    steps?.filter((s) => s.nodeId === target || s.id === target) ?? []
 
   const hasSourceDone = sourceSteps.some((s) => s.status === "done")
   const hasTargetDone = targetSteps.some((s) => s.status === "done")
 
   const sourceRunning = sourceSteps.find((s) => s.status === "running")
   const sourceDone = sourceSteps.find((s) => s.status === "done")
-  const sourceStep = sourceRunning ?? sourceDone ?? sourceSteps[sourceSteps.length - 1]
+  const sourceStep =
+    sourceRunning ?? sourceDone ?? sourceSteps[sourceSteps.length - 1]
 
   const targetRunning = targetSteps.find((s) => s.status === "running")
 
@@ -368,7 +383,9 @@ export function WorkflowRunsProvider({
   )
 
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
-  const [rawCancelingRunId, setRawCancelingRunId] = useState<string | null>(null)
+  const [rawCancelingRunId, setRawCancelingRunId] = useState<string | null>(
+    null
+  )
 
   const sortedRuns = useMemo(() => {
     if (!runs || runs.length === 0) return []
@@ -440,10 +457,7 @@ export function WorkflowRunsProvider({
           (prevStatus === "running" || prevStatus === "pending")
         ) {
           playStepSuccessSound()
-        } else if (
-          step.status === "failed" &&
-          prevStatus !== "failed"
-        ) {
+        } else if (step.status === "failed" && prevStatus !== "failed") {
           playStepErrorSound()
         }
         prevMap.set(step.id, step.status)

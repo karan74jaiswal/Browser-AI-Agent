@@ -87,10 +87,18 @@ export async function executeStep({
     const newlyDisabled: string[] = []
     for (const edge of outEdges) {
       const handle =
-        (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
-          .sourceHandleId ||
-        (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
-          .sourceHandle ||
+        (
+          edge as {
+            sourceHandleId?: string | null
+            sourceHandle?: string | null
+          }
+        ).sourceHandleId ||
+        (
+          edge as {
+            sourceHandleId?: string | null
+            sourceHandle?: string | null
+          }
+        ).sourceHandle ||
         "true"
 
       if (handle === winningHandle) {
@@ -117,10 +125,18 @@ export async function executeStep({
     const newlyDisabled: string[] = []
     for (const edge of outEdges) {
       const handle =
-        (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
-          .sourceHandleId ||
-        (edge as { sourceHandleId?: string | null; sourceHandle?: string | null })
-          .sourceHandle ||
+        (
+          edge as {
+            sourceHandleId?: string | null
+            sourceHandle?: string | null
+          }
+        ).sourceHandleId ||
+        (
+          edge as {
+            sourceHandleId?: string | null
+            sourceHandle?: string | null
+          }
+        ).sourceHandle ||
         "0"
 
       if (handle === winningHandle) {
@@ -156,9 +172,10 @@ export async function executeStep({
       activeEdges.add(edge.id)
     }
   } else if (node.data.type === "start") {
-    result = triggerData ?? results[nodeId] ?? {
-      startedAt: new Date().toISOString(),
-    }
+    result = triggerData ??
+      results[nodeId] ?? {
+        startedAt: new Date().toISOString(),
+      }
     results[nodeId] = result
 
     const outEdges = outgoingEdges.get(nodeId) || []
@@ -188,8 +205,7 @@ export async function executeStep({
       currency: "USD",
       customerEmail: "customer@example.com",
       customerId: "cus_sample12345",
-      eventType:
-        node.data.values?.eventType || "payment_intent.succeeded",
+      eventType: node.data.values?.eventType || "payment_intent.succeeded",
       status: "succeeded",
       paymentIntentId: "pi_sample12345",
       rawEvent: {

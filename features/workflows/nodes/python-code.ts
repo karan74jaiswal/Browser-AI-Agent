@@ -45,7 +45,11 @@ export function formatPythonExecutionError(
   let traceback = ""
 
   if (err && typeof err === "object" && "name" in err && "value" in err) {
-    const errorObj = err as { name?: string; value?: string; traceback?: string }
+    const errorObj = err as {
+      name?: string
+      value?: string
+      traceback?: string
+    }
     name = errorObj.name || "Error"
     value = errorObj.value || ""
     traceback = errorObj.traceback || ""
@@ -72,7 +76,7 @@ export function formatPythonExecutionError(
   let extraHint = ""
   if (name === "NameError" || value.includes("is not defined")) {
     extraHint =
-      "\n\n💡 Tip: To access Organization Vault secrets in Python, use os.environ[\"YOUR_SECRET_NAME\"] or wrap tokens in quotes."
+      '\n\n💡 Tip: To access Organization Vault secrets in Python, use os.environ["YOUR_SECRET_NAME"] or wrap tokens in quotes.'
   }
 
   const details = `${name}: ${value}${traceback ? `\n${traceback}` : ""}${extraHint}`

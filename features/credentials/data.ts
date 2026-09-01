@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm"
-import { db, credentials, type Credential, type NewCredential } from "@/lib/db"
+import { db, credentials } from "@/lib/db"
 import { encryptSecret, decryptSecret } from "@/lib/crypto"
 
 export interface SafeCredential {
@@ -71,7 +71,9 @@ export async function createOrgCredential(
 
   const name = normalizeCredentialName(input.name)
   if (!name || name.length === 0) {
-    throw new Error("Credential name is required and must contain alphanumeric characters")
+    throw new Error(
+      "Credential name is required and must contain alphanumeric characters"
+    )
   }
 
   if (!input.value || input.value.trim().length === 0) {
@@ -86,10 +88,12 @@ export async function createOrgCredential(
     .limit(1)
 
   if (existing.length > 0) {
-    throw new Error(`A credential named "${name}" already exists in this organization`)
+    throw new Error(
+      `A credential named "${name}" already exists in this organization`
+    )
   }
 
-  const encrypted = encryptSecret(input.value.trim())
+  const encrypted = encryptSecret(input.value.trim(), orgId)
 
   const [created] = await db
     .insert(credentials)
@@ -128,9 +132,7 @@ export async function deleteOrgCredential(
 
   const deleted = await db
     .delete(credentials)
-    .where(
-      and(eq(credentials.orgId, orgId), eq(credentials.id, credentialId))
-    )
+    .where(and(eq(credentials.orgId, orgId), eq(credentials.id, credentialId)))
     .returning({ id: credentials.id })
 
   return deleted.length > 0
@@ -154,7 +156,7 @@ export async function getDecryptedOrgSecrets(
 
   for (const row of rows) {
     try {
-      const decrypted = decryptSecret(row.encryptedValue, row.iv, row.authTag)
+      const decrypted = decryptSecret(row.encryptedValue, row.iv, row.authTag, orgId)
       secrets[row.name] = decrypted
     } catch (err) {
       console.error(

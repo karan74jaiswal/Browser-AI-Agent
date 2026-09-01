@@ -11,7 +11,7 @@ import {
 } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import Section from "./section"
-import { useState, useRef, useMemo, useEffect } from "react"
+import { useState, useRef, useMemo } from "react"
 import { toast } from "sonner"
 import { useUpstreamConnections } from "../../hooks"
 import { extractAllTokenReferences, ConditionCriterion } from "../../lib"
@@ -261,21 +261,21 @@ export default function Inspector({
                 {connections.length === 1 ? "variable" : "variables"}
               </span>
             </div>
-            <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto p-0.5 [scrollbar-width:thin]">
+            <div className="flex max-h-24 scrollbar-thin flex-wrap gap-1.5 overflow-y-auto p-0.5">
               {connections.map((conn) => (
                 <button
                   key={`${conn.nodeId}-${conn.path}`}
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleInsertToken(conn.token)}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground transition-all hover:bg-accent hover:border-border/80 active:scale-95 shadow-2xs"
+                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground shadow-2xs transition-all hover:border-border/80 hover:bg-accent active:scale-95"
                   title={`Insert {{ ${conn.label} }}`}
                 >
                   <NodeIcon
                     type={conn.type}
-                    className="size-3.5 rounded-xs [&_svg]:size-2.5 shrink-0"
+                    className="size-3.5 shrink-0 rounded-xs [&_svg]:size-2.5"
                   />
-                  <span className="truncate max-w-40 text-[11px] font-medium">
+                  <span className="max-w-40 truncate text-[11px] font-medium">
                     {conn.label}
                   </span>
                 </button>
@@ -285,7 +285,7 @@ export default function Inspector({
         )}
 
         {credentials.length > 0 && (
-          <div className="flex flex-col gap-1.5 pt-1 border-t border-border/50">
+          <div className="flex flex-col gap-1.5 border-t border-border/50 pt-1">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
                 <Lock className="size-3.5 text-amber-500" />
@@ -294,19 +294,19 @@ export default function Inspector({
               <button
                 type="button"
                 onClick={() => openVault()}
-                className="text-[10px] text-muted-foreground hover:text-foreground cursor-pointer underline"
+                className="cursor-pointer text-[10px] text-muted-foreground underline hover:text-foreground"
               >
                 Manage ({credentials.length})
               </button>
             </div>
-            <div className="flex max-h-20 flex-wrap gap-1.5 overflow-y-auto p-0.5 [scrollbar-width:thin]">
+            <div className="flex max-h-20 scrollbar-thin flex-wrap gap-1.5 overflow-y-auto p-0.5">
               {credentials.map((cred) => (
                 <button
                   key={cred.id}
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleInsertSecret(cred.name)}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-xs text-foreground transition-all hover:bg-amber-500/10 hover:border-amber-500/50 active:scale-95 shadow-2xs"
+                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-xs text-foreground shadow-2xs transition-all hover:border-amber-500/50 hover:bg-amber-500/10 active:scale-95"
                   title={
                     type === "js-code"
                       ? `Insert process.env.${cred.name}`
@@ -315,8 +315,8 @@ export default function Inspector({
                         : `Insert {{ secrets.${cred.name} }}`
                   }
                 >
-                  <Lock className="size-3 text-amber-500 shrink-0" />
-                  <span className="truncate max-w-36 font-mono text-[11px] font-medium">
+                  <Lock className="size-3 shrink-0 text-amber-500" />
+                  <span className="max-w-36 truncate font-mono text-[11px] font-medium">
                     {cred.name}
                   </span>
                 </button>
@@ -328,7 +328,11 @@ export default function Inspector({
     ) : undefined
 
   return (
-    <Section title={title} icon={<NodeIcon type={type} />} footer={connectionsFooter}>
+    <Section
+      title={title}
+      icon={<NodeIcon type={type} />}
+      footer={connectionsFooter}
+    >
       <div className="flex flex-col gap-3 p-3">
         {def.requiredSecrets && def.requiredSecrets.length > 0 && (
           <div className="flex flex-col gap-2">
@@ -343,13 +347,15 @@ export default function Inspector({
                     key={req.key}
                     className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs"
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
                       <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                         <CheckCircle2 className="size-3.5" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-foreground truncate">{req.label}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">
+                        <p className="truncate font-medium text-foreground">
+                          {req.label}
+                        </p>
+                        <p className="font-mono text-[10px] text-muted-foreground">
                           Connected (••••{matchingCred.lastFour})
                         </p>
                       </div>
@@ -357,7 +363,7 @@ export default function Inspector({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 text-[11px] text-muted-foreground hover:text-foreground shrink-0"
+                      className="h-6 shrink-0 text-[11px] text-muted-foreground hover:text-foreground"
                       onClick={() => openVault({ prefillName: req.key })}
                     >
                       Manage
@@ -371,17 +377,17 @@ export default function Inspector({
                   key={req.key}
                   className="flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs"
                 >
-                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium">
+                  <div className="flex items-center gap-2 font-medium text-amber-700 dark:text-amber-400">
                     <AlertCircle className="size-4 shrink-0" />
                     <span>Missing Credential: {req.label}</span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
                     {req.description ||
                       `This node requires "${req.key}" in your organization's Credential Vault to execute.`}
                   </p>
                   <Button
                     size="sm"
-                    className="h-7 text-xs gap-1.5 w-fit bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:text-zinc-950 shadow-2xs"
+                    className="h-7 w-fit gap-1.5 bg-amber-600 text-xs text-white shadow-2xs hover:bg-amber-700 dark:bg-amber-500 dark:text-zinc-950"
                     onClick={() => openVault({ prefillName: req.key })}
                   >
                     <Plus className="size-3" />

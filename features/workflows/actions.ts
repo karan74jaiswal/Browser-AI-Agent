@@ -172,7 +172,10 @@ export async function runWorkflowAction(id: string, graph: WorkflowGraph) {
   return handle
 }
 
-export async function saveWorkflowGraphAction(id: string, graph: WorkflowGraph) {
+export async function saveWorkflowGraphAction(
+  id: string,
+  graph: WorkflowGraph
+) {
   const { orgId } = await auth()
 
   if (!orgId) throw new Error("Unauthorized: No active organization found")

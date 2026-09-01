@@ -54,7 +54,8 @@ export function prepareJsCode(code: string): string {
     }
   }
 
-  const importsStr = importLines.length > 0 ? importLines.join("\n") + "\n\n" : ""
+  const importsStr =
+    importLines.length > 0 ? importLines.join("\n") + "\n\n" : ""
   const bodyStr = bodyLines.join("\n")
 
   return `${importsStr}await (async () => {\n${bodyStr}\n})()`
@@ -71,7 +72,11 @@ export function formatJsExecutionError(
   let traceback = ""
 
   if (err && typeof err === "object" && "name" in err && "value" in err) {
-    const errorObj = err as { name?: string; value?: string; traceback?: string }
+    const errorObj = err as {
+      name?: string
+      value?: string
+      traceback?: string
+    }
     name = errorObj.name || "Error"
     value = errorObj.value || ""
     traceback = errorObj.traceback || ""

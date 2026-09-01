@@ -21,7 +21,9 @@ interface CredentialsContextValue {
   closeVault: () => void
 }
 
-const CredentialsContext = React.createContext<CredentialsContextValue | null>(null)
+const CredentialsContext = React.createContext<CredentialsContextValue | null>(
+  null
+)
 
 export function CredentialsProvider({
   children,
@@ -31,10 +33,13 @@ export function CredentialsProvider({
   initialCredentials?: SafeCredential[]
 }) {
   const { orgId } = useAuth()
-  const [credentials, setCredentials] = React.useState<SafeCredential[]>(initialCredentials)
+  const [credentials, setCredentials] =
+    React.useState<SafeCredential[]>(initialCredentials)
   const [isLoading, setIsLoading] = React.useState(false)
   const [isVaultOpen, setIsVaultOpen] = React.useState(false)
-  const [vaultOptions, setVaultOptions] = React.useState<OpenVaultOptions | undefined>(undefined)
+  const [vaultOptions, setVaultOptions] = React.useState<
+    OpenVaultOptions | undefined
+  >(undefined)
 
   const refreshCredentials = React.useCallback(async () => {
     if (!orgId) {

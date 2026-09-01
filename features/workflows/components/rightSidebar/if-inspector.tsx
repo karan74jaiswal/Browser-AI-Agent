@@ -90,7 +90,9 @@ export default function IfInspector({
     updates: Partial<ConditionCriterion>
   ) => {
     const currentList = getLatestConditions()
-    const next = currentList.map((c) => (c.id === id ? { ...c, ...updates } : c))
+    const next = currentList.map((c) =>
+      c.id === id ? { ...c, ...updates } : c
+    )
     updateNodeData(node.id, {
       values: {
         ...node.data.values,
@@ -144,16 +146,19 @@ export default function IfInspector({
       {/* Friendly Header Summary & Match Rule Selector */}
       <div className="flex flex-col gap-2 rounded-lg border border-border/80 bg-muted/30 p-2.5">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex min-w-0 items-center gap-1.5">
             <GitBranch className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="text-xs font-semibold truncate">Branching Logic</span>
+            <span className="truncate text-xs font-semibold">
+              Branching Logic
+            </span>
           </div>
-          <span className="text-[11px] text-muted-foreground shrink-0">
-            {conditions.length} {conditions.length === 1 ? "condition" : "conditions"}
+          <span className="shrink-0 text-[11px] text-muted-foreground">
+            {conditions.length}{" "}
+            {conditions.length === 1 ? "condition" : "conditions"}
           </span>
         </div>
 
-        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50">
+        <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-1">
           <span className="text-[11px] text-muted-foreground">Match:</span>
           <div className="flex items-center rounded-md border border-border bg-background p-0.5 shadow-2xs">
             <button
@@ -185,14 +190,14 @@ export default function IfInspector({
       </div>
 
       {/* Condition Cards */}
-      <div className="flex flex-col gap-2.5 min-w-0">
+      <div className="flex min-w-0 flex-col gap-2.5">
         {conditions.map((criterion, idx) => {
           const isUnary =
             criterion.operator === "is_empty" ||
             criterion.operator === "is_not_empty"
 
           return (
-            <div key={criterion.id} className="flex flex-col gap-2 min-w-0">
+            <div key={criterion.id} className="flex min-w-0 flex-col gap-2">
               {/* Divider for 2nd+ conditions */}
               {idx > 0 && (
                 <div className="flex items-center gap-2 px-1">
@@ -205,7 +210,7 @@ export default function IfInspector({
               )}
 
               {/* Condition Row Card */}
-              <div className="flex flex-col gap-2 rounded-lg border border-border bg-card/60 p-2.5 shadow-2xs min-w-0">
+              <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-card/60 p-2.5 shadow-2xs">
                 {/* Header with Condition # & Delete */}
                 <div className="flex items-center justify-between gap-1">
                   <div className="flex items-center gap-1.5">
@@ -231,13 +236,16 @@ export default function IfInspector({
                 </div>
 
                 {/* Step 1: Left value / Variable */}
-                <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex min-w-0 flex-col gap-1">
                   <span className="text-[10px] font-medium text-muted-foreground">
                     Value to check
                   </span>
                   <TokenInput
                     ref={(handle) =>
-                      registerInputRef?.(`condition-${criterion.id}-left`, handle)
+                      registerInputRef?.(
+                        `condition-${criterion.id}-left`,
+                        handle
+                      )
                     }
                     value={criterion.left}
                     onFocus={() =>
@@ -252,7 +260,7 @@ export default function IfInspector({
                 </div>
 
                 {/* Step 2: Comparison Operator */}
-                <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex min-w-0 flex-col gap-1">
                   <span className="text-[10px] font-medium text-muted-foreground">
                     Comparison
                   </span>
@@ -264,12 +272,16 @@ export default function IfInspector({
                       })
                     }
                   >
-                    <SelectTrigger className="h-7 w-full text-xs font-normal min-w-0">
+                    <SelectTrigger className="h-7 w-full min-w-0 text-xs font-normal">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="max-h-60">
                       {FRIENDLY_OPERATORS.map((op) => (
-                        <SelectItem key={op.value} value={op.value} className="text-xs">
+                        <SelectItem
+                          key={op.value}
+                          value={op.value}
+                          className="text-xs"
+                        >
                           {op.label}
                         </SelectItem>
                       ))}
@@ -279,7 +291,7 @@ export default function IfInspector({
 
                 {/* Step 3: Right Target Value (if binary operator) */}
                 {!isUnary && (
-                  <div className="flex flex-col gap-1 min-w-0">
+                  <div className="flex min-w-0 flex-col gap-1">
                     <span className="text-[10px] font-medium text-muted-foreground">
                       Expected value
                     </span>
@@ -322,16 +334,19 @@ export default function IfInspector({
       {/* Visual Branch Guide (Clear Intuition) */}
       <div className="flex flex-col gap-1.5 rounded-lg border border-border/60 bg-muted/20 p-2 text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1.5 font-medium text-foreground">
-          <CheckCircle2 className="size-3 text-emerald-500 shrink-0" />
+          <CheckCircle2 className="size-3 shrink-0 text-emerald-500" />
           <span>True branch:</span>
-          <span className="text-muted-foreground font-normal truncate">
-            Runs when {combinator === "and" ? "all conditions match" : "any condition matches"}
+          <span className="truncate font-normal text-muted-foreground">
+            Runs when{" "}
+            {combinator === "and"
+              ? "all conditions match"
+              : "any condition matches"}
           </span>
         </div>
         <div className="flex items-center gap-1.5 font-medium text-foreground">
-          <XCircle className="size-3 text-muted-foreground shrink-0" />
+          <XCircle className="size-3 shrink-0 text-muted-foreground" />
           <span>False branch:</span>
-          <span className="text-muted-foreground font-normal truncate">
+          <span className="truncate font-normal text-muted-foreground">
             Runs if conditions are not met
           </span>
         </div>

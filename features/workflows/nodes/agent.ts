@@ -4,7 +4,9 @@ import { z } from "zod/v4"
 const AgentAssessmentSchema = z.object({
   isCompleted: z
     .boolean()
-    .describe("Whether the overall objective has been fully achieved on this page."),
+    .describe(
+      "Whether the overall objective has been fully achieved on this page."
+    ),
   summary: z
     .string()
     .describe("Brief summary of current progress or explanation of the state."),
@@ -45,7 +47,8 @@ Evaluate the current page state. Has this goal been completely achieved? If not,
         completed = actRes.data.success
         return {
           success: completed,
-          message: lastSummary || (completed ? "Action completed" : "Action failed"),
+          message:
+            lastSummary || (completed ? "Action completed" : "Action failed"),
           completed,
         }
       }

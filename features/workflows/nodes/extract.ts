@@ -21,4 +21,3 @@ export async function extract({
     result: data.result ?? "",
   }
 }
-

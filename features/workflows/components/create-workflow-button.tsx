@@ -14,11 +14,7 @@ export function CreateWorkflowButton({
 
   return (
     <>
-      <Button
-        onClick={() => setOpen(true)}
-        className={className}
-        {...props}
-      >
+      <Button onClick={() => setOpen(true)} className={className} {...props}>
         <PlusIcon className="size-4" />
         {children ?? "New workflow"}
       </Button>
@@ -26,4 +22,3 @@ export function CreateWorkflowButton({
     </>
   )
 }
-

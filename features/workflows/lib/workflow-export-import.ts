@@ -57,8 +57,7 @@ export function parseAndValidateWorkflowJson(rawJson: string): {
     const result = WorkflowExportSchema.safeParse(parsed)
     if (!result.success) {
       const firstError =
-        result.error.issues?.[0]?.message ||
-        "Invalid workflow format"
+        result.error.issues?.[0]?.message || "Invalid workflow format"
       return { success: false, error: firstError }
     }
 

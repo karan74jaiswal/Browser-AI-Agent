@@ -29,7 +29,9 @@ export async function sendEmail({
   }
 
   const cleanTo = (to || "").trim().replace(/[\u200B\uFEFF\u00A0]/g, "")
-  const cleanSubject = (subject || "").trim().replace(/[\u200B\uFEFF\u00A0]/g, "")
+  const cleanSubject = (subject || "")
+    .trim()
+    .replace(/[\u200B\uFEFF\u00A0]/g, "")
   const cleanBody = (body || "").trim().replace(/[\u200B\uFEFF\u00A0]/g, "")
 
   if (!cleanTo) {

@@ -56,9 +56,7 @@ function EditWorkflowForm({
     <form onSubmit={handleSubmit}>
       <DialogHeader>
         <DialogTitle>Rename workflow</DialogTitle>
-        <DialogDescription>
-          Change the name of this workflow.
-        </DialogDescription>
+        <DialogDescription>Change the name of this workflow.</DialogDescription>
       </DialogHeader>
 
       <div className="grid gap-2 py-4">
@@ -89,7 +87,7 @@ function EditWorkflowForm({
           type="submit"
           disabled={isPending || !name.trim() || name.trim() === initialName}
         >
-          {isPending && <Loader2 className="size-4 animate-spin mr-2" />}
+          {isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
           Save
         </Button>
       </DialogFooter>

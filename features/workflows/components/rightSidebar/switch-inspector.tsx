@@ -57,10 +57,7 @@ export default function SwitchInspector({
       { storage },
       action: {
         type:
-          | "remove-route"
-          | "remove-case"
-          | "disable-fallback"
-          | "switch-mode"
+          "remove-route" | "remove-case" | "disable-fallback" | "switch-mode"
         deletedIndex?: number
         newMaxCount?: number
       }
@@ -333,7 +330,9 @@ export default function SwitchInspector({
     updates: Partial<SwitchValueCase>
   ) => {
     const currentCases = getLatestCases()
-    const next = currentCases.map((c) => (c.id === caseId ? { ...c, ...updates } : c))
+    const next = currentCases.map((c) =>
+      c.id === caseId ? { ...c, ...updates } : c
+    )
     updateValues({ cases: JSON.stringify(next) })
   }
 

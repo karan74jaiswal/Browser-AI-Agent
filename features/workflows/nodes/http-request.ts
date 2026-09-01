@@ -21,7 +21,11 @@ export async function httpRequest({
   if (rawHeaders && rawHeaders.trim()) {
     try {
       const parsed = JSON.parse(rawHeaders.trim())
-      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        !Array.isArray(parsed)
+      ) {
         for (const [k, v] of Object.entries(parsed)) {
           parsedHeaders[k] = String(v)
         }

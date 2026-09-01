@@ -1,5 +1,10 @@
 import { memo, useMemo } from "react"
-import { Handle, Position, useNodeConnections, type NodeProps } from "@xyflow/react"
+import {
+  Handle,
+  Position,
+  useNodeConnections,
+  type NodeProps,
+} from "@xyflow/react"
 import { Spinner } from "@/components/ui/spinner"
 
 import {
@@ -94,15 +99,15 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
       className={cn(
         "relative max-w-80 min-w-50 rounded-(--radius) border-2 border-border bg-card text-card-foreground transition-all duration-300 ease-out will-change-transform",
         isRunning &&
-          "scale-[1.035] z-20 border-blue-500/40 shadow-[0_8px_24px_rgba(59,130,246,0.18)]",
+          "z-20 scale-[1.035] border-blue-500/40 shadow-[0_8px_24px_rgba(59,130,246,0.18)]",
         isStepCanceling &&
           "scale-[1.02] border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.2)]",
         isFailed && "border-destructive shadow-[0_0_16px_rgba(239,68,68,0.15)]",
         isDone &&
-          "border-emerald-500/50 dark:border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.1)]",
+          "border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.1)] dark:border-emerald-500/40",
         selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
-        isIfNode && "min-h-[72px] flex flex-col justify-center",
-        isSwitchNode && "min-h-[80px] flex flex-col justify-center py-2"
+        isIfNode && "flex min-h-[72px] flex-col justify-center",
+        isSwitchNode && "flex min-h-[80px] flex-col justify-center py-2"
       )}
       style={{
         minHeight: isSwitchNode
@@ -112,7 +117,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
     >
       {/* Circular border beam orbiting active node */}
       {isRunning && (
-        <svg className="pointer-events-none absolute -inset-[2px] size-[calc(100%+4px)] overflow-visible z-10">
+        <svg className="pointer-events-none absolute -inset-[2px] z-10 size-[calc(100%+4px)] overflow-visible">
           <rect
             x="1"
             y="1"
@@ -130,7 +135,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
       )}
 
       {isStepCanceling && (
-        <svg className="pointer-events-none absolute -inset-[2px] size-[calc(100%+4px)] overflow-visible z-10">
+        <svg className="pointer-events-none absolute -inset-[2px] z-10 size-[calc(100%+4px)] overflow-visible">
           <rect
             x="1"
             y="1"
@@ -209,7 +214,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
                 className={cn(
                   "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
                   hideTrueHandle
-                    ? "opacity-0 pointer-events-none"
+                    ? "pointer-events-none opacity-0"
                     : isFailed
                       ? "bg-destructive!"
                       : isStepCanceling
@@ -241,7 +246,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
                 className={cn(
                   "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
                   hideFalseHandle
-                    ? "opacity-0 pointer-events-none"
+                    ? "pointer-events-none opacity-0"
                     : isFailed
                       ? "bg-destructive!"
                       : isStepCanceling
@@ -274,9 +279,9 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
             const isWinning = isDone && winningBranch === out.id
             const hasOutEdge = outgoingConnections.some(
               (c) =>
-                (((c as { sourceHandleId?: string | null }).sourceHandleId ||
+                ((c as { sourceHandleId?: string | null }).sourceHandleId ||
                   c.sourceHandle ||
-                  "0") === out.id)
+                  "0") === out.id
             )
             const hideSwitchHandle = isLive && !hasOutEdge
 
@@ -290,7 +295,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
                   className={cn(
                     "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
                     hideSwitchHandle
-                      ? "opacity-0 pointer-events-none"
+                      ? "pointer-events-none opacity-0"
                       : isFailed
                         ? "bg-destructive!"
                         : isStepCanceling
@@ -331,9 +336,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
                     <span className="shrink-0 text-muted-foreground">
                       {field.label}
                     </span>
-                    <span className="truncate font-medium">
-                      {displayValue}
-                    </span>
+                    <span className="truncate font-medium">{displayValue}</span>
                   </div>
                 ))}
               </div>
@@ -346,7 +349,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
             className={cn(
               "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
               isLive && isLeafNode
-                ? "opacity-0 pointer-events-none"
+                ? "pointer-events-none opacity-0"
                 : isFailed
                   ? "bg-destructive!"
                   : isStepCanceling

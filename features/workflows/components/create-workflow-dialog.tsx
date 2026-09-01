@@ -47,8 +47,7 @@ function CreateWorkflowForm({
     startTransition(async () => {
       try {
         const workflow = (await createWorkflowAction(targetName)) as
-          | { id: string }
-          | undefined
+          { id: string } | undefined
         onClose()
         toast.success("Workflow created")
         if (workflow?.id) {
@@ -99,7 +98,7 @@ function CreateWorkflowForm({
           Cancel
         </Button>
         <Button type="submit" disabled={isPending}>
-          {isPending && <Loader2 className="size-4 animate-spin mr-2" />}
+          {isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
           Create workflow
         </Button>
       </DialogFooter>
@@ -125,4 +124,3 @@ export function CreateWorkflowDialog({
     </Dialog>
   )
 }
-

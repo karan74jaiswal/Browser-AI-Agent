@@ -46,7 +46,7 @@ export async function AppSidebar({
         />
       </SidebarContent>
 
-      <SidebarFooter className="p-2 gap-2 group-data-[collapsible=icon]:items-center">
+      <SidebarFooter className="gap-2 p-2 group-data-[collapsible=icon]:items-center">
         <VaultSidebarButton />
         <UserButton
           appearance={{

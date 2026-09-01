@@ -53,10 +53,7 @@ export function useProPlan(): UseProPlanReturn {
   const hasPlan = useCallback(
     (plan: string): boolean => {
       if (!isLoaded) return false
-      return Boolean(
-        has?.({ plan }) ||
-        has?.({ plan: `org:${plan}` })
-      )
+      return Boolean(has?.({ plan }) || has?.({ plan: `org:${plan}` }))
     },
     [has, isLoaded]
   )

@@ -1,11 +1,6 @@
 "use client"
 
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-} from "react"
+import React, { forwardRef, useImperativeHandle, useMemo, useRef } from "react"
 import CodeMirror, {
   type ReactCodeMirrorRef,
   EditorView,
@@ -109,12 +104,13 @@ export const CodeEditor = forwardRef<TokenInputHandle, CodeEditorProps>(
           outline: "none",
         },
         // Selected text background & foreground when dragging mouse
-        ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection, .cm-content ::selection, .cm-line ::selection": {
-          backgroundColor: isDark
-            ? "rgba(255, 255, 255, 0.22) !important"
-            : "rgba(0, 0, 0, 0.14) !important",
-          color: "inherit !important",
-        },
+        ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection, .cm-content ::selection, .cm-line ::selection":
+          {
+            backgroundColor: isDark
+              ? "rgba(255, 255, 255, 0.22) !important"
+              : "rgba(0, 0, 0, 0.14) !important",
+            color: "inherit !important",
+          },
         ".cm-selectionMatch": {
           backgroundColor: isDark
             ? "rgba(255, 255, 255, 0.1) !important"
@@ -172,9 +168,10 @@ export const CodeEditor = forwardRef<TokenInputHandle, CodeEditorProps>(
           backgroundColor: "var(--accent) !important",
           color: "var(--accent-foreground) !important",
         },
-        ".cm-tooltip.cm-tooltip-autocomplete > ul > li:hover:not([aria-selected])": {
-          backgroundColor: "var(--muted) !important",
-        },
+        ".cm-tooltip.cm-tooltip-autocomplete > ul > li:hover:not([aria-selected])":
+          {
+            backgroundColor: "var(--muted) !important",
+          },
         ".cm-completionMatchedText": {
           color: isDark ? "#60a5fa !important" : "#2563eb !important",
           textDecoration: "none !important",
@@ -204,7 +201,11 @@ export const CodeEditor = forwardRef<TokenInputHandle, CodeEditorProps>(
           ? [
               { tag: tags.keyword, color: "#c084fc", fontWeight: "600" }, // purple-400
               { tag: tags.controlKeyword, color: "#c084fc", fontWeight: "600" },
-              { tag: tags.definitionKeyword, color: "#c084fc", fontWeight: "600" },
+              {
+                tag: tags.definitionKeyword,
+                color: "#c084fc",
+                fontWeight: "600",
+              },
               { tag: tags.moduleKeyword, color: "#c084fc", fontWeight: "600" },
               { tag: tags.function(tags.variableName), color: "#60a5fa" }, // blue-400
               { tag: tags.function(tags.propertyName), color: "#60a5fa" },
@@ -215,9 +216,24 @@ export const CodeEditor = forwardRef<TokenInputHandle, CodeEditorProps>(
               { tag: tags.float, color: "#fbbf24" },
               { tag: tags.bool, color: "#f472b6", fontWeight: "600" }, // pink-400
               { tag: tags.null, color: "#f472b6", fontWeight: "600" },
-              { tag: tags.comment, color: "var(--muted-foreground)", fontStyle: "italic", opacity: 0.75 },
-              { tag: tags.lineComment, color: "var(--muted-foreground)", fontStyle: "italic", opacity: 0.75 },
-              { tag: tags.blockComment, color: "var(--muted-foreground)", fontStyle: "italic", opacity: 0.75 },
+              {
+                tag: tags.comment,
+                color: "var(--muted-foreground)",
+                fontStyle: "italic",
+                opacity: 0.75,
+              },
+              {
+                tag: tags.lineComment,
+                color: "var(--muted-foreground)",
+                fontStyle: "italic",
+                opacity: 0.75,
+              },
+              {
+                tag: tags.blockComment,
+                color: "var(--muted-foreground)",
+                fontStyle: "italic",
+                opacity: 0.75,
+              },
               { tag: tags.operator, color: "var(--muted-foreground)" },
               { tag: tags.punctuation, color: "var(--muted-foreground)" },
               { tag: tags.bracket, color: "var(--muted-foreground)" },
@@ -229,7 +245,11 @@ export const CodeEditor = forwardRef<TokenInputHandle, CodeEditorProps>(
           : [
               { tag: tags.keyword, color: "#7c3aed", fontWeight: "600" }, // violet-600
               { tag: tags.controlKeyword, color: "#7c3aed", fontWeight: "600" },
-              { tag: tags.definitionKeyword, color: "#7c3aed", fontWeight: "600" },
+              {
+                tag: tags.definitionKeyword,
+                color: "#7c3aed",
+                fontWeight: "600",
+              },
               { tag: tags.moduleKeyword, color: "#7c3aed", fontWeight: "600" },
               { tag: tags.function(tags.variableName), color: "#2563eb" }, // blue-600
               { tag: tags.function(tags.propertyName), color: "#2563eb" },
@@ -240,9 +260,24 @@ export const CodeEditor = forwardRef<TokenInputHandle, CodeEditorProps>(
               { tag: tags.float, color: "#d97706" },
               { tag: tags.bool, color: "#db2777", fontWeight: "600" }, // pink-600
               { tag: tags.null, color: "#db2777", fontWeight: "600" },
-              { tag: tags.comment, color: "var(--muted-foreground)", fontStyle: "italic", opacity: 0.8 },
-              { tag: tags.lineComment, color: "var(--muted-foreground)", fontStyle: "italic", opacity: 0.8 },
-              { tag: tags.blockComment, color: "var(--muted-foreground)", fontStyle: "italic", opacity: 0.8 },
+              {
+                tag: tags.comment,
+                color: "var(--muted-foreground)",
+                fontStyle: "italic",
+                opacity: 0.8,
+              },
+              {
+                tag: tags.lineComment,
+                color: "var(--muted-foreground)",
+                fontStyle: "italic",
+                opacity: 0.8,
+              },
+              {
+                tag: tags.blockComment,
+                color: "var(--muted-foreground)",
+                fontStyle: "italic",
+                opacity: 0.8,
+              },
               { tag: tags.operator, color: "#52525b" }, // zinc-600
               { tag: tags.punctuation, color: "#71717a" }, // zinc-500
               { tag: tags.bracket, color: "#71717a" },
@@ -274,15 +309,16 @@ export const CodeEditor = forwardRef<TokenInputHandle, CodeEditorProps>(
     )
 
     return (
-      <div className="flex flex-col gap-1.5 w-full">
+      <div className="flex w-full flex-col gap-1.5">
         <div
           id={id}
           className={cn(
             "group relative w-full overflow-hidden rounded-lg border border-input bg-transparent transition-colors",
-            "dark:bg-input/30 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
+            "focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30",
             loopWarnings.length > 0 &&
               "border-amber-500/50 focus-within:border-amber-500 focus-within:ring-amber-500/30",
-            disabled && "pointer-events-none cursor-not-allowed opacity-50 bg-input/50",
+            disabled &&
+              "pointer-events-none cursor-not-allowed bg-input/50 opacity-50",
             className
           )}
         >
@@ -314,20 +350,25 @@ export const CodeEditor = forwardRef<TokenInputHandle, CodeEditorProps>(
         </div>
 
         {loopWarnings.length > 0 && (
-          <div className="flex flex-col gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-700 dark:text-amber-400 animate-in fade-in-50 duration-200">
+          <div className="flex animate-in flex-col gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-700 duration-200 fade-in-50 dark:text-amber-400">
             <div className="flex items-center gap-1.5 font-medium">
               <AlertTriangle className="size-3.5 shrink-0" />
               <span>Potential infinite loop detected</span>
             </div>
             <div className="flex flex-col gap-1 pl-5">
               {loopWarnings.map((w, idx) => (
-                <p key={idx} className="text-[11px] leading-relaxed text-muted-foreground">
+                <p
+                  key={idx}
+                  className="text-[11px] leading-relaxed text-muted-foreground"
+                >
                   {w.line ? `Line ${w.line}: ` : ""}
                   {w.message}
                 </p>
               ))}
-              <span className="text-[10px] text-muted-foreground/80 pt-0.5">
-                Tip: Ensure your loop has a working exit condition, <code>break</code>, <code>return</code>, or updates the loop variable.
+              <span className="pt-0.5 text-[10px] text-muted-foreground/80">
+                Tip: Ensure your loop has a working exit condition,{" "}
+                <code>break</code>, <code>return</code>, or updates the loop
+                variable.
               </span>
             </div>
           </div>

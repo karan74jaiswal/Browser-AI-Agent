@@ -12,11 +12,7 @@ export interface NodeIconProps {
 }
 
 // The accent-colored icon chip, mirroring the node on the canvas.
-export function NodeIcon({
-  type,
-  className,
-  running = false,
-}: NodeIconProps) {
+export function NodeIcon({ type, className, running = false }: NodeIconProps) {
   const def = nodeRegistry[type]
   if (!def) return null
   const Icon = def.icon

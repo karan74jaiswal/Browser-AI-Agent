@@ -2,7 +2,13 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { FileJson, Loader2, Upload, AlertCircle, CheckCircle2 } from "lucide-react"
+import {
+  FileJson,
+  Loader2,
+  Upload,
+  AlertCircle,
+  CheckCircle2,
+} from "lucide-react"
 import { toast } from "sonner"
 import * as Sentry from "@sentry/nextjs"
 import { Button } from "@/components/ui/button"
@@ -32,7 +38,9 @@ function ImportWorkflowForm({ onClose }: { onClose: () => void }) {
   const router = useRouter()
   const [fileContent, setFileContent] = React.useState<string | null>(null)
   const [fileName, setFileName] = React.useState<string | null>(null)
-  const [parsedData, setParsedData] = React.useState<WorkflowExportData | null>(null)
+  const [parsedData, setParsedData] = React.useState<WorkflowExportData | null>(
+    null
+  )
   const [workflowName, setWorkflowName] = React.useState<string>("")
   const [parseError, setParseError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
@@ -146,7 +154,7 @@ function ImportWorkflowForm({ onClose }: { onClose: () => void }) {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             className={cn(
-              "flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-6 text-center cursor-pointer transition-colors",
+              "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-6 text-center transition-colors",
               isDragging
                 ? "border-primary bg-primary/5"
                 : "border-border hover:border-primary/50 hover:bg-accent/50",
@@ -173,7 +181,7 @@ function ImportWorkflowForm({ onClose }: { onClose: () => void }) {
                   <FileJson className="size-4" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium truncate max-w-56">
+                  <span className="max-w-56 truncate text-sm font-medium">
                     {fileName}
                   </span>
                   <span className="text-xs text-muted-foreground">

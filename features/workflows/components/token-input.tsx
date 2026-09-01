@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
 } from "react"
 import { useEdges, useNodes } from "@xyflow/react"
@@ -156,7 +157,9 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
     const nodes = useNodes<StepNodeType>()
     const edges = useEdges()
     const credentialsCtx = useOptionalCredentials()
-    const availableSecretKeys = credentialsCtx?.availableSecretKeys ?? []
+    const availableSecretKeys = useMemo(() => {
+      return credentialsCtx?.availableSecretKeys ?? []
+    }, [credentialsCtx])
     const lastSerializedValueRef = useRef<string | null>(null)
     const isComposingRef = useRef(false)
     const onChangeRef = useRef(onChange)
@@ -210,8 +213,7 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
 
         const sourceDef = nodeRegistry[sourceNode.data.type]
         const outputDef = sourceDef?.outputs?.find((o) => o.path === path)
-        const nodeTitle =
-          sourceNode?.data?.title || sourceDef?.label || "Node"
+        const nodeTitle = sourceNode?.data?.title || sourceDef?.label || "Node"
         const outputLabel = outputDef?.label || path || "output"
 
         // Check whether sourceNode is a connected upstream ancestor of currentNodeId
@@ -296,11 +298,10 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
           lowerNodeId === "vault" ||
           lowerNodeId === "secret" ||
           info.nodeType === "secrets"
-        const normalSvg =
-          isVault
-            ? nodeIconSvgPaths.secrets
-            : (info.nodeType && nodeIconSvgPaths[info.nodeType]) ||
-              `<circle cx="12" cy="12" r="10"/>`
+        const normalSvg = isVault
+          ? nodeIconSvgPaths.secrets
+          : (info.nodeType && nodeIconSvgPaths[info.nodeType]) ||
+            `<circle cx="12" cy="12" r="10"/>`
         const svgPath =
           info.status === "deleted" || info.status === "disconnected"
             ? warningSvg
@@ -550,10 +551,10 @@ export const TokenInput = forwardRef<TokenInputHandle, TokenInputProps>(
             "relative w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-xs transition-colors outline-none",
             "focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30",
             multiline
-              ? "min-h-24 max-h-60 overflow-y-auto whitespace-pre-wrap break-words"
-              : "min-h-10 overflow-x-auto whitespace-nowrap leading-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+              ? "max-h-60 min-h-24 overflow-y-auto wrap-break-word whitespace-pre-wrap"
+              : "min-h-10 scrollbar-none overflow-x-auto leading-7 whitespace-nowrap [&::-webkit-scrollbar]:hidden",
             disabled &&
-              "pointer-events-none cursor-not-allowed opacity-50 bg-input/50",
+              "pointer-events-none cursor-not-allowed bg-input/50 opacity-50",
             className
           )}
         />

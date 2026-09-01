@@ -38,7 +38,7 @@ export default function FieldInput({
         </SelectTrigger>
         <SelectContent
           position="popper"
-          className="max-h-64 min-w-[var(--radix-select-trigger-width)]"
+          className="max-h-64 min-w-(--radix-select-trigger-width)"
         >
           {field.options.map((opt) => (
             <SelectItem
