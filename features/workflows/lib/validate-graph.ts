@@ -101,7 +101,11 @@ export function validateGraph(
     }
 
     for (const [key, rawVal] of Object.entries(values)) {
-      if (node.data?.type === "if" && key === "conditions") continue
+      if (
+        (node.data?.type === "if" || node.data?.type === "loop") &&
+        key === "conditions"
+      )
+        continue
       if (node.data?.type === "switch" && (key === "rules" || key === "cases"))
         continue
       if (typeof rawVal !== "string") continue
@@ -111,7 +115,7 @@ export function validateGraph(
       }
     }
 
-    if (node.data?.type === "if") {
+    if (node.data?.type === "if" || (node.data?.type === "loop" && values.mode === "while")) {
       try {
         if (values.conditions) {
           const criteria = JSON.parse(values.conditions)
@@ -120,7 +124,7 @@ export function validateGraph(
               const criterion = criteria[i]
               if (!criterion.left?.trim()) {
                 problems.push(
-                  `Condition ${i + 1} on "${node.data?.title || "If"}" is missing a left value/token.`
+                  `Condition ${i + 1} on "${node.data?.title || (node.data?.type === "loop" ? "Loop" : "If")}" is missing a left value/token.`
                 )
               }
 
@@ -132,7 +136,7 @@ export function validateGraph(
                 for (const ref of refs) {
                   checkTokenRef(
                     ref,
-                    `Condition ${i + 1} on "${node.data?.title || "If"}"`
+                    `Condition ${i + 1} on "${node.data?.title || (node.data?.type === "loop" ? "Loop" : "If")}"`
                   )
                 }
               }

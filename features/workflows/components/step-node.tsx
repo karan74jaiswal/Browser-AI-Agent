@@ -20,6 +20,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
   const def = nodeRegistry[type]
   const isIfNode = type === "if"
   const isSwitchNode = type === "switch"
+  const isLoopNode = type === "loop"
   const Icon = def.icon
 
   const outgoingConnections = useNodeConnections({ handleType: "source" })
@@ -107,6 +108,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
           "border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.1)] dark:border-emerald-500/40",
         selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
         isIfNode && "flex min-h-[72px] flex-col justify-center",
+        isLoopNode && "flex min-h-[76px] flex-col justify-center",
         isSwitchNode && "flex min-h-[80px] flex-col justify-center py-2"
       )}
       style={{
@@ -267,6 +269,107 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
               >
                 <span className="text-[10px] font-semibold text-muted-foreground select-none">
                   false
+                </span>
+              </div>
+            </>
+          )
+        })()
+      ) : isLoopNode ? (
+        (() => {
+          const hasDoneEdge = outgoingConnections.some(
+            (c) =>
+              ((c as { sourceHandleId?: string | null }).sourceHandleId ||
+                c.sourceHandle) === "done"
+          )
+          const hasLoopEdge = outgoingConnections.some(
+            (c) =>
+              ((c as { sourceHandleId?: string | null }).sourceHandleId ||
+                c.sourceHandle) === "loop"
+          )
+          const hideDoneHandle = isLive && !hasDoneEdge
+          const hideLoopHandle = isLive && !hasLoopEdge
+
+          const mode = values.mode || "for_each"
+          const modeSummary =
+            mode === "count"
+              ? `Repeat ${values.count || "5"}x`
+              : mode === "while"
+                ? values.whileRuleMode === "while"
+                  ? "While true"
+                  : "Until met"
+                : "List of items"
+
+          return (
+            <>
+              <div className="border-t border-border" />
+              <div className="flex items-center justify-between px-3 py-1.5 text-xs text-muted-foreground">
+                <span>Mode</span>
+                <span className="font-medium text-foreground">{modeSummary}</span>
+              </div>
+
+              {/* Loop Done Handle (Top Handle: 28%) */}
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="done"
+                style={{ top: "28%", transform: "translate(100%, -50%)" }}
+                className={cn(
+                  "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
+                  hideDoneHandle
+                    ? "pointer-events-none opacity-0"
+                    : isFailed
+                      ? "bg-destructive!"
+                      : isStepCanceling
+                        ? "bg-amber-500!"
+                        : isRunning
+                          ? "bg-blue-500!"
+                          : isDone && winningBranch === "done"
+                            ? "bg-emerald-500!"
+                            : "bg-border!"
+                )}
+              />
+              <div
+                style={{ top: "28%", transform: "translate(100%, -105%)" }}
+                className={cn(
+                  "pointer-events-none absolute right-0 z-20 flex items-center pl-2 transition-opacity duration-300",
+                  hideDoneHandle && "opacity-0"
+                )}
+              >
+                <span className="text-[10px] font-semibold text-muted-foreground select-none">
+                  done
+                </span>
+              </div>
+
+              {/* Loop Iteration Handle (Bottom Handle: 72%) */}
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="loop"
+                style={{ top: "72%", transform: "translate(100%, -50%)" }}
+                className={cn(
+                  "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
+                  hideLoopHandle
+                    ? "pointer-events-none opacity-0"
+                    : isFailed
+                      ? "bg-destructive!"
+                      : isStepCanceling
+                        ? "bg-amber-500!"
+                        : isRunning
+                          ? "bg-blue-500!"
+                          : isDone
+                            ? "bg-emerald-500!"
+                            : "bg-border!"
+                )}
+              />
+              <div
+                style={{ top: "72%", transform: "translate(100%, -105%)" }}
+                className={cn(
+                  "pointer-events-none absolute right-0 z-20 flex items-center pl-2 transition-opacity duration-300",
+                  hideLoopHandle && "opacity-0"
+                )}
+              >
+                <span className="text-[10px] font-semibold text-muted-foreground select-none">
+                  loop
                 </span>
               </div>
             </>

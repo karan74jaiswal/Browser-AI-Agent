@@ -122,6 +122,23 @@ export default function Palette() {
         },
       ])
     }
+    if (type === "loop") {
+      initialValues.mode = "for_each"
+      initialValues.items = ""
+      initialValues.count = "5"
+      initialValues.maxIterations = "50"
+      initialValues.batchDelayMs = "0"
+      initialValues.onItemFailure = "continue"
+      initialValues.whileRuleMode = "until"
+      initialValues.conditions = JSON.stringify([
+        {
+          id: crypto.randomUUID(),
+          left: "",
+          operator: "equals",
+          right: "",
+        },
+      ])
+    }
 
     const newNode: StepNodeType = {
       id: crypto.randomUUID(),

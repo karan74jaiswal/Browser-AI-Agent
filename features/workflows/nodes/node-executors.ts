@@ -14,6 +14,7 @@ import { waitNode } from "./wait"
 import { throwErrorNode } from "./throw-error"
 import { switchNode } from "./switch"
 import { mergeNode } from "./merge"
+import { loopNode } from "./loop"
 import { executeJsCode } from "./js-code"
 import { executePythonCode } from "./python-code"
 import {
@@ -101,6 +102,7 @@ export const nodeExecutors: Partial<Record<NodeType, NodeExecutor>> = {
   "throw-error": async ({ values }) =>
     throwErrorNode({ message: values.message }),
   merge: async ({ values }) => mergeNode({ values }),
+  loop: async ({ values }) => loopNode({ values }),
   "js-code": async ({ values, secrets }) =>
     executeJsCode({
       code: values.code,

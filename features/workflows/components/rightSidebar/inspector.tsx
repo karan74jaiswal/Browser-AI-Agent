@@ -32,6 +32,7 @@ import SlackInspector from "./slack-inspector"
 import StripeTriggerInspector from "./stripe-trigger-inspector"
 import SwitchInspector from "./switch-inspector"
 import MergeInspector from "./merge-inspector"
+import LoopInspector from "./loop-inspector"
 
 export default function Inspector({
   node,
@@ -229,6 +230,48 @@ export default function Inspector({
           }
         }
       } catch {}
+      return
+    }
+
+    // 4. Fallback for Loop node: insert into items or condition
+    if (type === "loop") {
+      const mode = values.mode || "for_each"
+      if (mode === "while") {
+        try {
+          const conditions: ConditionCriterion[] = JSON.parse(
+            values.conditions || "[]"
+          )
+          if (conditions.length > 0) {
+            const first = conditions[0]
+            setActiveFieldKey("conditions")
+            const handle = inputRefs.current.get("conditions")
+            if (handle) {
+              handle.insertToken(token)
+            } else {
+              const next = [
+                { ...first, left: first.left ? `${first.left} ${token}` : token },
+                ...conditions.slice(1),
+              ]
+              updateNodeData(node.id, {
+                values: { ...values, conditions: JSON.stringify(next) },
+              })
+            }
+          }
+        } catch {}
+      } else {
+        setActiveFieldKey("items")
+        const handle = inputRefs.current.get("items")
+        if (handle) {
+          handle.insertToken(token)
+        } else {
+          const currentVal = values.items ?? ""
+          const newVal = currentVal ? `${currentVal} ${token}` : token
+          updateNodeData(node.id, {
+            values: { ...values, items: newVal },
+          })
+        }
+      }
+      return
     }
   }
 
@@ -244,7 +287,10 @@ export default function Inspector({
 
   const hasConnections =
     connections.length > 0 &&
-    (insertableFields.length > 0 || type === "if" || type === "switch")
+    (insertableFields.length > 0 ||
+      type === "if" ||
+      type === "switch" ||
+      type === "loop")
 
   const connectionsFooter =
     hasConnections || credentials.length > 0 ? (
@@ -517,6 +563,19 @@ export default function Inspector({
         )}
 
         {type === "merge" && <MergeInspector />}
+        {type === "loop" && (
+          <LoopInspector
+            node={node}
+            onFocusField={setActiveFieldKey}
+            registerInputRef={(key, handle) => {
+              if (handle) {
+                inputRefs.current.set(key, handle)
+              } else {
+                inputRefs.current.delete(key)
+              }
+            }}
+          />
+        )}
       </div>
     </Section>
   )

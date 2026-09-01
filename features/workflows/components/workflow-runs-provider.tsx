@@ -273,48 +273,79 @@ export function computeEdgeRunStatus({
   const targetSteps =
     steps?.filter((s) => s.nodeId === target || s.id === target) ?? []
 
+  const hasSourceRunning = sourceSteps.some((s) => s.status === "running")
   const hasSourceDone = sourceSteps.some((s) => s.status === "done")
-  const hasTargetDone = targetSteps.some((s) => s.status === "done")
 
   const sourceRunning = sourceSteps.find((s) => s.status === "running")
   const sourceDone = sourceSteps.find((s) => s.status === "done")
   const sourceStep =
     sourceRunning ?? sourceDone ?? sourceSteps[sourceSteps.length - 1]
 
-  const targetRunning = targetSteps.find((s) => s.status === "running")
-
   const outputObj = sourceStep?.output as
-    { branch?: string; result?: boolean } | undefined
+    | { branch?: string; result?: boolean }
+    | undefined
   const activeBranch = outputObj?.branch
 
   const isBranchingNode =
-    sourceStep?.type === "if" || sourceStep?.type === "switch"
-  const isBranchActive =
-    !isBranchingNode || !activeBranch || handleId === activeBranch
+    sourceStep?.type === "if" ||
+    sourceStep?.type === "switch" ||
+    sourceStep?.type === "loop"
+
+  const isLoopSource = sourceStep?.type === "loop"
+  const isLoopHandle = isLoopSource && handleId === "loop"
+  const isDoneHandle = isLoopSource && handleId === "done"
+
+  let isBranchActive = false
+  if (isLoopSource) {
+    if (isLoopHandle) {
+      // While running: active when branch is loop; when loop is done: stays active (green) if target ran
+      isBranchActive = hasSourceRunning
+        ? activeBranch === "loop"
+        : hasSourceDone && targetSteps.length > 0
+    } else if (isDoneHandle) {
+      // Done handle is active when loop finishes
+      isBranchActive = hasSourceDone && activeBranch === "done"
+    } else {
+      isBranchActive = !activeBranch || handleId === activeBranch
+    }
+  } else {
+    isBranchActive =
+      !isBranchingNode || !activeBranch || handleId === activeBranch
+  }
+
+  const latestTargetStep = targetSteps[targetSteps.length - 1]
+  const isTargetPending =
+    latestTargetStep?.status === "pending" || edgeStep?.status === "pending"
+  const isTargetRunning =
+    latestTargetStep?.status === "running" || edgeStep?.status === "running"
+  const isTargetDone =
+    latestTargetStep?.status === "done" || edgeStep?.status === "done"
+  const isTargetFailed =
+    latestTargetStep?.status === "failed" || edgeStep?.status === "failed"
 
   const isEdgeSkipped = edgeStep?.status === "skipped"
 
-  const hasTargetStartedOrFinished = Boolean(
-    targetRunning ||
-    hasTargetDone ||
-    targetSteps.some((s) => s.status === "failed")
-  )
+  const isSourceActive =
+    hasSourceDone || (isLoopSource && hasSourceRunning)
 
   const isTransferring = Boolean(
     isLive &&
     !isRunCanceling &&
     !isEdgeSkipped &&
-    hasSourceDone &&
+    isSourceActive &&
     isBranchActive &&
-    !hasTargetStartedOrFinished
+    (isTargetPending || (!isTargetRunning && !isTargetDone && !isTargetFailed))
   )
 
   const isTraversed = Boolean(
     !isTransferring &&
     !isEdgeSkipped &&
-    hasSourceDone &&
+    isSourceActive &&
     isBranchActive &&
-    hasTargetStartedOrFinished
+    (isTargetRunning ||
+      isTargetDone ||
+      isTargetFailed ||
+      (isLoopHandle && hasSourceDone && targetSteps.length > 0))
   )
 
   return {
