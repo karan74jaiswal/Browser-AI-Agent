@@ -5,7 +5,7 @@ import { parseEnv } from "@neon/env"
 import neonConfig from "@/neon"
 import * as schema from "./schema"
 
-let dbUrl = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL
+let dbUrl = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED
 if (!dbUrl) {
   try {
     const { postgres } = parseEnv(neonConfig, ["DATABASE_URL"])
