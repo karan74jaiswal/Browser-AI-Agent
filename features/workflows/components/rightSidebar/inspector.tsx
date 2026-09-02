@@ -23,6 +23,7 @@ import {
 } from "../../nodes/node-registry"
 import { NodeIcon } from "../node-icon"
 import { TokenInputHandle } from "../token-input"
+import { EditableNodeTitle } from "../editable-node-title"
 import { useCredentials } from "@/features/credentials/components/credentials-provider"
 import DiscordInspector from "./discord-inspector"
 import FieldInput from "./field-input"
@@ -249,7 +250,10 @@ export default function Inspector({
               handle.insertToken(token)
             } else {
               const next = [
-                { ...first, left: first.left ? `${first.left} ${token}` : token },
+                {
+                  ...first,
+                  left: first.left ? `${first.left} ${token}` : token,
+                },
                 ...conditions.slice(1),
               ]
               updateNodeData(node.id, {
@@ -375,7 +379,14 @@ export default function Inspector({
 
   return (
     <Section
-      title={title}
+      title={
+        <EditableNodeTitle
+          nodeId={node.id}
+          title={title}
+          type={type}
+          textClassName="text-xs md:text-sm hover:cursor-text"
+        />
+      }
       icon={<NodeIcon type={type} />}
       footer={connectionsFooter}
     >

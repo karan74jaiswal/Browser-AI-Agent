@@ -13,6 +13,7 @@ import {
   type StepNodeType,
 } from "@/features/workflows/nodes/node-registry"
 import { useNodeRunStatus } from "./workflow-runs-provider"
+import { EditableNodeTitle } from "./editable-node-title"
 import { cn } from "@/lib/utils"
 
 function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
@@ -189,7 +190,13 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
             <Icon className="size-4" />
           )}
         </div>
-        <span className="text-sm font-semibold">{title}</span>
+        <EditableNodeTitle
+          nodeId={id}
+          title={title}
+          type={type}
+          inputClassName="text-sm"
+          textClassName="text-sm hover:cursor-grab"
+        />
       </div>
       {isIfNode ? (
         (() => {
@@ -304,7 +311,9 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
               <div className="border-t border-border" />
               <div className="flex items-center justify-between px-3 py-1.5 text-xs text-muted-foreground">
                 <span>Mode</span>
-                <span className="font-medium text-foreground">{modeSummary}</span>
+                <span className="font-medium text-foreground">
+                  {modeSummary}
+                </span>
               </div>
 
               {/* Loop Done Handle (Top Handle: 28%) */}

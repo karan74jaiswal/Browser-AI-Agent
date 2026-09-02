@@ -75,12 +75,17 @@ export function RightSidebar({
   )
 
   // Auto-switch to the Editor tab when the selection changes.
-  useOnSelectionChange({
-    onChange: ({ nodes }) => {
+  const handleSelectionChange = useCallback(
+    ({ nodes }: { nodes: StepNodeType[] }) => {
       if (nodes.length > 0) {
         setTab("editor")
       }
     },
+    []
+  )
+
+  useOnSelectionChange({
+    onChange: handleSelectionChange,
   })
 
   return (

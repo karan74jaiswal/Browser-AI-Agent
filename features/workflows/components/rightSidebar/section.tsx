@@ -1,11 +1,10 @@
-// A titled, scrollable panel. Each tab renders its content inside one.
 export default function Section({
   title,
   icon,
   children,
   footer,
 }: {
-  title: string
+  title: React.ReactNode
   icon?: React.ReactNode
   children: React.ReactNode
   footer?: React.ReactNode
