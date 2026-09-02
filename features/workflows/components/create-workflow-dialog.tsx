@@ -102,6 +102,20 @@ function CreateWorkflowForm({
           Create workflow
         </Button>
       </DialogFooter>
+
+      <div className="flex items-center justify-between pt-3 mt-3 text-xs text-muted-foreground border-t border-border/50">
+        <span>Want a pre-built automation?</span>
+        <button
+          type="button"
+          onClick={() => {
+            onClose()
+            router.push("/templates")
+          }}
+          className="text-primary font-medium hover:underline cursor-pointer inline-flex items-center gap-1"
+        >
+          Browse Templates &rarr;
+        </button>
+      </div>
     </form>
   )
 }

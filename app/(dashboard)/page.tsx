@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
-import { WorkflowIcon } from "lucide-react"
+import Link from "next/link"
+import { Sparkles, WorkflowIcon } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "Workflows",
@@ -14,6 +15,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { Button } from "@/components/ui/button"
 import { CreateWorkflowButton } from "@/features/workflows/components/create-workflow-button"
 
 export default function Page() {
@@ -31,12 +33,21 @@ export default function Page() {
             No workflow selected
           </EmptyTitle>
           <EmptyDescription className="max-w-xs text-sm text-muted-foreground">
-            Select a workflow from the sidebar or create a new one to get
-            started.
+            Select a workflow from the sidebar, create a new one, or explore our pre-built templates.
           </EmptyDescription>
         </EmptyHeader>
-        <EmptyContent className="mt-2">
-          <CreateWorkflowButton className="h-9 px-4 font-medium" />
+        <EmptyContent className="mt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+          <CreateWorkflowButton className="h-9 px-4 font-medium w-full sm:w-auto" />
+          <Button
+            asChild
+            variant="outline"
+            className="h-9 px-4 font-medium gap-1.5 w-full sm:w-auto text-xs"
+          >
+            <Link href="/templates">
+              <Sparkles className="size-3.5 text-primary" />
+              <span>Browse Templates</span>
+            </Link>
+          </Button>
         </EmptyContent>
       </Empty>
     </div>

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { PlusIcon, Upload, WorkflowIcon } from "lucide-react"
+import { LayoutTemplate, PlusIcon, Upload, WorkflowIcon } from "lucide-react"
 
 import type { Workflow } from "@/lib/db"
 import { cn } from "@/lib/utils"
@@ -57,6 +57,17 @@ export function WorkflowsPopover({
         className="w-64 rounded-xl border bg-popover p-2 text-popover-foreground shadow-xl"
       >
         <SidebarMenu className="gap-y-0.5">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              className="h-9 px-3 text-sm font-medium"
+            >
+              <Link href="/templates">
+                <LayoutTemplate className="size-4 text-primary" />
+                <span>Templates</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={onNewWorkflow}
