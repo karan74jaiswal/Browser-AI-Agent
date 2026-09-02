@@ -68,7 +68,17 @@ export function cascadeDisabledEdges(
 /**
  * Finds the starting trigger node of the workflow.
  */
-export function findTriggerNode(nodes: StepNodeType[]): StepNodeType {
+export function findTriggerNode(
+  nodes: StepNodeType[],
+  preferredTriggerId?: string
+): StepNodeType {
+  if (preferredTriggerId) {
+    const matched = nodes.find((n) => n.id === preferredTriggerId)
+    if (matched) return matched
+  }
+  const startNode = nodes.find((n) => n.data?.type === "start")
+  if (startNode) return startNode
+
   const triggerNode = nodes.find((n) => n.data?.kind === "trigger") || nodes[0]
   if (!triggerNode) {
     throw new Error("No start node found in workflow")

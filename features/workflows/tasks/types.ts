@@ -26,6 +26,7 @@ export type RunWorkflowTaskInput = {
   workflowId: string
   orgId: string
   triggerData?: Record<string, unknown>
+  triggerNodeId?: string
 }
 
 export type RunWorkflowTaskOutput = {

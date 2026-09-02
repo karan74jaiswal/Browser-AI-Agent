@@ -10,14 +10,30 @@ export function validateGraph(
   const problems: string[] = []
   const triggerNodes = nodes.filter(
     (node) => node.data.kind == "trigger"
-  ).length
+  )
 
   if (nodes.length == 0)
     problems.push("A workflow needs one or more nodes to run")
-  if (triggerNodes !== 1)
-    problems.push(
-      `A workflow needs exactly one trigger, found (${triggerNodes}).`
-    )
+  if (triggerNodes.length === 0)
+    problems.push("A workflow needs at least one trigger to run")
+
+  // Check maxInstances constraints on nodes (e.g. max 1 start trigger)
+  const nodeTypeCounts = new Map<string, number>()
+  for (const node of nodes) {
+    const type = node.data?.type
+    if (type) {
+      nodeTypeCounts.set(type, (nodeTypeCounts.get(type) || 0) + 1)
+    }
+  }
+
+  for (const [type, count] of nodeTypeCounts.entries()) {
+    const def = getNodeDefinition(type)
+    if (def?.maxInstances !== undefined && count > def.maxInstances) {
+      problems.push(
+        `A workflow can have at most ${def.maxInstances} ${def.label} trigger, found (${count}).`
+      )
+    }
+  }
   if (edges.length == 0) problems.push("Connect your nodes before running")
   else {
     try {

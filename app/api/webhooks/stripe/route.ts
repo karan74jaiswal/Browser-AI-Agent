@@ -207,23 +207,19 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 2. Locate the Stripe trigger node on the canvas
-    const triggerNode = workflow.graph?.nodes.find(
-      (node) => node.data?.type === "stripe-trigger"
+    // 2. Locate the Stripe trigger node on the canvas matching the secret token
+    const triggerNodes =
+      workflow.graph?.nodes.filter(
+        (node) => node.data?.type === "stripe-trigger"
+      ) || []
+
+    const triggerNode = triggerNodes.find(
+      (node) => node.data.values?.secret === secret
     )
 
     if (!triggerNode) {
       return NextResponse.json(
-        { error: "This workflow does not contain an active Stripe trigger" },
-        { status: 400 }
-      )
-    }
-
-    // 3. Verify the secret token
-    const expectedSecret = triggerNode.data.values?.secret
-    if (!expectedSecret || expectedSecret !== secret) {
-      return NextResponse.json(
-        { error: "Unauthorized: Invalid secret token" },
+        { error: "No matching Stripe trigger found for this webhook secret" },
         { status: 401 }
       )
     }
@@ -280,6 +276,7 @@ export async function POST(req: NextRequest) {
       {
         workflowId: workflow.id,
         orgId: workflow.orgId,
+        triggerNodeId: triggerNode.id,
         triggerData: normalizedData as unknown as Record<string, unknown>,
       },
       {

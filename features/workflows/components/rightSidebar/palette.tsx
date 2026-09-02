@@ -18,6 +18,7 @@ import {
   nodeRegistry,
   NodeField,
   StepNodeKind,
+  NodeDefinition,
 } from "../../nodes/node-registry"
 import { NodeIcon } from "../node-icon"
 
@@ -28,7 +29,7 @@ const sections: { kind: StepNodeKind; label: string }[] = [
 ]
 
 // Every node type from the registry, filtered into the groups below.
-const definitions = Object.values(nodeRegistry)
+const definitions: NodeDefinition[] = Object.values(nodeRegistry)
 
 export default function Palette() {
   const { getNodes, getViewport, addNodes } = useReactFlow<StepNodeType>()
@@ -37,7 +38,7 @@ export default function Palette() {
   const width = useStore((s) => s.width)
   const height = useStore((s) => s.height)
   const add = (type: NodeType) => {
-    const def = nodeRegistry[type]
+    const def: NodeDefinition | undefined = nodeRegistry[type]
     if (!def) return
 
     if (isNodeLocked(def)) {
@@ -48,10 +49,12 @@ export default function Palette() {
     const nodes = getNodes()
 
     if (
-      def.kind === "trigger" &&
-      nodes.some((node) => node.data?.kind === "trigger")
+      def.maxInstances !== undefined &&
+      nodes.filter((node) => node.data?.type === type).length >= def.maxInstances
     ) {
-      toast.error("A workflow can only have one trigger")
+      toast.error(
+        `A workflow can only have ${def.maxInstances} ${def.label} trigger`
+      )
       return
     }
 

@@ -64,6 +64,7 @@ export type NodeDefinition = {
   requiredSecrets?: NodeSecretRequirement[]
   requiredPlan?: "pro" | "enterprise" | (string & {})
   requiredFeature?: string
+  maxInstances?: number
 }
 
 export const nodeRegistry = {
@@ -75,6 +76,7 @@ export const nodeRegistry = {
     accent: "bg-blue-500 text-white",
     fields: [],
     outputs: [],
+    maxInstances: 1,
   },
   "google-form-trigger": {
     type: "google-form-trigger",

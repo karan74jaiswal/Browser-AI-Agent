@@ -84,7 +84,11 @@ export function DevWorkflowDebugger() {
 
       const isRunning =
         isLive &&
-        (hasRunning || (n.data?.kind === "trigger" && !hasDone && !hasFailed))
+        (hasRunning ||
+          (n.data?.kind === "trigger" &&
+            nodeSteps.length > 0 &&
+            !hasDone &&
+            !hasFailed))
       const isDone = hasDone && !isRunning
       const isPending = hasPending && !isRunning && !isDone
 

@@ -31,7 +31,7 @@ export const runWorkflowTask = task({
     maxAttempts: 1,
   },
   run: async (
-    { workflowId, orgId, triggerData }: RunWorkflowTaskInput,
+    { workflowId, orgId, triggerData, triggerNodeId }: RunWorkflowTaskInput,
     { signal }
   ): Promise<RunWorkflowTaskOutput> => {
     const workflow = await getWorkflow(orgId, workflowId)
@@ -59,7 +59,7 @@ export const runWorkflowTask = task({
     }> = []
 
     // Determine entry point (trigger node)
-    const triggerNode = findTriggerNode(nodes)
+    const triggerNode = findTriggerNode(nodes, triggerNodeId)
     const readyQueue: QueueItem[] = [{ nodeId: triggerNode.id }]
     const results: Record<string, unknown> = {
       secrets: orgSecrets,

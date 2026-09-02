@@ -220,11 +220,13 @@ export function computeNodeRunStatus(
   const isFailed = hasFailed && !hasRunning
   const isStepCanceling =
     isRunCanceling &&
-    (hasRunning || (kind === "trigger" && !hasDone && !isFailed))
+    (hasRunning ||
+      (kind === "trigger" && nodeSteps.length > 0 && !hasDone && !isFailed))
   const isRunning =
     isLive &&
     !isRunCanceling &&
-    (hasRunning || (kind === "trigger" && !hasDone && !isFailed))
+    (hasRunning ||
+      (kind === "trigger" && nodeSteps.length > 0 && !hasDone && !isFailed))
   const isDone = Boolean(hasDone && !isRunning && !isStepCanceling && !isFailed)
   const winningBranch = (step?.output as { branch?: string } | undefined)
     ?.branch
