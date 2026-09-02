@@ -4,7 +4,7 @@ import type { Edge } from "@xyflow/react"
 import type { Stagehand } from "@browserbasehq/stagehand"
 import { nodeRegistry, type NodeType, type StepNodeType } from "../nodes/node-registry"
 import type { QueueItem, RunStep } from "./types"
-import { discoverNextReadyChildren } from "./graph-traversal"
+import { cascadeDisabledEdges, discoverNextReadyChildren } from "./graph-traversal"
 import { executeStep } from "./step-executor"
 
 export interface ExecuteSingleNodeStepParams {
@@ -33,6 +33,15 @@ export interface ExecuteSingleNodeStepResult {
   pendingSteps: RunStep[]
   isFailure: boolean
   error?: unknown
+}
+
+async function safeFlushMetadata(steps: RunStep[]) {
+  try {
+    metadata.set("steps", steps)
+    await metadata.flush()
+  } catch {
+    // Gracefully no-op when running outside of Trigger.dev worker context (e.g. unit tests)
+  }
 }
 
 /**
@@ -66,8 +75,7 @@ export async function executeSingleNodeStep({
       if (s.status === "running") s.status = "canceled"
       else if (s.status === "pending") s.status = "skipped"
     }
-    metadata.set("steps", steps)
-    await metadata.flush()
+    await safeFlushMetadata(steps)
     throw new Error("Workflow run was canceled")
   }
 
@@ -110,8 +118,7 @@ export async function executeSingleNodeStep({
     step.startedAt = startedAt
   }
 
-  metadata.set("steps", steps)
-  await metadata.flush()
+  await safeFlushMetadata(steps)
 
   logger.log(`Running step: ${title} (${type})`)
 
@@ -152,8 +159,7 @@ export async function executeSingleNodeStep({
 
     steps.push(...pendingSteps)
 
-    metadata.set("steps", steps)
-    await metadata.flush()
+    await safeFlushMetadata(steps)
 
     return {
       step,
@@ -178,15 +184,13 @@ export async function executeSingleNodeStep({
         ? error.message
         : String(error)
 
-    metadata.set("steps", steps)
-    await metadata.flush()
+    await safeFlushMetadata(steps)
 
     if (isAbort) {
       for (const s of steps) {
         if (s.status === "pending") s.status = "skipped"
       }
-      metadata.set("steps", steps)
-      await metadata.flush()
+      await safeFlushMetadata(steps)
       throw error
     }
 
@@ -197,11 +201,40 @@ export async function executeSingleNodeStep({
       error: step.error || "Step execution failed",
     })
 
+    // Prune outgoing edges of the failed node down this branch
+    const outEdges = outgoingEdges.get(nodeId) || []
+    const newlyPruned: string[] = []
+    for (const edge of outEdges) {
+      disabledEdges.add(edge.id)
+      newlyPruned.push(edge.id)
+    }
+
+    // Cascade disabled edges down non-merge branches so downstream Merge nodes know
+    if (newlyPruned.length > 0) {
+      cascadeDisabledEdges(newlyPruned, outgoingEdges, disabledEdges, byId)
+    }
+
+    // Check if any downstream Merge node can now proceed with remaining healthy branches
+    const { readyChildren, pendingSteps } = discoverNextReadyChildren({
+      nodeId,
+      outgoingEdges,
+      incomingEdges,
+      activeEdges,
+      disabledEdges,
+      completedNodeIds,
+      failedNodeIds,
+      byId,
+    })
+
+    steps.push(...pendingSteps)
+
+    await safeFlushMetadata(steps)
+
     return {
       step,
       result: null,
-      readyChildren: [],
-      pendingSteps: [],
+      readyChildren,
+      pendingSteps,
       isFailure: true,
       error,
     }

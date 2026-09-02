@@ -153,8 +153,12 @@ export function evaluateMergeReadiness({
   }
 
   if (hasActiveIncoming) {
-    activeEdges.add(edge.id)
-    return { isReady: true, edgeId: edge.id }
+    const activeInEdge = inEdges.find(
+      (e) => activeEdges.has(e.id) && !disabledEdges.has(e.id)
+    )
+    const chosenEdgeId = activeInEdge ? activeInEdge.id : edge.id
+    activeEdges.add(chosenEdgeId)
+    return { isReady: true, edgeId: chosenEdgeId }
   } else {
     // All incoming branches were pruned or failed -> cascade disable
     const mergeOutEdges = outgoingEdges.get(targetId) || []

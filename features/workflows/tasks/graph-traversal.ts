@@ -108,8 +108,6 @@ export function discoverNextReadyChildren({
   const pendingSteps: RunStep[] = []
 
   for (const edge of outEdges) {
-    if (!activeEdges.has(edge.id)) continue
-
     const targetId = edge.target
     if (!targetId) continue
 
@@ -141,26 +139,43 @@ export function discoverNextReadyChildren({
 
       if (!isReady || !edgeId) continue
       newReadyChildren.push({ nodeId: targetId, edgeId })
-    } else {
-      // Standard single-parent node (Option B: multi-trigger per active branch preserved)
-      newReadyChildren.push({ nodeId: targetId, edgeId: edge.id })
-    }
 
-    // Register child node as "pending" for canvas handoff animation
-    const childDef = nodeRegistry[childNode.data.type]
-    pendingSteps.push({
-      id: crypto.randomUUID(),
-      nodeId: targetId,
-      edgeId: edge.id,
-      type: childNode.data.type as NodeType,
-      title:
-        childNode.data.title ||
-        childDef?.label ||
-        childNode.data.type ||
-        "Step",
-      kind: childNode.data.kind || childDef?.kind || "action",
-      status: "pending",
-    })
+      // Register child node as "pending" for canvas handoff animation
+      const childDef = nodeRegistry[childNode.data.type]
+      pendingSteps.push({
+        id: crypto.randomUUID(),
+        nodeId: targetId,
+        edgeId,
+        type: childNode.data.type as NodeType,
+        title:
+          childNode.data.title ||
+          childDef?.label ||
+          childNode.data.type ||
+          "Step",
+        kind: childNode.data.kind || childDef?.kind || "action",
+        status: "pending",
+      })
+    } else {
+      // Standard single-parent node (Option B: requires active edge)
+      if (!activeEdges.has(edge.id)) continue
+      newReadyChildren.push({ nodeId: targetId, edgeId: edge.id })
+
+      // Register child node as "pending" for canvas handoff animation
+      const childDef = nodeRegistry[childNode.data.type]
+      pendingSteps.push({
+        id: crypto.randomUUID(),
+        nodeId: targetId,
+        edgeId: edge.id,
+        type: childNode.data.type as NodeType,
+        title:
+          childNode.data.title ||
+          childDef?.label ||
+          childNode.data.type ||
+          "Step",
+        kind: childNode.data.kind || childDef?.kind || "action",
+        status: "pending",
+      })
+    }
   }
 
   // Top-to-Bottom Canvas Priority: Sort sibling branches by canvas Y-coordinate

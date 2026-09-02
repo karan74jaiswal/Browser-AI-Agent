@@ -136,6 +136,9 @@ export const runWorkflowTask = task({
                 ? error
                 : new Error(step?.error || "Step failed")
           }
+          if (readyChildren.length > 0) {
+            readyQueue.unshift(...readyChildren)
+          }
           continue
         }
 

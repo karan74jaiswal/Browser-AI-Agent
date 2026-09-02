@@ -105,35 +105,101 @@ export function Canvas({ workflowId, initialGraph }: CanvasProps) {
     })
 
   const lastSavedJsonRef = React.useRef<string>("")
+  const isSavingRef = React.useRef(false)
+  const dragStopTimerRef = React.useRef<NodeJS.Timeout | null>(null)
 
-  // Auto-save whenever the graph is valid and has changed (debounced)
-  React.useEffect(() => {
-    if (!workflowId) return
+  // Strips transient React Flow properties (dragging, selected, measured) before saving
+  const sanitizeGraph = React.useCallback(
+    (currentNodes: StepNodeType[], currentEdges: Edge[]): WorkflowGraph => ({
+      nodes: currentNodes.map((node) => ({
+        id: node.id,
+        type: node.type,
+        position: {
+          x: Math.round(node.position.x),
+          y: Math.round(node.position.y),
+        },
+        data: node.data,
+      })),
+      edges: currentEdges.map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle ?? null,
+        targetHandle: edge.targetHandle ?? null,
+      })),
+    }),
+    []
+  )
 
-    const timer = setTimeout(async () => {
-      const graph: WorkflowGraph = { nodes, edges }
+  const persistGraph = React.useCallback(
+    async (currentNodes: StepNodeType[], currentEdges: Edge[]) => {
+      if (!workflowId || isSavingRef.current) return
+      const graph = sanitizeGraph(currentNodes, currentEdges)
       const problems = validateGraph(graph)
 
       // Only auto-save to DB if the graph is completely valid (0 problems)
-      if (problems.length > 0) {
-        return
-      }
+      if (problems.length > 0) return
 
       const currentJson = JSON.stringify(graph)
-      if (currentJson === lastSavedJsonRef.current) {
-        return
-      }
+      if (currentJson === lastSavedJsonRef.current) return
 
       try {
+        isSavingRef.current = true
         await saveWorkflowGraphAction(workflowId, graph)
         lastSavedJsonRef.current = currentJson
       } catch (err) {
         console.error("Auto-save failed:", err)
+      } finally {
+        isSavingRef.current = false
       }
-    }, 800)
+    },
+    [workflowId, sanitizeGraph]
+  )
+
+  // Structural fingerprint tracking nodes, values, and edge topology (ignores x/y position dragging)
+  const structuralFingerprint = React.useMemo(() => {
+    if (!nodes || !edges) return ""
+    const nodeParts = nodes
+      .map(
+        (n) =>
+          `${n.id}:${n.data?.type ?? ""}:${n.data?.title ?? ""}:${JSON.stringify(
+            n.data?.values || {}
+          )}`
+      )
+      .sort()
+      .join("|")
+    const edgeParts = edges
+      .map(
+        (e) =>
+          `${e.id}:${e.source}->${e.target}:${e.sourceHandle ?? ""}:${
+            e.targetHandle ?? ""
+          }`
+      )
+      .sort()
+      .join("|")
+    return `${nodeParts}##${edgeParts}`
+  }, [nodes, edges])
+
+  // 1. Auto-save on structural and configuration changes (1000ms debounce)
+  React.useEffect(() => {
+    if (!workflowId || !structuralFingerprint) return
+
+    const timer = setTimeout(() => {
+      persistGraph(nodes, edges)
+    }, 1000)
 
     return () => clearTimeout(timer)
-  }, [nodes, edges, workflowId])
+  }, [structuralFingerprint, persistGraph, nodes, edges, workflowId])
+
+  // 2. Auto-save node layout positions only when dragging has stopped
+  const handleDragStop = React.useCallback(() => {
+    if (dragStopTimerRef.current) {
+      clearTimeout(dragStopTimerRef.current)
+    }
+    dragStopTimerRef.current = setTimeout(() => {
+      persistGraph(nodes, edges)
+    }, 2500)
+  }, [persistGraph, nodes, edges])
 
   // Structural fingerprint of switch node routing rules to avoid running edge pruning on node coordinate dragging
   const switchNodesFingerprint = React.useMemo(() => {
@@ -215,6 +281,8 @@ export function Canvas({ workflowId, initialGraph }: CanvasProps) {
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeDragStop={handleDragStop}
+        onSelectionDragStop={handleDragStop}
         onDelete={onDelete}
         onConnect={onConnect}
         colorMode={colorMode}

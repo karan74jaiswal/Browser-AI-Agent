@@ -36,6 +36,15 @@ export interface ExecuteLoopStepParams {
   readyQueue: QueueItem[]
 }
 
+async function safeFlushMetadata(steps: RunStep[]) {
+  try {
+    metadata.set("steps", steps)
+    await metadata.flush()
+  } catch {
+    // Gracefully no-op when running outside of Trigger.dev worker context (e.g. unit tests)
+  }
+}
+
 /**
  * Orchestrates loop execution:
  * 1. Parses items / count / condition modes.
@@ -93,8 +102,7 @@ export async function executeLoopStep({
     step.startedAt = startedAt
   }
 
-  metadata.set("steps", steps)
-  await metadata.flush()
+  await safeFlushMetadata(steps)
 
   const rawMode = (node.data.values?.mode || "for_each") as LoopMode
   const itemsInput = node.data.values?.items
@@ -178,8 +186,7 @@ export async function executeLoopStep({
     steps.push(...pendingSteps)
     readyQueue.unshift(...readyChildren)
 
-    metadata.set("steps", steps)
-    await metadata.flush()
+    await safeFlushMetadata(steps)
   } else {
     for (const edge of loopEdges) activeEdges.add(edge.id)
 
@@ -224,8 +231,7 @@ export async function executeLoopStep({
         total: totalItems,
         item: currentItem as DeserializedJson,
       }
-      metadata.set("steps", steps)
-      await metadata.flush()
+      await safeFlushMetadata(steps)
 
       if (delayMs > 0 && i > 0) {
         await new Promise((r) => setTimeout(r, delayMs))
@@ -250,8 +256,7 @@ export async function executeLoopStep({
           })
         }
       }
-      metadata.set("steps", steps)
-      await metadata.flush()
+      await safeFlushMetadata(steps)
       if (!triggerData) {
         await new Promise((r) => setTimeout(r, 400))
       }
@@ -399,7 +404,6 @@ export async function executeLoopStep({
     steps.push(...pendingSteps)
     readyQueue.unshift(...readyChildren)
 
-    metadata.set("steps", steps)
-    await metadata.flush()
+    await safeFlushMetadata(steps)
   }
 }
