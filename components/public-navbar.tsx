@@ -3,7 +3,8 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useAuth, UserButton } from "@clerk/nextjs"
+import { useAuth } from "@clerk/nextjs"
+import { CustomUserButton } from "@/components/custom-user-button"
 import {
   ArrowRight,
   Menu,
@@ -136,13 +137,7 @@ export function PublicNavbar() {
                       <ArrowRight className="size-3" />
                     </Link>
                   </Button>
-                  <UserButton
-                    appearance={{
-                      elements: {
-                        avatarBox: "size-7.5 ring-1 ring-border",
-                      },
-                    }}
-                  />
+                  <CustomUserButton align="end" side="bottom" />
                 </>
               )}
             </>

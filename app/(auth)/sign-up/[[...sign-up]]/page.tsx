@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { SignUp } from "@clerk/nextjs"
+import { CustomSignUp } from "@/features/auth/components/custom-sign-up"
 
 export const metadata: Metadata = {
   title: "Sign Up",
@@ -8,9 +8,5 @@ export const metadata: Metadata = {
 }
 
 export default function SignUpPage() {
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <SignUp />
-    </div>
-  )
+  return <CustomSignUp />
 }

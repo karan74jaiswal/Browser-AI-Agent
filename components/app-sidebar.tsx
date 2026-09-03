@@ -1,5 +1,6 @@
-import { OrganizationSwitcher, UserButton } from "@clerk/nextjs"
 import { auth } from "@clerk/nextjs/server"
+import { CustomOrgSwitcher } from "@/components/custom-org-switcher"
+import { CustomUserButton } from "@/components/custom-user-button"
 
 import Link from "next/link"
 import { LayoutTemplate } from "lucide-react"
@@ -29,19 +30,7 @@ export async function AppSidebar({
   return (
     <Sidebar variant="inset" collapsible="icon" {...props}>
       <SidebarHeader className="flex-row items-center justify-between gap-2 p-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0">
-        <OrganizationSwitcher
-          hidePersonal
-          afterCreateOrganizationUrl="/workflows"
-          afterSelectOrganizationUrl="/workflows"
-          afterLeaveOrganizationUrl="/choose-organization"
-          afterSelectPersonalUrl="/workflows"
-          appearance={{
-            elements: {
-              rootBox: "min-w-0 group-data-[collapsible=icon]:!hidden",
-              organizationSwitcherTrigger: "w-full justify-between",
-            },
-          }}
-        />
+        <CustomOrgSwitcher />
 
         <SidebarTrigger className="h-8 w-8 shrink-0" />
       </SidebarHeader>
@@ -71,16 +60,7 @@ export async function AppSidebar({
 
       <SidebarFooter className="gap-2 p-2 group-data-[collapsible=icon]:items-center">
         <VaultSidebarButton />
-        <UserButton
-          appearance={{
-            elements: {
-              rootBox: "w-full",
-              userButtonTrigger:
-                "w-full justify-start group-data-[collapsible=icon]:justify-center",
-              userButtonOuterIdentifier: "group-data-[collapsible=icon]:hidden",
-            },
-          }}
-        />
+        <CustomUserButton />
       </SidebarFooter>
     </Sidebar>
   )
