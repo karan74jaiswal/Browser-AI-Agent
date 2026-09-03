@@ -605,7 +605,7 @@ export function TemplateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl lg:max-w-5xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl border border-border bg-card shadow-2xl duration-200">
+      <DialogContent className="sm:max-w-4xl lg:max-w-5xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl border border-border bg-card dark:bg-[#121214] shadow-2xl duration-200">
         {/* Modal Header */}
         <DialogHeader className="p-5 md:p-6 pb-4 border-b border-border/70 bg-muted/25 shrink-0">
           <div className="flex items-start justify-between gap-4">
@@ -723,12 +723,19 @@ export function TemplateDialog({
           </div>
 
           {/* Right Column: Workflow Step Pipeline Topology */}
-          <div className="md:col-span-7 p-5 md:p-6 space-y-4 overflow-y-auto bg-background/50">
+          <div
+            className="md:col-span-7 p-5 md:p-6 space-y-4 overflow-y-auto bg-background/50 relative"
+            style={{
+              backgroundImage: "radial-gradient(hsl(var(--foreground) / 0.12) 1px, transparent 1px)",
+              backgroundSize: "20px 20px",
+            }}
+          >
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Workflow Topology Pipeline
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-emerald-500" />
+                <span>Workflow Topology Pipeline</span>
               </h4>
-              <span className="text-[11px] text-muted-foreground font-medium">
+              <span className="text-[11px] font-mono text-muted-foreground font-medium">
                 {nodes.length} Steps · {edges.length} Connections
               </span>
             </div>
@@ -744,8 +751,28 @@ export function TemplateDialog({
 
                   return (
                     <React.Fragment key={item.node.id}>
-                      {/* Step Card */}
-                      <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-card border border-border/80 shadow-2xs">
+                      {/* Step Card with Handles */}
+                      <div className="relative flex flex-col gap-2 p-3.5 rounded-xl bg-card/90 dark:bg-[#161619] backdrop-blur-xs border border-border/80 shadow-xs group select-none">
+                        {/* Step Handle Notches */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            top: "50%",
+                            transform: "translate(-100%, -50%)",
+                          }}
+                          className="w-1.5 h-3 rounded-l-xs bg-border group-hover:bg-blue-500 transition-colors"
+                        />
+                        <div
+                          style={{
+                            position: "absolute",
+                            right: 0,
+                            top: "50%",
+                            transform: "translate(100%, -50%)",
+                          }}
+                          className="w-1.5 h-3 rounded-r-xs bg-border group-hover:bg-blue-500 transition-colors"
+                        />
+
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2.5 min-w-0">
                             <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-bold text-muted-foreground font-mono">
@@ -759,20 +786,20 @@ export function TemplateDialog({
 
                           <Badge
                             variant="secondary"
-                            className="text-[10px] font-medium shrink-0 bg-muted text-muted-foreground"
+                            className="text-[10px] font-medium shrink-0 bg-muted text-muted-foreground font-mono"
                           >
                             {def?.label || nodeType}
                           </Badge>
                         </div>
 
                         {details.length > 0 && (
-                          <div className="grid grid-cols-1 gap-1 pl-8 text-[11px]">
+                          <div className="grid grid-cols-1 gap-1 pl-8 text-[11px] font-mono">
                             {details.map((d, dIdx) => (
                               <div key={dIdx} className="flex items-baseline gap-2">
                                 <span className="text-muted-foreground font-medium shrink-0 min-w-[75px]">
                                   {d.label}:
                                 </span>
-                                <span className="text-foreground/90 font-mono break-all line-clamp-2">
+                                <span className="text-foreground/90 break-all line-clamp-2">
                                   {d.value}
                                 </span>
                               </div>
@@ -784,8 +811,8 @@ export function TemplateDialog({
                       {/* Downward connector */}
                       {idx < pipelineItems.length - 1 && (
                         <div className="flex items-center justify-center py-0.5">
-                          <div className="flex items-center justify-center size-5 rounded-full bg-muted/80 text-muted-foreground border border-border/60">
-                            <ArrowDown className="size-3" />
+                          <div className="flex items-center justify-center size-5 rounded-full bg-card text-muted-foreground border border-border/80 shadow-2xs">
+                            <ArrowDown className="size-3 text-blue-500" />
                           </div>
                         </div>
                       )}

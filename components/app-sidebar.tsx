@@ -31,10 +31,10 @@ export async function AppSidebar({
       <SidebarHeader className="flex-row items-center justify-between gap-2 p-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0">
         <OrganizationSwitcher
           hidePersonal
-          afterCreateOrganizationUrl="/"
-          afterSelectOrganizationUrl="/"
+          afterCreateOrganizationUrl="/workflows"
+          afterSelectOrganizationUrl="/workflows"
           afterLeaveOrganizationUrl="/choose-organization"
-          afterSelectPersonalUrl="/"
+          afterSelectPersonalUrl="/workflows"
           appearance={{
             elements: {
               rootBox: "min-w-0 group-data-[collapsible=icon]:!hidden",

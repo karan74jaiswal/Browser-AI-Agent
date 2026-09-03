@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { CreateWorkflowButton } from "@/features/workflows/components/create-workflow-button"
 
-export default function Page() {
+export default function WorkflowsDashboardPage() {
   return (
     <div className="flex min-h-svh items-center justify-center p-6">
       <Empty className="max-w-md">

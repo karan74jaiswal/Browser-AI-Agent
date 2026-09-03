@@ -4,6 +4,34 @@ import * as React from "react"
 import { flushSync } from "react-dom"
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
 
+export function toggleThemeWithTransition(
+  resolvedTheme: string | undefined,
+  setTheme: (theme: string) => void
+) {
+  const nextTheme = resolvedTheme === "dark" ? "light" : "dark"
+
+  if (!("startViewTransition" in document)) {
+    setTheme(nextTheme)
+    return
+  }
+
+  document.startViewTransition(() => {
+    flushSync(() => {
+      setTheme(nextTheme)
+    })
+  })
+}
+
+export function useThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme()
+
+  const toggleTheme = React.useCallback(() => {
+    toggleThemeWithTransition(resolvedTheme, setTheme)
+  }, [resolvedTheme, setTheme])
+
+  return { toggleTheme, resolvedTheme, setTheme }
+}
+
 function ThemeProvider({
   children,
   ...props
@@ -36,7 +64,7 @@ function isTypingTarget(target: EventTarget | null) {
 }
 
 function ThemeHotkey() {
-  const { resolvedTheme, setTheme } = useTheme()
+  const { toggleTheme } = useThemeToggle()
 
   React.useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -56,18 +84,7 @@ function ThemeHotkey() {
         return
       }
 
-      const nextTheme = resolvedTheme === "dark" ? "light" : "dark"
-
-      if (!("startViewTransition" in document)) {
-        setTheme(nextTheme)
-        return
-      }
-
-      document.startViewTransition(() => {
-        flushSync(() => {
-          setTheme(nextTheme)
-        })
-      })
+      toggleTheme()
     }
 
     window.addEventListener("keydown", onKeyDown)
@@ -75,7 +92,7 @@ function ThemeHotkey() {
     return () => {
       window.removeEventListener("keydown", onKeyDown)
     }
-  }, [resolvedTheme, setTheme])
+  }, [toggleTheme])
 
   return null
 }
