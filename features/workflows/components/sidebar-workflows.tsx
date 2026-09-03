@@ -3,7 +3,15 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Download, Pencil, PlusIcon, Trash2, Upload } from "lucide-react"
+import {
+  Download,
+  LayoutDashboard,
+  LayoutTemplate,
+  Pencil,
+  PlusIcon,
+  Trash2,
+  Upload,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import type { Workflow } from "@/lib/db"
@@ -46,9 +54,11 @@ export function SidebarWorkflows({
   const [deletingWorkflow, setDeletingWorkflow] =
     React.useState<Workflow | null>(null)
 
-  const activeWorkflowId = pathname?.startsWith("/workflows/")
-    ? pathname.split("/")[2]
-    : undefined
+  const isWorkflowsRoute = Boolean(pathname?.startsWith("/workflows"))
+  const activeWorkflowId =
+    isWorkflowsRoute && pathname?.startsWith("/workflows/")
+      ? pathname.split("/")[2]
+      : undefined
 
   const handleExport = (e: React.MouseEvent, workflow: Workflow) => {
     e.preventDefault()
@@ -87,19 +97,86 @@ export function SidebarWorkflows({
         />
       )}
       {isCollapsed ? (
-        <div className="flex flex-col items-center p-2">
-          <WorkflowsPopover
-            workflows={workflows}
-            activeWorkflowId={activeWorkflowId}
-            onNewWorkflow={() => setIsCreateOpen(true)}
-            onImportWorkflow={() => setIsImportOpen(true)}
-          />
-        </div>
+        <SidebarGroup className="p-2 pt-0.5">
+          <SidebarMenu className="gap-y-0.5">
+            {!isWorkflowsRoute && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip="Dashboard"
+                  className="size-8 justify-center p-0"
+                >
+                  <Link href="/workflows">
+                    <LayoutDashboard className="size-4 text-primary" />
+                    <span className="sr-only">Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                tooltip="Templates"
+                isActive={pathname === "/templates"}
+                className="size-8 justify-center p-0"
+              >
+                <Link href="/templates">
+                  <LayoutTemplate className="size-4 text-primary" />
+                  <span className="sr-only">Templates</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <WorkflowsPopover
+                workflows={workflows}
+                activeWorkflowId={activeWorkflowId}
+                showWorkflowsList={isWorkflowsRoute}
+                onNewWorkflow={() => setIsCreateOpen(true)}
+                onImportWorkflow={() => setIsImportOpen(true)}
+              />
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
       ) : (
-        <SidebarGroup className="p-2">
-          <SidebarGroupLabel className="text-sm font-medium text-foreground">
-            Workflows
-          </SidebarGroupLabel>
+        <>
+          <SidebarGroup className="p-2 pb-0">
+            <SidebarMenu className="gap-y-0.5">
+              {!isWorkflowsRoute && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip="Dashboard"
+                    isActive={pathname === "/workflows"}
+                    className="h-9 px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground data-[active=true]:bg-accent data-[active=true]:font-medium data-[active=true]:text-accent-foreground"
+                  >
+                    <Link href="/workflows">
+                      <LayoutDashboard className="size-4 text-primary" />
+                      <span>Dashboard</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip="Templates"
+                  isActive={pathname === "/templates"}
+                  className="h-9 px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground data-[active=true]:bg-accent data-[active=true]:font-medium data-[active=true]:text-accent-foreground"
+                >
+                  <Link href="/templates">
+                    <LayoutTemplate className="size-4 text-primary" />
+                    <span>Templates</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+
+          {isWorkflowsRoute && (
+            <SidebarGroup className="p-2">
+              <SidebarGroupLabel className="text-sm font-medium text-foreground">
+                Workflows
+              </SidebarGroupLabel>
           <div className="absolute top-3.5 right-3 flex items-center gap-1">
             <button
               type="button"
@@ -178,6 +255,8 @@ export function SidebarWorkflows({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+      )}
+        </>
       )}
     </>
   )

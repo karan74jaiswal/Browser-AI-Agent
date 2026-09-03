@@ -5,24 +5,18 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@clerk/nextjs"
 import { CustomUserButton } from "@/components/custom-user-button"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   ArrowRight,
   Menu,
-  Moon,
   Sparkles,
-  Sun,
   Workflow,
   X,
-  Zap,
 } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
-import { useTheme } from "next-themes"
-
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { NodusLogo } from "@/components/nodus-logo"
-import { useThemeToggle } from "@/components/theme-provider"
 
 const NAV_LINKS = [
   { label: "Features", href: "/#features" },
@@ -35,7 +29,6 @@ const NAV_LINKS = [
 export function PublicNavbar() {
   const pathname = usePathname()
   const { isLoaded, isSignedIn } = useAuth()
-  const { toggleTheme } = useThemeToggle()
   const [hoveredLink, setHoveredLink] = React.useState<string | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
 
@@ -96,6 +89,9 @@ export function PublicNavbar() {
 
         {/* Auth CTA Actions & Mobile Toggle */}
         <div className="flex items-center gap-2.5">
+          {/* Theme Mode Toggle */}
+          <ThemeToggle />
+
           {isLoaded && (
             <>
               {!isSignedIn ? (
@@ -142,56 +138,6 @@ export function PublicNavbar() {
               )}
             </>
           )}
-
-          {/* Live Studio Multiplayer Indicator */}
-          <Link
-            href="/workflows"
-            title="Live Studio Session: Priya Sharma, Rohan Mehta, Aditya Patel & Neha Reddy active"
-            className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full border border-border/80 bg-muted/40 hover:bg-muted/70 transition-colors text-xs select-none"
-          >
-            <span className="flex size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[11px] font-medium text-foreground">4 in Studio</span>
-            <div className="flex items-center -space-x-1 pl-0.5">
-              <div
-                className="size-4.5 rounded-full bg-[#ec4899] text-white flex items-center justify-center text-[9px] font-bold ring-1 ring-background"
-                title="Priya Sharma"
-              >
-                P
-              </div>
-              <div
-                className="size-4.5 rounded-full bg-[#f59e0b] text-white flex items-center justify-center text-[9px] font-bold ring-1 ring-background"
-                title="Rohan Mehta"
-              >
-                R
-              </div>
-              <div
-                className="size-4.5 rounded-full bg-[#3b82f6] text-white flex items-center justify-center text-[9px] font-bold ring-1 ring-background"
-                title="Aditya Patel"
-              >
-                A
-              </div>
-              <div
-                className="size-4.5 rounded-full bg-[#10b981] text-white flex items-center justify-center text-[9px] font-bold ring-1 ring-background"
-                title="Neha Reddy"
-              >
-                N
-              </div>
-            </div>
-          </Link>
-
-          {/* Theme Mode Toggle (Shared with 'D' key shortcut + View Transitions) */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleTheme}
-            className="relative size-8 text-muted-foreground hover:text-foreground cursor-pointer"
-            title="Toggle theme (Press 'D')"
-            aria-label="Toggle theme (Press 'D')"
-          >
-            <Sun className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-amber-500" />
-            <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-sky-400" />
-            <span className="sr-only">Toggle theme (Press &apos;D&apos;)</span>
-          </Button>
 
           {/* Mobile menu toggle */}
           <Button

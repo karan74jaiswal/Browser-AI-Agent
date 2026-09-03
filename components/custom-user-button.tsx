@@ -44,10 +44,10 @@ export function CustomUserButton({
   if (!isLoaded) {
     return (
       <div className="flex h-10 w-full items-center gap-2 px-2">
-        <div className="size-7 rounded-full bg-muted animate-pulse" />
+        <div className="size-7 animate-pulse rounded-full bg-muted" />
         <div className="flex flex-col gap-1 group-data-[collapsible=icon]:hidden">
-          <div className="h-3 w-20 rounded bg-muted animate-pulse" />
-          <div className="h-2.5 w-28 rounded bg-muted/60 animate-pulse" />
+          <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+          <div className="h-2.5 w-28 animate-pulse rounded bg-muted/60" />
         </div>
       </div>
     )
@@ -75,7 +75,10 @@ export function CustomUserButton({
           ? "Member"
           : "Personal"
 
-  const initials = (user.firstName?.[0] || "") + (user.lastName?.[0] || "") || fullName[0] || "U"
+  const initials =
+    (user.firstName?.[0] || "") + (user.lastName?.[0] || "") ||
+    fullName[0] ||
+    "U"
 
   const handleSignOut = async () => {
     try {
@@ -96,7 +99,7 @@ export function CustomUserButton({
           type="button"
           disabled={isSigningOut}
           className={cn(
-            "flex w-full items-center justify-between gap-2.5 rounded-lg border border-transparent p-1.5 text-left transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus:outline-none focus:ring-1 focus:ring-sidebar-ring group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1",
+            "flex w-full items-center justify-between gap-2.5 rounded-lg border border-transparent p-1.5 text-left transition-all group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus:ring-1 focus:ring-sidebar-ring focus:outline-none",
             className
           )}
         >
@@ -104,15 +107,17 @@ export function CustomUserButton({
             {/* Avatar with Online Status Indicator */}
             <div className="relative shrink-0">
               <Avatar className="size-7 border border-border bg-muted">
-                {user.imageUrl && <AvatarImage src={user.imageUrl} alt={fullName} />}
-                <AvatarFallback className="bg-gradient-to-tr from-indigo-600 to-violet-600 text-[11px] font-bold text-white">
+                {user.imageUrl && (
+                  <AvatarImage src={user.imageUrl} alt={fullName} />
+                )}
+                <AvatarFallback className="bg-linear-to-tr from-indigo-600 to-violet-600 text-[11px] font-bold text-white">
                   {initials.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <span
                 aria-label="Online"
                 title="Online"
-                className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-emerald-500 ring-2 ring-background"
+                className="absolute -right-0.5 -bottom-0.5 size-2 rounded-full bg-emerald-500 ring-2 ring-background"
               />
             </div>
 
@@ -129,7 +134,9 @@ export function CustomUserButton({
                   {roleLabel}
                 </Badge>
               </div>
-              <span className="truncate text-[10px] text-muted-foreground">{email}</span>
+              <span className="truncate text-[10px] text-muted-foreground">
+                {email}
+              </span>
             </div>
           </div>
 
@@ -153,14 +160,20 @@ export function CustomUserButton({
         <DropdownMenuLabel className="p-2 font-normal">
           <div className="flex items-center gap-2.5">
             <Avatar className="size-8 border border-border">
-              {user.imageUrl && <AvatarImage src={user.imageUrl} alt={fullName} />}
+              {user.imageUrl && (
+                <AvatarImage src={user.imageUrl} alt={fullName} />
+              )}
               <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
                 {initials.toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="flex flex-col min-w-0">
-              <span className="truncate text-xs font-semibold text-foreground">{fullName}</span>
-              <span className="truncate text-[11px] text-muted-foreground">{email}</span>
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-xs font-semibold text-foreground">
+                {fullName}
+              </span>
+              <span className="truncate text-[11px] text-muted-foreground">
+                {email}
+              </span>
             </div>
           </div>
         </DropdownMenuLabel>
@@ -170,7 +183,7 @@ export function CustomUserButton({
         <DropdownMenuGroup className="space-y-0.5">
           {/* Manage Account */}
           <DropdownMenuItem
-            onClick={() => clerk.openUserProfile()}
+            onClick={() => router.push("/settings")}
             className="cursor-pointer gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
           >
             <Settings className="size-3.5 text-muted-foreground" />
@@ -179,7 +192,7 @@ export function CustomUserButton({
 
           {/* Organization Settings */}
           <DropdownMenuItem
-            onClick={() => clerk.openOrganizationProfile()}
+            onClick={() => router.push("/organization")}
             className="cursor-pointer gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
           >
             <Building2 className="size-3.5 text-muted-foreground" />

@@ -29,6 +29,7 @@ import {
   ChevronsUpDown,
   Image as ImageIcon,
   Plus,
+  Settings,
   Sparkles,
   Upload,
   X,
@@ -38,22 +39,29 @@ import { toast } from "sonner"
 
 export function CustomOrgSwitcher({ className }: { className?: string }) {
   const router = useRouter()
-  const { isLoaded: listLoaded, userMemberships, setActive, createOrganization } =
-    useOrganizationList({
-      userMemberships: {
-        infinite: true,
-      },
-    })
+  const {
+    isLoaded: listLoaded,
+    userMemberships,
+    setActive,
+    createOrganization,
+  } = useOrganizationList({
+    userMemberships: {
+      infinite: true,
+    },
+  })
   const { organization: activeOrg, isLoaded: orgLoaded } = useOrganization()
   const { isPro } = useProPlan()
 
   const [isPopoverOpen, setIsPopoverOpen] = React.useState(false)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
   const [isSwitching, setIsSwitching] = React.useState(false)
+  const [targetOrgId, setTargetOrgId] = React.useState<string | null>(null)
+  const [createdOrgs, setCreatedOrgs] = React.useState<
+    Array<{ id: string; name: string; imageUrl?: string | null }>
+  >([])
 
   // Create Org Form State
   const [name, setName] = React.useState("")
-  const [slug, setSlug] = React.useState("")
   const [logoFile, setLogoFile] = React.useState<File | null>(null)
   const [logoPreview, setLogoPreview] = React.useState<string | null>(null)
   const [isCreating, setIsCreating] = React.useState(false)
@@ -61,16 +69,8 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  // Auto-generate slug from name
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newName = e.target.value
-    setName(newName)
-    const generatedSlug = newName
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-    setSlug(generatedSlug)
+    setName(e.target.value)
   }
 
   // Handle Logo file pick
@@ -106,13 +106,16 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
 
   // Switch Organization Context
   const handleSelectOrg = async (orgId: string) => {
+    setIsPopoverOpen(false)
+
     if (orgId === activeOrg?.id || !setActive) {
-      setIsPopoverOpen(false)
       return
     }
 
+    setTargetOrgId(orgId)
+    setIsSwitching(true)
+
     try {
-      setIsSwitching(true)
       await setActive({
         organization: orgId,
         navigate: async ({ decorateUrl }) => {
@@ -125,15 +128,41 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
           }
         },
       })
-      setIsPopoverOpen(false)
       toast.success("Switched workspace")
     } catch (err) {
       console.error("Failed to switch workspace:", err)
       toast.error("Failed to switch workspace")
     } finally {
       setIsSwitching(false)
+      setTargetOrgId(null)
     }
   }
+
+  // Ensure newly created organizations and active organization are always present in the list even before SWR revalidates
+  const membershipsList = React.useMemo(() => {
+    const list = userMemberships.data ? [...userMemberships.data] : []
+
+    // Ensure any newly created org is present
+    for (const created of createdOrgs) {
+      if (!list.some((m) => m.organization.id === created.id)) {
+        list.unshift({
+          id: `created_${created.id}`,
+          organization: created,
+          role: "org:admin",
+        } as unknown as (typeof list)[number])
+      }
+    }
+
+    // Ensure activeOrg is present
+    if (activeOrg && !list.some((m) => m.organization.id === activeOrg.id)) {
+      list.unshift({
+        id: `temp_${activeOrg.id}`,
+        organization: activeOrg,
+        role: "org:admin",
+      } as unknown as (typeof list)[number])
+    }
+    return list
+  }, [userMemberships.data, createdOrgs, activeOrg])
 
   // Create Organization Handler
   const handleCreateOrg = async (e: React.FormEvent) => {
@@ -144,22 +173,38 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
       setIsCreating(true)
       setCreateError(null)
 
-      // 1. Create org
+      // 1. Create org (omit slug since Clerk instance does not have slugs enabled)
       const newOrg = await createOrganization({
         name: name.trim(),
-        slug: slug.trim() || undefined,
       })
 
       // 2. Upload logo if supplied
+      let newOrgImageUrl = newOrg?.imageUrl ?? null
       if (logoFile && newOrg?.setLogo) {
         try {
-          await newOrg.setLogo({ file: logoFile })
+          const updated = await newOrg.setLogo({ file: logoFile })
+          if (updated?.imageUrl) {
+            newOrgImageUrl = updated.imageUrl
+          }
         } catch (logoErr) {
           console.warn("Logo upload failed, continuing:", logoErr)
         }
       }
 
-      // 3. Set newly created org as active context
+      // 3. Immediately keep local reference so the switcher menu updates instantly
+      setCreatedOrgs((prev) => [
+        {
+          id: newOrg.id,
+          name: newOrg.name,
+          imageUrl: newOrgImageUrl,
+        },
+        ...prev,
+      ])
+
+      // 4. Revalidate memberships list
+      await userMemberships?.revalidate?.()
+
+      // 5. Set newly created org as active context
       if (setActive) {
         await setActive({
           organization: newOrg.id,
@@ -175,14 +220,17 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
         })
       }
 
+      // 6. Revalidate again to ensure sync
+      void userMemberships?.revalidate?.()
+
       toast.success(`Workspace "${newOrg.name}" created!`)
       setIsCreateDialogOpen(false)
       setIsPopoverOpen(false)
       setName("")
-      setSlug("")
       removeLogo()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to create organization"
+      const msg =
+        err instanceof Error ? err.message : "Failed to create organization"
       setCreateError(msg)
     } finally {
       setIsCreating(false)
@@ -203,18 +251,26 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
 
   return (
     <>
-      <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+      <Popover
+        open={isPopoverOpen}
+        onOpenChange={(open) => {
+          setIsPopoverOpen(open)
+          if (open) {
+            void userMemberships?.revalidate?.()
+          }
+        }}
+      >
         <PopoverTrigger asChild>
           <button
             type="button"
             disabled={isInitialLoading || isSwitching}
             className={cn(
-              "flex w-full items-center justify-between gap-2.5 rounded-lg border border-transparent p-1.5 text-left transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus:outline-none focus:ring-1 focus:ring-sidebar-ring group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1",
+              "flex w-full items-center justify-between gap-2.5 rounded-lg border border-transparent p-1.5 text-left transition-all group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus:ring-1 focus:ring-sidebar-ring focus:outline-none",
               className
             )}
           >
             <div className="flex min-w-0 items-center gap-2.5">
-              <Avatar className="size-7 rounded-md border border-border bg-muted shrink-0">
+              <Avatar className="size-7 shrink-0 rounded-md border border-border bg-muted">
                 {activeOrg?.imageUrl && (
                   <AvatarImage src={activeOrg.imageUrl} alt={activeOrg.name} />
                 )}
@@ -226,23 +282,21 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
               <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
                 <div className="flex items-center gap-1.5">
                   <span className="truncate text-xs font-semibold text-sidebar-foreground">
-                    {activeOrg?.name || (isInitialLoading ? "Loading..." : "Personal Workspace")}
+                    {activeOrg?.name ||
+                      (isInitialLoading ? "Loading..." : "Personal Workspace")}
                   </span>
                   <Badge
                     variant={isPro ? "default" : "secondary"}
                     className={cn(
-                      "h-4 px-1 text-[9px] font-bold uppercase tracking-wider",
+                      "h-4 px-1 text-[9px] font-bold tracking-wider uppercase",
                       isPro
-                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0"
-                        : "bg-muted text-muted-foreground border-border"
+                        ? "border-0 bg-linear-to-r from-blue-600 to-indigo-600 text-white"
+                        : "border-border bg-muted text-muted-foreground"
                     )}
                   >
                     {isPro ? "PRO" : "FREE"}
                   </Badge>
                 </div>
-                <span className="truncate text-[10px] text-muted-foreground">
-                  {activeOrg?.slug ? `${activeOrg.slug}.nodus.app` : "Default Workspace"}
-                </span>
               </div>
             </div>
 
@@ -262,14 +316,15 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
           sideOffset={6}
           className="w-64 border-border bg-popover p-1.5 text-popover-foreground shadow-xl backdrop-blur-md"
         >
-          <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="px-2 py-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
             Workspaces
           </div>
 
           <div className="max-h-56 space-y-0.5 overflow-y-auto py-1">
-            {userMemberships.data?.map((mem) => {
+            {membershipsList.map((mem) => {
               const org = mem.organization
-              const isCurrent = org.id === activeOrg?.id
+              const currentOrgId = targetOrgId ?? activeOrg?.id
+              const isCurrent = org.id === currentOrgId
 
               return (
                 <button
@@ -277,13 +332,17 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
                   type="button"
                   onClick={() => handleSelectOrg(org.id)}
                   className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:outline-none",
-                    isCurrent && "bg-accent/80 font-medium text-accent-foreground"
+                    "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs transition-colors outline-none",
+                    isCurrent
+                      ? "bg-accent/80 font-medium text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
                   )}
                 >
                   <div className="flex min-w-0 items-center gap-2">
-                    <Avatar className="size-6 rounded border border-border shrink-0">
-                      {org.imageUrl && <AvatarImage src={org.imageUrl} alt={org.name} />}
+                    <Avatar className="size-6 shrink-0 rounded border border-border">
+                      {org.imageUrl && (
+                        <AvatarImage src={org.imageUrl} alt={org.name} />
+                      )}
                       <AvatarFallback className="rounded bg-muted text-[10px] font-bold text-muted-foreground">
                         {getInitials(org.name)}
                       </AvatarFallback>
@@ -291,13 +350,28 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
                     <span className="truncate text-foreground">{org.name}</span>
                   </div>
 
-                  {isCurrent && <Check className="size-3.5 text-primary shrink-0" />}
+                  {isCurrent && (
+                    <Check className="size-3.5 shrink-0 text-primary" />
+                  )}
                 </button>
               )
             })}
           </div>
 
           <Separator className="my-1" />
+
+          {/* Workspace Settings Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsPopoverOpen(false)
+              router.push("/organization")
+            }}
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:outline-none"
+          >
+            <Settings className="size-3.5 text-muted-foreground" />
+            <span>Workspace settings</span>
+          </button>
 
           {/* Create Organization Button */}
           <button
@@ -316,7 +390,7 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
 
       {/* Native Shadcn Dialog for Create Organization */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="border-border bg-card text-card-foreground sm:max-w-md shadow-xl">
+        <DialogContent className="border-border bg-card text-card-foreground shadow-xl sm:max-w-md">
           <DialogHeader className="space-y-1 text-left">
             <div className="flex size-10 items-center justify-center rounded-lg border border-border bg-muted/60 text-primary">
               <Sparkles className="size-5" />
@@ -325,7 +399,8 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
               Create New Workspace
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Workspaces let your team collaborate on autonomous workflows, credentials, and replay logs.
+              Workspaces let your team collaborate on autonomous workflows,
+              credentials, and replay logs.
             </DialogDescription>
           </DialogHeader>
 
@@ -338,7 +413,7 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
           <form onSubmit={handleCreateOrg} className="space-y-4 pt-1">
             {/* Logo Upload */}
             <div className="flex items-center gap-4">
-              <div className="relative flex size-14 shrink-0 items-center justify-center rounded-lg border border-dashed border-border bg-muted/40 overflow-hidden">
+              <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/40">
                 {logoPreview ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -353,7 +428,7 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
                   <button
                     type="button"
                     onClick={removeLogo}
-                    className="absolute right-1 top-1 rounded-full bg-background/80 p-0.5 text-muted-foreground hover:text-foreground"
+                    className="absolute top-1 right-1 rounded-full bg-background/80 p-0.5 text-muted-foreground hover:text-foreground"
                   >
                     <X className="size-3" />
                   </button>
@@ -376,13 +451,18 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
                   <Upload className="size-3" />
                   <span>Upload Logo</span>
                 </Label>
-                <p className="text-[11px] text-muted-foreground">Square PNG or JPG up to 5MB</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Square PNG or JPG up to 5MB
+                </p>
               </div>
             </div>
 
             {/* Organization Name */}
             <div className="space-y-1.5">
-              <Label htmlFor="org-name" className="text-xs font-medium text-foreground">
+              <Label
+                htmlFor="org-name"
+                className="text-xs font-medium text-foreground"
+              >
                 Organization Name
               </Label>
               <Input
@@ -396,18 +476,7 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
               />
             </div>
 
-            {/* Slug Preview */}
-            <div className="space-y-1">
-              <Label className="text-xs font-medium text-foreground">Workspace URL</Label>
-              <div className="flex h-9 items-center rounded-lg border border-input bg-muted/30 px-3 text-xs text-muted-foreground">
-                <span>app.nodus.ai/</span>
-                <span className="font-mono text-primary font-medium">
-                  {slug || "workspace-slug"}
-                </span>
-              </div>
-            </div>
-
-            <DialogFooter className="pt-2 sm:justify-end gap-2">
+            <DialogFooter className="gap-2 pt-2 sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
@@ -420,9 +489,13 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
               <Button
                 type="submit"
                 disabled={isCreating || !name.trim()}
-                className="h-9 text-xs font-semibold gap-1.5"
+                className="h-9 gap-1.5 text-xs font-semibold"
               >
-                {isCreating ? <Spinner className="size-3.5" /> : "Create Workspace"}
+                {isCreating ? (
+                  <Spinner className="size-3.5" />
+                ) : (
+                  "Create Workspace"
+                )}
               </Button>
             </DialogFooter>
           </form>

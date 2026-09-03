@@ -3,12 +3,10 @@
 import * as React from "react"
 import Link from "next/link"
 import { NodusLogo } from "@/components/nodus-logo"
-import { Button } from "@/components/ui/button"
-import { useThemeToggle } from "@/components/theme-provider"
-import { Moon, Shield, Sun } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { Shield } from "lucide-react"
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  const { toggleTheme } = useThemeToggle()
 
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-background p-4 text-foreground selection:bg-primary/20 selection:text-primary">
@@ -42,19 +40,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <NodusLogo size={32} withText textSize="text-lg" />
         </Link>
 
-        {/* Theme Toggle (supports both light and dark mode) */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleTheme}
-          className="relative size-8 text-muted-foreground hover:text-foreground cursor-pointer rounded-lg border border-border/50 bg-background/50 backdrop-blur-sm"
-          title="Toggle theme (Press 'D')"
-          aria-label="Toggle theme (Press 'D')"
-        >
-          <Sun className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-amber-500" />
-          <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-sky-400" />
-          <span className="sr-only">Toggle theme (Press &apos;D&apos;)</span>
-        </Button>
+        {/* Theme Toggle */}
+        <ThemeToggle />
       </header>
 
       {/* 4. Auth Form Container */}

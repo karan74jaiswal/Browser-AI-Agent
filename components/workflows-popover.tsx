@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { LayoutTemplate, PlusIcon, Upload, WorkflowIcon } from "lucide-react"
+import { PlusIcon, Upload, WorkflowIcon } from "lucide-react"
 
 import type { Workflow } from "@/lib/db"
 import { cn } from "@/lib/utils"
@@ -21,6 +21,7 @@ import {
 interface WorkflowsPopoverProps {
   workflows: Workflow[]
   activeWorkflowId?: string
+  showWorkflowsList?: boolean
   onSelectWorkflow?: (id: string) => void
   onNewWorkflow?: () => void
   onImportWorkflow?: () => void
@@ -30,6 +31,7 @@ interface WorkflowsPopoverProps {
 export function WorkflowsPopover({
   workflows,
   activeWorkflowId,
+  showWorkflowsList = true,
   onSelectWorkflow,
   onNewWorkflow,
   onImportWorkflow,
@@ -54,20 +56,12 @@ export function WorkflowsPopover({
         align="start"
         sideOffset={8}
         onCloseAutoFocus={(e) => e.preventDefault()}
-        className="w-64 rounded-xl border bg-popover p-2 text-popover-foreground shadow-xl"
+        className={cn(
+          "rounded-xl border bg-popover p-2 text-popover-foreground shadow-xl",
+          showWorkflowsList ? "w-64" : "w-48"
+        )}
       >
         <SidebarMenu className="gap-y-0.5">
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="h-9 px-3 text-sm font-medium"
-            >
-              <Link href="/templates">
-                <LayoutTemplate className="size-4 text-primary" />
-                <span>Templates</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={onNewWorkflow}
@@ -90,26 +84,30 @@ export function WorkflowsPopover({
           )}
         </SidebarMenu>
 
-        <SidebarSeparator className="mx-0 my-1.5" />
+        {showWorkflowsList && workflows.length > 0 && (
+          <>
+            <SidebarSeparator className="mx-0 my-1.5" />
 
-        <div className="flex max-h-[calc(100vh-14rem)] flex-col overflow-y-auto">
-          <SidebarMenu className="gap-y-0.5">
-            {workflows.map((workflow) => (
-              <SidebarMenuItem key={workflow.id}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={activeWorkflowId === workflow.id}
-                  onClick={() => onSelectWorkflow?.(workflow.id)}
-                  className="h-9 px-3 text-sm font-normal data-[active=true]:bg-accent data-[active=true]:font-medium data-[active=true]:text-accent-foreground"
-                >
-                  <Link href={`/workflows/${workflow.id}`}>
-                    <span className="truncate">{workflow.name}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </div>
+            <div className="flex max-h-[calc(100vh-14rem)] flex-col overflow-y-auto">
+              <SidebarMenu className="gap-y-0.5">
+                {workflows.map((workflow) => (
+                  <SidebarMenuItem key={workflow.id}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={activeWorkflowId === workflow.id}
+                      onClick={() => onSelectWorkflow?.(workflow.id)}
+                      className="h-9 px-3 text-sm font-normal data-[active=true]:bg-accent data-[active=true]:font-medium data-[active=true]:text-accent-foreground"
+                    >
+                      <Link href={`/workflows/${workflow.id}`}>
+                        <span className="truncate">{workflow.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </div>
+          </>
+        )}
       </PopoverContent>
     </Popover>
   )
