@@ -1,7 +1,7 @@
 import toposort from "toposort"
 import { WorkflowGraph } from "@/lib/db"
 import { extractAllTokenReferences } from "./parse-token-reference"
-import { getNodeDefinition } from "../nodes/node-registry"
+import { getNodeDefinition } from "@/features/workflows/system"
 
 export function validateGraph(
   { edges, nodes }: WorkflowGraph,

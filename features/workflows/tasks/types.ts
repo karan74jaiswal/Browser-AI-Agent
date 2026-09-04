@@ -1,5 +1,5 @@
 import type { DeserializedJson } from "@trigger.dev/core"
-import type { NodeType, StepNodeKind } from "../nodes/node-registry"
+import type { NodeType, StepNodeKind } from "@/features/workflows/system"
 
 export type RunStep = {
   id: string

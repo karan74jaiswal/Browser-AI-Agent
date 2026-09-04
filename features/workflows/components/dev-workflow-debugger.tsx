@@ -6,7 +6,7 @@ import { Bug, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { useLatestRunSteps } from "./workflow-runs-provider"
-import type { StepNodeType } from "../nodes/node-registry"
+import type { StepNodeType } from "@/features/workflows/system"
 
 interface TimelineEvent {
   timestamp: number

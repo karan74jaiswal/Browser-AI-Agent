@@ -6,7 +6,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import dynamic from "next/dynamic"
-import { NodeField } from "../../nodes/node-registry"
+import { type NodeField } from "@/features/workflows/system"
 import { type TokenInputHandle, TokenInput } from "../token-input"
 
 const CodeEditor = dynamic(

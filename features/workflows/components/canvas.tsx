@@ -17,7 +17,7 @@ import { Volume2, VolumeX } from "lucide-react"
 import { StepNode } from "@/features/workflows/components/step-node"
 import { WorkflowEdge } from "@/features/workflows/components/workflow-edge"
 import { DevWorkflowDebugger } from "@/features/workflows/components/dev-workflow-debugger"
-import { type StepNodeType } from "@/features/workflows/nodes/node-registry"
+import { type StepNodeType } from "@/features/workflows/system"
 import {
   isSoundMuted,
   toggleSoundMuted,
@@ -73,9 +73,14 @@ const proOptions = {
 interface CanvasProps {
   workflowId?: string
   initialGraph?: WorkflowGraph | null
+  onNodeClick?: (node: StepNodeType) => void
 }
 
-export function Canvas({ workflowId, initialGraph }: CanvasProps) {
+export function Canvas({
+  workflowId,
+  initialGraph,
+  onNodeClick,
+}: CanvasProps) {
   const { resolvedTheme } = useTheme()
   const isMounted = React.useSyncExternalStore(
     emptySubscribe,
@@ -300,6 +305,11 @@ export function Canvas({ workflowId, initialGraph }: CanvasProps) {
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeClick={
+          onNodeClick
+            ? (_event, node) => onNodeClick(node as StepNodeType)
+            : undefined
+        }
         onNodeDragStop={handleDragStop}
         onSelectionDragStop={handleDragStop}
         onDelete={onDelete}

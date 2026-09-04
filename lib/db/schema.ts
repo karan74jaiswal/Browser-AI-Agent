@@ -7,7 +7,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core"
 import { Edge } from "@xyflow/react"
-import { StepNodeType } from "@/features/workflows/nodes/node-registry"
+import { type StepNodeType } from "@/features/workflows/system"
 
 export interface WorkflowGraph {
   nodes: StepNodeType[]

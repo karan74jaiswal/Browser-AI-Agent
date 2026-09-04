@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react"
+import { memo } from "react"
 import {
   Handle,
   Position,
@@ -8,81 +8,24 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 
 import {
-  nodeRegistry,
-  type NodeField,
+  systemNodeRegistry,
+  getSystemNodeHandle,
+  DefaultNodeHandles,
   type StepNodeType,
-} from "@/features/workflows/nodes/node-registry"
+  type NodeHandlesProps,
+} from "@/features/workflows/system"
 import { useNodeRunStatus } from "./workflow-runs-provider"
 import { EditableNodeTitle } from "./editable-node-title"
 import { cn } from "@/lib/utils"
 
-function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
+function StepNodeComponent(props: NodeProps<StepNodeType>) {
+  const { id, data, selected } = props
   const { type, kind, title, values } = data
-  const def = nodeRegistry[type]
-  const isIfNode = type === "if"
-  const isSwitchNode = type === "switch"
-  const isLoopNode = type === "loop"
-  const Icon = def.icon
+  const def = systemNodeRegistry[type]
+  const HandleComponent = getSystemNodeHandle(type) ?? DefaultNodeHandles
 
   const outgoingConnections = useNodeConnections({ handleType: "source" })
   const isLeafNode = outgoingConnections.length === 0
-
-  const switchOutputs = useMemo(() => {
-    if (!isSwitchNode) return []
-    const mode = values.mode || "rules"
-    const fallbackEnabled = values.fallbackEnabled !== "false"
-    const fallbackName = values.fallbackName || "fallback"
-
-    const items: { id: string; label: string }[] = []
-    if (mode === "value") {
-      try {
-        const cases = JSON.parse(values.cases || "[]")
-        if (Array.isArray(cases)) {
-          cases.forEach((c: { name?: string }, idx: number) => {
-            items.push({ id: String(idx), label: c.name || `Case ${idx + 1}` })
-          })
-        }
-      } catch {}
-    } else {
-      try {
-        const routes = JSON.parse(values.rules || "[]")
-        if (Array.isArray(routes)) {
-          routes.forEach((r: { name?: string }, idx: number) => {
-            items.push({ id: String(idx), label: r.name || `Route ${idx + 1}` })
-          })
-        }
-      } catch {}
-    }
-
-    if (items.length === 0) {
-      items.push({ id: "0", label: "0" })
-    }
-
-    if (fallbackEnabled) {
-      items.push({ id: "fallback", label: fallbackName.toLowerCase() })
-    }
-
-    return items
-  }, [isSwitchNode, values])
-
-  const fields = (def.fields as NodeField[])
-    .filter((field: NodeField) => !field.language && field.key !== "code")
-    .map((field: NodeField) => {
-      const rawValue = values[field.key] || field.defaultValue || ""
-      if (!rawValue) return null
-      let displayValue = rawValue
-      if (field.options && field.options.length > 0) {
-        const option = field.options.find((opt) => opt.value === rawValue)
-        if (option) {
-          displayValue = option.label
-        }
-      }
-      return {
-        field,
-        displayValue,
-      }
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null)
 
   const {
     isRunning,
@@ -93,13 +36,28 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
     isLive,
   } = useNodeRunStatus(id, kind)
 
+  if (!def) return null
+  const Icon = def.icon
+
   // A trigger starts the flow and takes no input, so it has no target handle.
   const hasTarget = kind !== "trigger"
+
+  const handleProps: NodeHandlesProps = {
+    ...props,
+    outgoingConnections,
+    isLeafNode,
+    isRunning,
+    isDone,
+    isFailed,
+    isStepCanceling,
+    winningBranch,
+    isLive,
+  }
 
   return (
     <div
       className={cn(
-        "relative max-w-80 min-w-50 rounded-(--radius) border-2 border-border bg-card text-card-foreground transition-all duration-300 ease-out will-change-transform",
+        "relative max-w-80 min-w-50 rounded-lg border-2 border-border bg-card text-card-foreground transition-all duration-300 ease-out will-change-transform flex flex-col",
         isRunning &&
           "z-20 scale-[1.035] border-blue-500/40 shadow-[0_8px_24px_rgba(59,130,246,0.18)]",
         isStepCanceling &&
@@ -108,19 +66,13 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
         isDone &&
           "border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.1)] dark:border-emerald-500/40",
         selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
-        isIfNode && "flex min-h-[72px] flex-col justify-center",
-        isLoopNode && "flex min-h-[76px] flex-col justify-center",
-        isSwitchNode && "flex min-h-[80px] flex-col justify-center py-2"
+        HandleComponent.containerClassName
       )}
-      style={{
-        minHeight: isSwitchNode
-          ? `${Math.max(76, switchOutputs.length * 36)}px`
-          : undefined,
-      }}
+      style={HandleComponent.getContainerStyle?.(values)}
     >
       {/* Circular border beam orbiting active node */}
       {isRunning && (
-        <svg className="pointer-events-none absolute -inset-[2px] z-10 size-[calc(100%+4px)] overflow-visible">
+        <svg className="pointer-events-none absolute -inset-0.5 z-10 size-[calc(100%+4px)] overflow-visible">
           <rect
             x="1"
             y="1"
@@ -138,7 +90,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
       )}
 
       {isStepCanceling && (
-        <svg className="pointer-events-none absolute -inset-[2px] z-10 size-[calc(100%+4px)] overflow-visible">
+        <svg className="pointer-events-none absolute -inset-0.5 z-10 size-[calc(100%+4px)] overflow-visible">
           <rect
             x="1"
             y="1"
@@ -198,283 +150,8 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
           textClassName="text-sm hover:cursor-grab"
         />
       </div>
-      {isIfNode ? (
-        (() => {
-          const hasTrueEdge = outgoingConnections.some(
-            (c) =>
-              ((c as { sourceHandleId?: string | null }).sourceHandleId ||
-                c.sourceHandle) === "true"
-          )
-          const hasFalseEdge = outgoingConnections.some(
-            (c) =>
-              ((c as { sourceHandleId?: string | null }).sourceHandleId ||
-                c.sourceHandle) === "false"
-          )
-          const hideTrueHandle = isLive && !hasTrueEdge
-          const hideFalseHandle = isLive && !hasFalseEdge
 
-          return (
-            <>
-              <Handle
-                type="source"
-                position={Position.Right}
-                id="true"
-                style={{ top: "28%", transform: "translate(100%, -50%)" }}
-                className={cn(
-                  "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
-                  hideTrueHandle
-                    ? "pointer-events-none opacity-0"
-                    : isFailed
-                      ? "bg-destructive!"
-                      : isStepCanceling
-                        ? "bg-amber-500!"
-                        : isRunning
-                          ? "bg-blue-500!"
-                          : isDone && winningBranch === "true"
-                            ? "bg-emerald-500!"
-                            : "bg-border!"
-                )}
-              />
-              <div
-                style={{ top: "28%", transform: "translate(100%, -105%)" }}
-                className={cn(
-                  "pointer-events-none absolute right-0 z-20 flex items-center pl-2 transition-opacity duration-300",
-                  hideTrueHandle && "opacity-0"
-                )}
-              >
-                <span className="text-[10px] font-semibold text-muted-foreground select-none">
-                  true
-                </span>
-              </div>
-
-              <Handle
-                type="source"
-                position={Position.Right}
-                id="false"
-                style={{ top: "72%", transform: "translate(100%, -50%)" }}
-                className={cn(
-                  "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
-                  hideFalseHandle
-                    ? "pointer-events-none opacity-0"
-                    : isFailed
-                      ? "bg-destructive!"
-                      : isStepCanceling
-                        ? "bg-amber-500!"
-                        : isRunning
-                          ? "bg-blue-500!"
-                          : isDone && winningBranch === "false"
-                            ? "bg-emerald-500!"
-                            : "bg-border!"
-                )}
-              />
-              <div
-                style={{ top: "72%", transform: "translate(100%, -105%)" }}
-                className={cn(
-                  "pointer-events-none absolute right-0 z-20 flex items-center pl-2 transition-opacity duration-300",
-                  hideFalseHandle && "opacity-0"
-                )}
-              >
-                <span className="text-[10px] font-semibold text-muted-foreground select-none">
-                  false
-                </span>
-              </div>
-            </>
-          )
-        })()
-      ) : isLoopNode ? (
-        (() => {
-          const hasDoneEdge = outgoingConnections.some(
-            (c) =>
-              ((c as { sourceHandleId?: string | null }).sourceHandleId ||
-                c.sourceHandle) === "done"
-          )
-          const hasLoopEdge = outgoingConnections.some(
-            (c) =>
-              ((c as { sourceHandleId?: string | null }).sourceHandleId ||
-                c.sourceHandle) === "loop"
-          )
-          const hideDoneHandle = isLive && !hasDoneEdge
-          const hideLoopHandle = isLive && !hasLoopEdge
-
-          const mode = values.mode || "for_each"
-          const modeSummary =
-            mode === "count"
-              ? `Repeat ${values.count || "5"}x`
-              : mode === "while"
-                ? values.whileRuleMode === "while"
-                  ? "While true"
-                  : "Until met"
-                : "List of items"
-
-          return (
-            <>
-              <div className="border-t border-border" />
-              <div className="flex items-center justify-between px-3 py-1.5 text-xs text-muted-foreground">
-                <span>Mode</span>
-                <span className="font-medium text-foreground">
-                  {modeSummary}
-                </span>
-              </div>
-
-              {/* Loop Done Handle (Top Handle: 28%) */}
-              <Handle
-                type="source"
-                position={Position.Right}
-                id="done"
-                style={{ top: "28%", transform: "translate(100%, -50%)" }}
-                className={cn(
-                  "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
-                  hideDoneHandle
-                    ? "pointer-events-none opacity-0"
-                    : isFailed
-                      ? "bg-destructive!"
-                      : isStepCanceling
-                        ? "bg-amber-500!"
-                        : isRunning
-                          ? "bg-blue-500!"
-                          : isDone && winningBranch === "done"
-                            ? "bg-emerald-500!"
-                            : "bg-border!"
-                )}
-              />
-              <div
-                style={{ top: "28%", transform: "translate(100%, -105%)" }}
-                className={cn(
-                  "pointer-events-none absolute right-0 z-20 flex items-center pl-2 transition-opacity duration-300",
-                  hideDoneHandle && "opacity-0"
-                )}
-              >
-                <span className="text-[10px] font-semibold text-muted-foreground select-none">
-                  done
-                </span>
-              </div>
-
-              {/* Loop Iteration Handle (Bottom Handle: 72%) */}
-              <Handle
-                type="source"
-                position={Position.Right}
-                id="loop"
-                style={{ top: "72%", transform: "translate(100%, -50%)" }}
-                className={cn(
-                  "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
-                  hideLoopHandle
-                    ? "pointer-events-none opacity-0"
-                    : isFailed
-                      ? "bg-destructive!"
-                      : isStepCanceling
-                        ? "bg-amber-500!"
-                        : isRunning
-                          ? "bg-blue-500!"
-                          : isDone
-                            ? "bg-emerald-500!"
-                            : "bg-border!"
-                )}
-              />
-              <div
-                style={{ top: "72%", transform: "translate(100%, -105%)" }}
-                className={cn(
-                  "pointer-events-none absolute right-0 z-20 flex items-center pl-2 transition-opacity duration-300",
-                  hideLoopHandle && "opacity-0"
-                )}
-              >
-                <span className="text-[10px] font-semibold text-muted-foreground select-none">
-                  loop
-                </span>
-              </div>
-            </>
-          )
-        })()
-      ) : isSwitchNode ? (
-        <>
-          {switchOutputs.map((out, idx) => {
-            const topPct = `${((idx + 0.5) / switchOutputs.length) * 100}%`
-            const isWinning = isDone && winningBranch === out.id
-            const hasOutEdge = outgoingConnections.some(
-              (c) =>
-                ((c as { sourceHandleId?: string | null }).sourceHandleId ||
-                  c.sourceHandle ||
-                  "0") === out.id
-            )
-            const hideSwitchHandle = isLive && !hasOutEdge
-
-            return (
-              <div key={out.id}>
-                <Handle
-                  type="source"
-                  position={Position.Right}
-                  id={out.id}
-                  style={{ top: topPct, transform: "translate(100%, -50%)" }}
-                  className={cn(
-                    "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
-                    hideSwitchHandle
-                      ? "pointer-events-none opacity-0"
-                      : isFailed
-                        ? "bg-destructive!"
-                        : isStepCanceling
-                          ? "bg-amber-500!"
-                          : isRunning
-                            ? "bg-blue-500!"
-                            : isWinning
-                              ? "bg-emerald-500!"
-                              : "bg-border!"
-                  )}
-                />
-                <div
-                  style={{ top: topPct, transform: "translate(100%, -105%)" }}
-                  className={cn(
-                    "pointer-events-none absolute right-0 z-20 flex items-center pl-2 transition-opacity duration-300",
-                    hideSwitchHandle && "opacity-0"
-                  )}
-                >
-                  <span className="text-[10px] font-semibold text-muted-foreground select-none">
-                    {out.label}
-                  </span>
-                </div>
-              </div>
-            )
-          })}
-        </>
-      ) : (
-        <>
-          {fields.length > 0 && (
-            <>
-              <div className="border-t border-border" />
-              <div className="flex flex-col gap-1.5 px-3 py-2.5">
-                {fields.map(({ field, displayValue }) => (
-                  <div
-                    key={field.key}
-                    className="flex items-center justify-between gap-4 text-xs"
-                  >
-                    <span className="shrink-0 text-muted-foreground">
-                      {field.label}
-                    </span>
-                    <span className="truncate font-medium">{displayValue}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          <Handle
-            type="source"
-            position={Position.Right}
-            style={{ transform: "translate(100%, -50%)" }}
-            className={cn(
-              "h-3.5! w-1.5! min-w-0! rounded-l-none! rounded-r-xs! border-0! transition-all duration-300",
-              isLive && isLeafNode
-                ? "pointer-events-none opacity-0"
-                : isFailed
-                  ? "bg-destructive!"
-                  : isStepCanceling
-                    ? "bg-amber-500!"
-                    : isRunning
-                      ? "bg-blue-500!"
-                      : isDone
-                        ? "bg-emerald-500!"
-                        : "bg-border!"
-            )}
-          />
-        </>
-      )}
+      <HandleComponent {...handleProps} />
     </div>
   )
 }

@@ -39,7 +39,7 @@ import {
   nodeRegistry,
   type NodeType,
   type StepNodeType,
-} from "@/features/workflows/nodes/node-registry"
+} from "@/features/workflows/system"
 import { NodeIcon } from "@/features/workflows/components/node-icon"
 import { TEMPLATE_CATEGORIES, type WorkflowTemplate } from "../types"
 import { cloneWorkflowFromTemplateAction } from "../actions"

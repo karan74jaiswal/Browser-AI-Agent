@@ -13,31 +13,24 @@ import Section from "./section"
 import { Lock } from "lucide-react"
 import { toast } from "sonner"
 import { useProPlan } from "../../hooks"
-import {
-  StepNodeType,
-  NodeType,
-  nodeRegistry,
-  NodeField,
-  StepNodeKind,
-  NodeDefinition,
-} from "../../nodes/node-registry"
 import { NodeIcon } from "../node-icon"
-
-// The Toolbar's groups, one accordion section per node kind.
-const sections: { kind: StepNodeKind; label: string }[] = [
-  { kind: "trigger", label: "Triggers" },
-  { kind: "action", label: "Actions" },
-]
-
-// Every node type from the registry, filtered into the groups below.
-const definitions: NodeDefinition[] = Object.values(nodeRegistry)
+import {
+  systemPaletteCatalog,
+  systemNodeInitialValues,
+  systemNodeRegistry,
+  type StepNodeType,
+  type NodeType,
+  type NodeField,
+  type NodeDefinition,
+  type WorkflowNodeModule,
+} from "@/features/workflows/system"
 
 export function PaletteSkeleton() {
   return (
     <Section title="Toolbar">
       <div className="space-y-4 px-3 py-3 animate-pulse">
         <div className="space-y-2">
-          <div className="h-3 w-16 rounded bg-muted" />
+          <div className="h-3.5 w-20 rounded bg-muted" />
           <div className="space-y-1.5 pt-1">
             <div className="flex items-center gap-2.5 px-1.5 py-1">
               <div className="size-5 rounded bg-muted" />
@@ -50,7 +43,7 @@ export function PaletteSkeleton() {
           </div>
         </div>
         <div className="space-y-2 pt-2">
-          <div className="h-3 w-16 rounded bg-muted" />
+          <div className="h-3.5 w-16 rounded bg-muted" />
           <div className="space-y-1.5 pt-1">
             <div className="flex items-center gap-2.5 px-1.5 py-1">
               <div className="size-5 rounded bg-muted" />
@@ -59,10 +52,6 @@ export function PaletteSkeleton() {
             <div className="flex items-center gap-2.5 px-1.5 py-1">
               <div className="size-5 rounded bg-muted" />
               <div className="h-3.5 w-32 rounded bg-muted" />
-            </div>
-            <div className="flex items-center gap-2.5 px-1.5 py-1">
-              <div className="size-5 rounded bg-muted" />
-              <div className="h-3.5 w-24 rounded bg-muted" />
             </div>
           </div>
         </div>
@@ -86,7 +75,7 @@ export default function Palette() {
   }
 
   const add = (type: NodeType) => {
-    const def: NodeDefinition | undefined = nodeRegistry[type]
+    const def: NodeDefinition | undefined = systemNodeRegistry[type]
     if (!def) return
 
     if (isNodeLocked(def)) {
@@ -116,79 +105,24 @@ export default function Palette() {
       y: (height / 2 - y) / zoom,
     }
 
-    const initialValues: Record<string, string> = {}
+    // Fully decoupled: initial values come directly from the node's factory
+    const initialValues: Record<string, string> = {
+      ...(systemNodeInitialValues[type]?.() ?? {}),
+    }
+
+    // Fallback: populate field defaultValues if not set by factory
     for (const field of def.fields as NodeField[]) {
-      if (field.defaultValue) {
-        initialValues[field.key] = field.defaultValue
-      } else if (
-        field.options &&
-        field.options.length > 0 &&
-        field.options[0]?.value
-      ) {
-        initialValues[field.key] = field.options[0].value
+      if (initialValues[field.key] === undefined) {
+        if (field.defaultValue) {
+          initialValues[field.key] = field.defaultValue
+        } else if (
+          field.options &&
+          field.options.length > 0 &&
+          field.options[0]?.value
+        ) {
+          initialValues[field.key] = field.options[0].value
+        }
       }
-    }
-    if (type === "google-form-trigger" || type === "stripe-trigger") {
-      initialValues.secret = `whsec_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`
-    }
-    if (type === "google-form-trigger") {
-      initialValues.accessMode = "private"
-    }
-    if (type === "if") {
-      initialValues.combinator = "and"
-      initialValues.conditions = JSON.stringify([
-        {
-          id: crypto.randomUUID(),
-          left: "",
-          operator: "equals",
-          right: "",
-        },
-      ])
-    }
-    if (type === "switch") {
-      initialValues.mode = "rules"
-      initialValues.fallbackEnabled = "true"
-      initialValues.fallbackName = "Fallback"
-      initialValues.rules = JSON.stringify([
-        {
-          id: crypto.randomUUID(),
-          name: "Route 1",
-          combinator: "and",
-          conditions: [
-            {
-              id: crypto.randomUUID(),
-              left: "",
-              operator: "equals",
-              right: "",
-            },
-          ],
-        },
-      ])
-      initialValues.cases = JSON.stringify([
-        {
-          id: crypto.randomUUID(),
-          name: "Case 1",
-          operator: "equals",
-          value: "",
-        },
-      ])
-    }
-    if (type === "loop") {
-      initialValues.mode = "for_each"
-      initialValues.items = ""
-      initialValues.count = "5"
-      initialValues.maxIterations = "50"
-      initialValues.batchDelayMs = "0"
-      initialValues.onItemFailure = "continue"
-      initialValues.whileRuleMode = "until"
-      initialValues.conditions = JSON.stringify([
-        {
-          id: crypto.randomUUID(),
-          left: "",
-          operator: "equals",
-          right: "",
-        },
-      ])
     }
 
     const newNode: StepNodeType = {
@@ -207,51 +141,142 @@ export default function Palette() {
     addNodes(newNode)
   }
 
+  const renderNodeButton = (mod: WorkflowNodeModule) => {
+    const type = mod.manifest.id as NodeType
+    const def = systemNodeRegistry[type]
+    const isLocked = def ? isNodeLocked(def) : false
+
+    return (
+      <Button
+        key={type}
+        variant="ghost"
+        onClick={() => {
+          if (isLocked) {
+            redirectToPricing()
+            return
+          }
+          add(type)
+        }}
+        className="w-full justify-start gap-2.5 px-2 py-1.5 h-auto text-xs font-normal hover:bg-accent/80 transition-colors"
+      >
+        <NodeIcon type={type} />
+        <span className="truncate">{mod.manifest.label}</span>
+        {isLocked && (
+          <Lock className="ml-auto size-3.5 shrink-0 text-muted-foreground" />
+        )}
+      </Button>
+    )
+  }
+
   return (
     <Section title="Toolbar">
       <Accordion
         type="multiple"
-        defaultValue={sections.map((s) => s.kind)}
-        className="px-3 py-2"
+        defaultValue={["flow", "core", "apps"]}
+        className="px-2 py-1 space-y-1.5"
       >
-        {sections.map((section) => (
-          <AccordionItem
-            key={section.kind}
-            value={section.kind}
-            className="not-last:border-b-0"
-          >
-            <AccordionTrigger className="py-2 text-xs font-medium text-muted-foreground hover:no-underline">
-              {section.label}
-            </AccordionTrigger>
-            <AccordionContent className="flex flex-col gap-0.5">
-              {definitions
-                .filter((def) => def.kind === section.kind)
-                .map((def) => {
-                  const isLocked = isNodeLocked(def)
-                  return (
-                    <Button
-                      key={def.type}
-                      variant="ghost"
-                      onClick={() => {
-                        if (isLocked) {
-                          redirectToPricing()
-                          return
-                        }
-                        add(def.type as NodeType)
-                      }}
-                      className="w-full justify-start gap-2.5 px-1.5 text-xs"
-                    >
-                      <NodeIcon type={def.type as NodeType} />
-                      <span>{def.label}</span>
-                      {isLocked && (
-                        <Lock className="ml-auto size-3.5 text-muted-foreground" />
-                      )}
-                    </Button>
-                  )
-                })}
-            </AccordionContent>
-          </AccordionItem>
-        ))}
+        {systemPaletteCatalog.map((suiteView) => {
+          const { suite, directTriggers, directActions, categories } = suiteView
+          const SuiteIcon = suite.icon
+
+          return (
+            <AccordionItem
+              key={suite.id}
+              value={suite.id}
+              className="border-b-0 rounded-lg bg-card/40 border border-border/40 overflow-hidden"
+            >
+              <AccordionTrigger className="px-2.5 py-2 text-xs font-semibold text-foreground hover:no-underline hover:bg-muted/40 transition-colors">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`flex size-4.5 items-center justify-center rounded-sm ${suite.accent}`}
+                  >
+                    <SuiteIcon className="size-3" />
+                  </div>
+                  <span>{suite.label}</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-1.5 pb-2 pt-1 flex flex-col gap-1.5">
+                {/* Direct Nodes: Triggers & Actions */}
+                {directTriggers.length > 0 && (
+                  <div className="flex flex-col gap-0.5">
+                    <div className="px-2 py-0.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+                      Triggers
+                    </div>
+                    {directTriggers.map(renderNodeButton)}
+                  </div>
+                )}
+
+                {directActions.length > 0 && (
+                  <div className="flex flex-col gap-0.5">
+                    <div className="px-2 py-0.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+                      Actions
+                    </div>
+                    {directActions.map(renderNodeButton)}
+                  </div>
+                )}
+
+                {/* Categorized Nodes (Apps Suite) */}
+                {categories.length > 0 && (
+                  <Accordion
+                    type="multiple"
+                    defaultValue={["browserbase", "stripe", "resend"]}
+                    className="flex flex-col gap-1 pt-0.5"
+                  >
+                    {categories.map((catView) => {
+                      const { category, triggers, actions } = catView
+                      const CategoryIcon = category.icon
+                      const totalCount = triggers.length + actions.length
+
+                      return (
+                        <AccordionItem
+                          key={category.id}
+                          value={category.id}
+                          className="border-b-0 rounded-md border border-border/30 bg-background/50 overflow-hidden"
+                        >
+                          <AccordionTrigger className="px-2 py-1.5 text-xs font-medium text-foreground hover:no-underline hover:bg-muted/30 transition-colors">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="flex size-4 items-center justify-center rounded-xs"
+                                style={{
+                                  backgroundColor: `${category.brandColor || "#635BFF"}20`,
+                                  color: category.brandColor || "#635BFF",
+                                }}
+                              >
+                                <CategoryIcon className="size-2.5" />
+                              </span>
+                              <span className="text-xs">{category.label}</span>
+                              <span className="text-[10px] text-muted-foreground ml-auto pr-1">
+                                {totalCount}
+                              </span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-1 pb-1.5 pt-0.5 flex flex-col gap-1">
+                            {triggers.length > 0 && (
+                              <div className="flex flex-col gap-0.5">
+                                <div className="px-2 py-0.5 text-[9px] font-semibold tracking-wider text-muted-foreground/80 uppercase">
+                                  Triggers
+                                </div>
+                                {triggers.map(renderNodeButton)}
+                              </div>
+                            )}
+                            {actions.length > 0 && (
+                              <div className="flex flex-col gap-0.5">
+                                <div className="px-2 py-0.5 text-[9px] font-semibold tracking-wider text-muted-foreground/80 uppercase">
+                                  Actions
+                                </div>
+                                {actions.map(renderNodeButton)}
+                              </div>
+                            )}
+                          </AccordionContent>
+                        </AccordionItem>
+                      )
+                    })}
+                  </Accordion>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          )
+        })}
       </Accordion>
     </Section>
   )

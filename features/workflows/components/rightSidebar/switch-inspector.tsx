@@ -19,8 +19,11 @@ import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
 import { ConditionCriterion, ConditionOperator } from "../../lib"
-import { StepNodeType } from "../../nodes/node-registry"
-import type { SwitchRouteRule, SwitchValueCase } from "../../nodes/switch"
+import {
+  StepNodeType,
+  type SwitchRouteRule,
+  type SwitchValueCase,
+} from "@/features/workflows/system"
 import { TokenInput, TokenInputHandle } from "../token-input"
 
 const FRIENDLY_OPERATORS: { label: string; value: ConditionOperator }[] = [

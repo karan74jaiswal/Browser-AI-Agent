@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { ResizablePanel } from "@/components/ui/resizable"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-import { type StepNodeType } from "@/features/workflows/nodes/node-registry"
+import { type StepNodeType } from "@/features/workflows/system"
 import { downloadWorkflowJson } from "@/features/workflows/lib/workflow-export-import"
 import type { WorkflowGraph } from "@/lib/db"
 import { useStatus } from "@liveblocks/react"
@@ -35,13 +35,30 @@ import RunButton from "./run-button"
 interface RightSidebarProps {
   workflowId: string
   workflowName?: string
+  tab?: string
+  onTabChange?: (tab: string) => void
 }
 
 export function RightSidebar({
   workflowId,
   workflowName = "",
+  tab: controlledTab,
+  onTabChange,
 }: RightSidebarProps) {
-  const [tab, setTab] = useState("toolbar")
+  const [uncontrolledTab, setUncontrolledTab] = useState("toolbar")
+  const isControlled = controlledTab !== undefined
+  const tab = isControlled ? controlledTab : uncontrolledTab
+
+  const handleTabChange = useCallback(
+    (nextTab: string) => {
+      if (!isControlled) {
+        setUncontrolledTab(nextTab)
+      }
+      onTabChange?.(nextTab)
+    },
+    [isControlled, onTabChange]
+  )
+
   const [isRenameOpen, setIsRenameOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const { openVault } = useCredentials()
@@ -81,10 +98,10 @@ export function RightSidebar({
   const handleSelectionChange = useCallback(
     ({ nodes }: { nodes: StepNodeType[] }) => {
       if (nodes.length > 0) {
-        setTab("editor")
+        handleTabChange("editor")
       }
     },
-    []
+    [handleTabChange]
   )
 
   useOnSelectionChange({
@@ -98,7 +115,7 @@ export function RightSidebar({
       maxSize="36rem"
       className="bg-background"
     >
-      <Tabs value={tab} onValueChange={setTab} className="size-full gap-0">
+      <Tabs value={tab} onValueChange={handleTabChange} className="size-full gap-0">
         <div className="flex items-center justify-between border-b border-border p-2">
           <div className="flex items-center gap-1">
             <Button

@@ -19,7 +19,7 @@ import {
   ConditionOperator,
   LogicalCombinator,
 } from "../../lib"
-import { StepNodeType } from "../../nodes/node-registry"
+import { type StepNodeType } from "@/features/workflows/system"
 import { TokenInputHandle, TokenInput } from "../token-input"
 
 const FRIENDLY_OPERATORS: { label: string; value: ConditionOperator }[] = [

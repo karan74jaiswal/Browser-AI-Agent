@@ -1,5 +1,6 @@
 "use client"
 
+import { useCallback, useState } from "react"
 import {
   ResizableHandle,
   ResizablePanel,
@@ -15,7 +16,7 @@ import { RightSidebar } from "./rightSidebar/right-sidebar"
 function CanvasSkeleton() {
   return (
     <div className="relative flex size-full items-center justify-center bg-background">
-      <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(circle,currentColor_1px,transparent_1px)] [background-size:16px_16px] text-muted-foreground/30" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,currentColor_1px,transparent_1px)] bg-size-[16px_16px] text-muted-foreground/30 opacity-40" />
       <div className="relative flex items-center gap-2.5 rounded-full border border-border/70 bg-card/90 px-4 py-2 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur-sm">
         <Spinner className="size-3.5 text-muted-foreground" />
         <span>Connecting to canvas...</span>
@@ -35,13 +36,23 @@ export function WorkflowShell({
   workflowName,
   initialGraph,
 }: WorkflowShellProps) {
+  const [tab, setTab] = useState("toolbar")
+
+  const handleNodeClick = useCallback(() => {
+    setTab("editor")
+  }, [])
+
   return (
     <ResizablePanelGroup orientation="horizontal" className="size-full">
       <ResizablePanel minSize="30rem">
         <ResizablePanelGroup orientation="vertical" className="size-full">
           <ResizablePanel minSize="18rem">
             <ClientSideSuspense fallback={<CanvasSkeleton />}>
-              <Canvas workflowId={workflowId} initialGraph={initialGraph} />
+              <Canvas
+                workflowId={workflowId}
+                initialGraph={initialGraph}
+                onNodeClick={handleNodeClick}
+              />
             </ClientSideSuspense>
           </ResizablePanel>
           <ResizableHandle />
@@ -52,7 +63,12 @@ export function WorkflowShell({
       </ResizablePanel>
       <ResizableHandle />
       <ResizablePanel defaultSize="16rem" minSize="14rem" maxSize="36rem">
-        <RightSidebar workflowId={workflowId} workflowName={workflowName} />
+        <RightSidebar
+          workflowId={workflowId}
+          workflowName={workflowName}
+          tab={tab}
+          onTabChange={setTab}
+        />
       </ResizablePanel>
     </ResizablePanelGroup>
   )

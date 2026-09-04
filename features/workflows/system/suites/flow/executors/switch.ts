@@ -1,25 +1,15 @@
 import {
   evaluateIfConditions,
   compareValues,
-  type ConditionCriterion,
-  type ConditionOperator,
-  type LogicalCombinator,
-} from "../lib/evaluate-condition"
-import { interpolate } from "../lib/interpolate"
+} from "@/features/workflows/lib/evaluate-condition"
+import { interpolate } from "@/features/workflows/lib/interpolate"
+import type {
+  SwitchRouteRule,
+  SwitchValueCase,
+} from "../../../types/flow"
 
-export type SwitchRouteRule = {
-  id: string
-  name: string
-  combinator: LogicalCombinator
-  conditions: ConditionCriterion[]
-}
+export type { SwitchRouteRule, SwitchValueCase }
 
-export type SwitchValueCase = {
-  id: string
-  name: string
-  operator: ConditionOperator
-  value: string
-}
 
 export interface SwitchNodeOutput {
   outputIndex: number | "fallback"
@@ -100,7 +90,7 @@ export async function switchNode({
       outputIndex: "fallback",
       outputName: fallbackName,
       branch: "fallback",
-      reason: "No rules matched; routed to Fallback",
+      reason: `No switch conditions matched; routed to ${fallbackName}`,
     }
   }
 
@@ -108,6 +98,6 @@ export async function switchNode({
     outputIndex: -1,
     outputName: "None",
     branch: "none",
-    reason: "No rules matched and fallback is disabled",
+    reason: "No conditions matched and fallback disabled",
   }
 }

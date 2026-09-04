@@ -20,14 +20,14 @@ import {
   nodeRegistry,
   type NodeDefinition,
   type NodeType,
-} from "@/features/workflows/nodes/node-registry"
+  type StepNodeType,
+} from "@/features/workflows/system"
 import {
   getWorkflowLimit,
   PLAN_LIMITS,
 } from "@/features/workflows/lib/plan-limits"
 import { parseAndValidateWorkflowJson } from "@/features/workflows/lib/workflow-export-import"
 import type { Edge } from "@xyflow/react"
-import type { StepNodeType } from "@/features/workflows/nodes/node-registry"
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)

@@ -1,5 +1,5 @@
 import type { WorkflowGraph } from "@/lib/db"
-import type { StepNodeType } from "@/features/workflows/nodes/node-registry"
+import type { StepNodeType } from "@/features/workflows/system"
 import type { Edge } from "@xyflow/react"
 import type { WorkflowTemplate } from "../types"
 

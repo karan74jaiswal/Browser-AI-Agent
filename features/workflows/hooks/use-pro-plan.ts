@@ -7,7 +7,7 @@ import {
   nodeRegistry,
   type NodeDefinition,
   type NodeType,
-} from "@/features/workflows/nodes/node-registry"
+} from "@/features/workflows/system"
 import {
   getWorkflowLimit,
   PLAN_LIMITS,

@@ -1,6 +1,6 @@
 import { logger, metadata, task } from "@trigger.dev/sdk"
 import { getWorkflow } from "@/features/workflows/data"
-import type { NodeType, StepNodeType } from "../nodes/node-registry"
+import type { NodeType, StepNodeType } from "@/features/workflows/system"
 import type {
   QueueItem,
   RunStep,

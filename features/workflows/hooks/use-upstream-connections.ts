@@ -5,7 +5,7 @@ import {
   nodeRegistry,
   type NodeType,
   type StepNodeType,
-} from "@/features/workflows/nodes/node-registry"
+} from "@/features/workflows/system"
 
 export type UpstreamConnection = {
   token: string

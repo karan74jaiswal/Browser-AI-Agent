@@ -1,8 +1,14 @@
 import type { Edge } from "@xyflow/react"
 import type { Stagehand } from "@browserbasehq/stagehand"
-import { nodeExecutors } from "../nodes/node-executors"
-import { switchNode } from "../nodes/switch"
-import { mergeNode } from "../nodes/merge"
+import {
+  systemNodeTriggerFallbacks,
+  type StepNodeType,
+} from "@/features/workflows/system"
+import {
+  nodeExecutors,
+  switchNode,
+  mergeNode,
+} from "@/features/workflows/system/executors"
 import { cascadeDisabledEdges } from "./graph-traversal"
 import {
   evaluateIfConditions,
@@ -10,7 +16,6 @@ import {
   type ConditionCriterion,
   type LogicalCombinator,
 } from "../lib"
-import type { StepNodeType } from "../nodes/node-registry"
 
 export const pace = (ms: number = 600) =>
   new Promise((resolve) => setTimeout(resolve, ms))
@@ -171,48 +176,10 @@ export async function executeStep({
     for (const edge of outEdges) {
       activeEdges.add(edge.id)
     }
-  } else if (node.data.type === "start") {
-    result = triggerData ??
-      results[nodeId] ?? {
-        startedAt: new Date().toISOString(),
-      }
-    results[nodeId] = result
-
-    const outEdges = outgoingEdges.get(nodeId) || []
-    for (const edge of outEdges) {
-      activeEdges.add(edge.id)
-    }
-  } else if (node.data.type === "google-form-trigger") {
-    result = triggerData ?? {
-      formId: "sample-form-id",
-      formTitle: "Sample Form",
-      responseId: "sample-response-id",
-      respondentEmail: "test@example.com",
-      timestamp: new Date().toISOString(),
-      responses: {
-        "Sample Question": "Sample Answer",
-      },
-    }
-    results[nodeId] = result
-
-    const outEdges = outgoingEdges.get(nodeId) || []
-    for (const edge of outEdges) {
-      activeEdges.add(edge.id)
-    }
-  } else if (node.data.type === "stripe-trigger") {
-    result = triggerData ?? {
-      amount: "49.00",
-      currency: "USD",
-      customerEmail: "customer@example.com",
-      customerId: "cus_sample12345",
-      eventType: node.data.values?.eventType || "payment_intent.succeeded",
-      status: "succeeded",
-      paymentIntentId: "pi_sample12345",
-      rawEvent: {
-        id: "evt_sample12345",
-        type: node.data.values?.eventType || "payment_intent.succeeded",
-      },
-    }
+  } else if (node.data.kind === "trigger" || systemNodeTriggerFallbacks[type]) {
+    const fallbackFn = systemNodeTriggerFallbacks[type]
+    const fallbackData = fallbackFn ? fallbackFn(node.data.values ?? {}) : {}
+    result = triggerData ?? results[nodeId] ?? fallbackData
     results[nodeId] = result
 
     const outEdges = outgoingEdges.get(nodeId) || []
@@ -220,7 +187,8 @@ export async function executeStep({
       activeEdges.add(edge.id)
     }
   } else {
-    const executor = nodeExecutors[node.data.type]
+    const executor = nodeExecutors[node.data.type as keyof typeof nodeExecutors]
+
     if (executor) {
       result = await executor({
         values: interpolatedValues,

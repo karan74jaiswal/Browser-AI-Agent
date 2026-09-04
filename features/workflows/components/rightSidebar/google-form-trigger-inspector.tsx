@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { generateGoogleFormScript } from "../../lib"
-import { StepNodeType } from "../../nodes/node-registry"
+import { type StepNodeType } from "@/features/workflows/system"
 
 export default function GoogleFormTriggerInspector({
   node,

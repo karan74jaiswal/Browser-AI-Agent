@@ -3,7 +3,7 @@ import {
   nodeRegistry,
   type NodeType,
   type StepNodeType,
-} from "../nodes/node-registry"
+} from "@/features/workflows/system"
 import type { QueueItem, RunStep } from "./types"
 import { evaluateMergeReadiness } from "./merge-synchronizer"
 

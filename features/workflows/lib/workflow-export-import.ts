@@ -2,7 +2,7 @@ import { z } from "zod"
 import {
   nodeRegistry,
   type StepNodeType,
-} from "@/features/workflows/nodes/node-registry"
+} from "@/features/workflows/system"
 import type { WorkflowGraph } from "@/lib/db"
 
 export const WorkflowExportSchema = z.object({

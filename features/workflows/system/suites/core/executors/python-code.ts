@@ -27,9 +27,9 @@ export function preparePythonCode(code: string): string {
   }
 
   const indentedBody = clean
-    .split("\n")
-    .map((line) => `    ${line}`)
-    .join("\n")
+  .split("\n")
+  .map((line) => `    ${line}`)
+  .join("\n")
 
   return `def __workflow_main__():\n${indentedBody}\n__workflow_main__()`
 }

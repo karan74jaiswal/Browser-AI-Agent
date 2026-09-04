@@ -26,8 +26,12 @@ import {
 import { cn } from "@/lib/utils"
 
 import { ConditionCriterion, ConditionOperator } from "../../lib"
-import { StepNodeType } from "../../nodes/node-registry"
-import type { LoopMode, WhileRuleMode, LoopFailurePolicy } from "../../nodes/loop"
+import {
+  StepNodeType,
+  type LoopMode,
+  type WhileRuleMode,
+  type LoopFailurePolicy,
+} from "@/features/workflows/system"
 import { TokenInput, TokenInputHandle } from "../token-input"
 
 const FRIENDLY_OPERATORS: { label: string; value: ConditionOperator }[] = [

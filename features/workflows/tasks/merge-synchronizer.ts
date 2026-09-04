@@ -1,5 +1,5 @@
 import type { Edge } from "@xyflow/react"
-import type { StepNodeType } from "../nodes/node-registry"
+import type { StepNodeType } from "@/features/workflows/system"
 import type { QueueItem, RunStep } from "./types"
 import { cascadeDisabledEdges } from "./graph-traversal"
 

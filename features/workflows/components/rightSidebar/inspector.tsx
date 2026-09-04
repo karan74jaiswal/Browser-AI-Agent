@@ -19,8 +19,8 @@ import {
   StepNodeType,
   NodeType,
   NodeDefinition,
-  nodeRegistry,
-} from "../../nodes/node-registry"
+  systemNodeRegistry as nodeRegistry,
+} from "@/features/workflows/system"
 import { NodeIcon } from "../node-icon"
 import { TokenInputHandle } from "../token-input"
 import { EditableNodeTitle } from "../editable-node-title"

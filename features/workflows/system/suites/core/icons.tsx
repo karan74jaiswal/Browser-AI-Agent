@@ -108,7 +108,7 @@ export function PythonCodeIcon({
       fill: "currentColor",
       stroke: "none",
     }),
-    // Python Emblem
+    // Python dual-snake glyph
     React.createElement("path", {
       d: "M12 11.2h2a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1h-2a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1H11a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1Z",
       strokeWidth: "1.5",

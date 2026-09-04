@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { NodeType } from "../nodes/node-registry"
+import type { NodeType } from "@/features/workflows/system"
 import { useEditableNodeTitle } from "../hooks/use-editable-node-title"
 
 export interface EditableNodeTitleProps {

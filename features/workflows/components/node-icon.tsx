@@ -1,8 +1,8 @@
 import { Spinner } from "@/components/ui/spinner"
 import {
-  nodeRegistry,
+  systemNodeRegistry,
   type NodeType,
-} from "@/features/workflows/nodes/node-registry"
+} from "@/features/workflows/system"
 import { cn } from "@/lib/utils"
 
 export interface NodeIconProps {
@@ -13,7 +13,7 @@ export interface NodeIconProps {
 
 // The accent-colored icon chip, mirroring the node on the canvas.
 export function NodeIcon({ type, className, running = false }: NodeIconProps) {
-  const def = nodeRegistry[type]
+  const def = systemNodeRegistry[type]
   if (!def) return null
   const Icon = def.icon
 

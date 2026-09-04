@@ -781,9 +781,9 @@ export function WorkflowSimulator() {
   }, [isFullWorkflow, nodes, activeTransferEdges, completedStepIds])
 
   return (
-    <div className="mx-auto w-full max-w-[1360px] select-none">
+    <div className="mx-auto w-full max-w-340 select-none">
       {/* Studio Window Chrome */}
-      <div className="relative flex h-[680px] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl sm:h-[720px] sm:rounded-2xl">
+      <div className="relative flex h-170 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl sm:h-180 sm:rounded-2xl">
         {/* Main Studio Layout */}
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
           {/* ================================================================= */}
@@ -961,7 +961,7 @@ export function WorkflowSimulator() {
             {/* Canvas Body with Dot Grid */}
             <div className="relative w-full flex-1 overflow-x-auto overflow-y-hidden select-none">
               <div
-                className="pointer-events-none absolute inset-0 min-w-[980px] opacity-40 dark:opacity-50"
+                className="pointer-events-none absolute inset-0 min-w-245 opacity-40 dark:opacity-50"
                 style={{
                   backgroundImage:
                     "radial-gradient(hsl(var(--foreground) / 0.14) 1px, transparent 1px)",
@@ -1035,7 +1035,7 @@ export function WorkflowSimulator() {
               </AnimatePresence>
 
               {/* Nodes and SVG Wires Container */}
-              <div className="relative size-full min-w-[980px] overflow-visible">
+              <div className="relative size-full min-w-245 overflow-visible">
                 <svg className="pointer-events-none absolute inset-0 size-full overflow-visible">
                   {edgePaths.map((edge) => (
                     <g key={edge.id}>

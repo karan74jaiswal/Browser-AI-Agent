@@ -120,11 +120,7 @@ Evaluate the current page state. Has this goal been completely achieved? If not,
 
   return {
     success: completed,
-    message:
-      lastSummary ||
-      (completed
-        ? "Goal completed successfully"
-        : "Agent reached maximum steps without full completion"),
     completed,
+    message: lastSummary || (completed ? "Goal achieved" : "Agent terminated"),
   }
 }

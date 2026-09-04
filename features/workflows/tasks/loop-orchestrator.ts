@@ -2,19 +2,23 @@ import { metadata } from "@trigger.dev/sdk"
 import type { DeserializedJson } from "@trigger.dev/core"
 import type { Edge } from "@xyflow/react"
 import type { Stagehand } from "@browserbasehq/stagehand"
-import { nodeRegistry, type NodeType, type StepNodeType } from "../nodes/node-registry"
-import type { QueueItem, RunStep } from "./types"
-import { discoverNextReadyChildren } from "./graph-traversal"
-import { executeSingleNodeStep } from "./single-step-runner"
-import { interpolate, type ConditionCriterion } from "../lib"
+import {
+  nodeRegistry,
+  type LoopFailurePolicy,
+  type LoopMode,
+  type NodeType,
+  type StepNodeType,
+  type WhileRuleMode,
+} from "@/features/workflows/system"
 import {
   parseLoopItems,
   parseMaxIterations,
   shouldContinueWhileLoop,
-  type LoopMode,
-  type WhileRuleMode,
-  type LoopFailurePolicy,
-} from "../nodes/loop"
+} from "@/features/workflows/system/executors"
+import type { QueueItem, RunStep } from "./types"
+import { discoverNextReadyChildren } from "./graph-traversal"
+import { executeSingleNodeStep } from "./single-step-runner"
+import { interpolate, type ConditionCriterion } from "../lib"
 
 export interface ExecuteLoopStepParams {
   nodeId: string

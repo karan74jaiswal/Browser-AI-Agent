@@ -4,7 +4,7 @@ import {
   nodeRegistry,
   type NodeType,
   type StepNodeType,
-} from "../nodes/node-registry"
+} from "@/features/workflows/system"
 
 export interface UseEditableNodeTitleParams {
   nodeId?: string
