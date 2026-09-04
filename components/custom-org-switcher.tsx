@@ -116,18 +116,9 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
     setIsSwitching(true)
 
     try {
-      await setActive({
-        organization: orgId,
-        navigate: async ({ decorateUrl }) => {
-          const url = decorateUrl("/workflows")
-          if (url.startsWith("http")) {
-            window.location.href = url
-          } else {
-            router.push(url)
-            router.refresh()
-          }
-        },
-      })
+      await setActive({ organization: orgId })
+      router.replace("/workflows")
+      router.refresh()
       toast.success("Switched workspace")
     } catch (err) {
       console.error("Failed to switch workspace:", err)
@@ -206,22 +197,10 @@ export function CustomOrgSwitcher({ className }: { className?: string }) {
 
       // 5. Set newly created org as active context
       if (setActive) {
-        await setActive({
-          organization: newOrg.id,
-          navigate: async ({ decorateUrl }) => {
-            const url = decorateUrl("/workflows")
-            if (url.startsWith("http")) {
-              window.location.href = url
-            } else {
-              router.push(url)
-              router.refresh()
-            }
-          },
-        })
+        await setActive({ organization: newOrg.id })
+        router.replace("/workflows")
+        router.refresh()
       }
-
-      // 6. Revalidate again to ensure sync
-      void userMemberships?.revalidate?.()
 
       toast.success(`Workspace "${newOrg.name}" created!`)
       setIsCreateDialogOpen(false)

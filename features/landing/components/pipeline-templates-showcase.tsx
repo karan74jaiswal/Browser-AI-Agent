@@ -1,11 +1,8 @@
-"use client"
-
 import * as React from "react"
 import Link from "next/link"
 import {
   ArrowRight,
   Bot,
-  CheckCircle2,
   Clock,
   CreditCard,
   FileText,
@@ -13,7 +10,6 @@ import {
   LayoutTemplate,
   Mail,
   MousePointerClick,
-  Sparkles,
   Zap,
 } from "lucide-react"
 

@@ -82,6 +82,14 @@ function WorkspaceProfileCard({ organization, isAdmin }: WorkspaceProfileCardPro
       .slice(0, 2)
       .toUpperCase() || "OR"
 
+  React.useEffect(() => {
+    return () => {
+      if (logoPreview) {
+        URL.revokeObjectURL(logoPreview)
+      }
+    }
+  }, [logoPreview])
+
   const handleSaveGeneral = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!orgName.trim()) return
@@ -96,7 +104,10 @@ function WorkspaceProfileCard({ organization, isAdmin }: WorkspaceProfileCardPro
       }
       toast.success("Workspace settings updated")
       setLogoFile(null)
-      setLogoPreview(null)
+      setLogoPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to update workspace."
       toast.error(msg)
@@ -117,7 +128,10 @@ function WorkspaceProfileCard({ organization, isAdmin }: WorkspaceProfileCardPro
       return
     }
     setLogoFile(file)
-    setLogoPreview(URL.createObjectURL(file))
+    setLogoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
   }
 
   return (

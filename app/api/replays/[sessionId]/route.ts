@@ -1,4 +1,4 @@
-import { auth, currentUser } from "@clerk/nextjs/server"
+import { auth } from "@clerk/nextjs/server"
 import { APIError } from "@browserbasehq/sdk"
 import * as Sentry from "@sentry/nextjs"
 import { browserbase } from "@/lib/browserbase"
@@ -8,9 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { userId, orgId, has } = await auth()
-  const user = await currentUser()
 
-  if (!userId || !user || !orgId) {
+  if (!userId || !orgId) {
     return new Response("Unauthorized", { status: 401 })
   }
 

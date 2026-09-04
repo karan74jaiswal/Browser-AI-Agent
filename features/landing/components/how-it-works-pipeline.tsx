@@ -1,20 +1,11 @@
-"use client"
-
 import * as React from "react"
 import {
-  Bot,
-  CheckCircle2,
-  GitBranch,
-  Layers,
   MousePointerClick,
-  Sparkles,
   Users,
-  Video,
   Workflow,
   Zap,
 } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 const PIPELINE_STEPS = [

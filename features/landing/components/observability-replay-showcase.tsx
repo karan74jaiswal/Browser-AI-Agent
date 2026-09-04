@@ -3,27 +3,19 @@
 import * as React from "react"
 import {
   Activity,
-  Bot,
   CheckCircle2,
   Clock,
-  Eye,
-  FileText,
   Globe,
-  Maximize2,
   MousePointerClick,
   Pause,
   Play,
   RotateCcw,
   ShieldCheck,
-  Sparkles,
   Terminal,
   Video,
 } from "lucide-react"
-import { motion } from "motion/react"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 
 const DOM_ACTIONS = [
   {
@@ -61,19 +53,51 @@ const DOM_ACTIONS = [
 ]
 
 export function ObservabilityReplayShowcase() {
+  const containerRef = React.useRef<HTMLDivElement>(null)
   const [isPlaying, setIsPlaying] = React.useState(true)
   const [progress, setProgress] = React.useState(42)
+  const [isVisible, setIsVisible] = React.useState(true)
+  const [isInView, setIsInView] = React.useState(true)
 
+  // Pause interval when the browser tab is hidden or minimized
   React.useEffect(() => {
-    if (!isPlaying) return
+    const handleVisibilityChange = () => {
+      setIsVisible(document.visibilityState === "visible")
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    handleVisibilityChange()
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [])
+
+  // Pause interval when the component is scrolled out of the viewport
+  React.useEffect(() => {
+    const node = containerRef.current
+    if (!node || typeof IntersectionObserver === "undefined") return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInView(entry.isIntersecting)
+      },
+      { threshold: 0.1 }
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
+  // Only run interval when playing, browser tab is active, and component is in viewport
+  React.useEffect(() => {
+    if (!isPlaying || !isVisible || !isInView) return
     const interval = setInterval(() => {
       setProgress((prev) => (prev >= 100 ? 0 : prev + 1))
     }, 120)
     return () => clearInterval(interval)
-  }, [isPlaying])
+  }, [isPlaying, isVisible, isInView])
 
   return (
-    <div className="w-full">
+    <div ref={containerRef} className="w-full">
       {/* Section Header */}
       <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
         <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground mb-4 shadow-xs">

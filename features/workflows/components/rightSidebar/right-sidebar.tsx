@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { type StepNodeType } from "@/features/workflows/nodes/node-registry"
 import { downloadWorkflowJson } from "@/features/workflows/lib/workflow-export-import"
 import type { WorkflowGraph } from "@/lib/db"
+import { useStatus } from "@liveblocks/react"
 
 import Inspector from "./inspector"
 import Palette from "./palette"
@@ -44,6 +45,8 @@ export function RightSidebar({
   const [isRenameOpen, setIsRenameOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const { openVault } = useCredentials()
+  const status = useStatus()
+  const isConnected = status === "connected"
 
   const { getNodes, getEdges } = useReactFlow<StepNodeType>()
 
@@ -119,7 +122,8 @@ export function RightSidebar({
             <Button
               size="icon"
               variant="ghost"
-              title="Export workflow (JSON)"
+              title={isConnected ? "Export workflow (JSON)" : "Connecting to canvas..."}
+              disabled={!isConnected}
               onClick={handleExport}
             >
               <Download className="size-4" />

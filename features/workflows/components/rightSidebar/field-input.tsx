@@ -5,9 +5,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import dynamic from "next/dynamic"
 import { NodeField } from "../../nodes/node-registry"
 import { type TokenInputHandle, TokenInput } from "../token-input"
-import { CodeEditor } from "../code-editor"
+
+const CodeEditor = dynamic(
+  () => import("../code-editor").then((mod) => mod.CodeEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-32 w-full animate-pulse rounded-md border border-border bg-muted/40" />
+    ),
+  }
+)
 
 // A single editor field for a node property.
 export default function FieldInput({

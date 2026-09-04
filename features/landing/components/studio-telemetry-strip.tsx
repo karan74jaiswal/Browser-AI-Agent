@@ -1,13 +1,7 @@
-"use client"
-
 import * as React from "react"
 import {
-  Activity,
   CheckCircle2,
-  Clock,
   Cpu,
-  Fingerprint,
-  Layers,
   ShieldCheck,
   Sparkles,
   Zap,

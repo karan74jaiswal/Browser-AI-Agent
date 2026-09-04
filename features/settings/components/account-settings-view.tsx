@@ -149,6 +149,15 @@ export function AccountSettingsView() {
     }
   }, [activeTab, user])
 
+  // Clean up avatar preview object URL on unmount or when preview changes
+  React.useEffect(() => {
+    return () => {
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview)
+      }
+    }
+  }, [avatarPreview])
+
   if (!isLoaded || !user) {
     return (
       <div className="flex h-full w-full items-center justify-center p-12">
@@ -184,7 +193,10 @@ export function AccountSettingsView() {
       toast.success("Profile updated successfully")
       setIsUpdateProfileOpen(false)
       setAvatarFile(null)
-      setAvatarPreview(null)
+      setAvatarPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to update profile."
       toast.error(msg)
@@ -206,7 +218,10 @@ export function AccountSettingsView() {
       return
     }
     setAvatarFile(file)
-    setAvatarPreview(URL.createObjectURL(file))
+    setAvatarPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
   }
 
   // 2. Handle Add Email
@@ -781,7 +796,19 @@ export function AccountSettingsView() {
       </div>
 
       {/* DIALOG 1: Update Profile */}
-      <Dialog open={isUpdateProfileOpen} onOpenChange={setIsUpdateProfileOpen}>
+      <Dialog
+        open={isUpdateProfileOpen}
+        onOpenChange={(open) => {
+          setIsUpdateProfileOpen(open)
+          if (!open) {
+            setAvatarFile(null)
+            setAvatarPreview((prev) => {
+              if (prev) URL.revokeObjectURL(prev)
+              return null
+            })
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Update profile</DialogTitle>

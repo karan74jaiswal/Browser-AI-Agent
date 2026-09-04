@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
 import { useReactFlow, useStore } from "@xyflow/react"
+import { useStatus } from "@liveblocks/react"
 import Section from "./section"
 import { Lock } from "lucide-react"
 import { toast } from "sonner"
@@ -31,12 +32,59 @@ const sections: { kind: StepNodeKind; label: string }[] = [
 // Every node type from the registry, filtered into the groups below.
 const definitions: NodeDefinition[] = Object.values(nodeRegistry)
 
+export function PaletteSkeleton() {
+  return (
+    <Section title="Toolbar">
+      <div className="space-y-4 px-3 py-3 animate-pulse">
+        <div className="space-y-2">
+          <div className="h-3 w-16 rounded bg-muted" />
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center gap-2.5 px-1.5 py-1">
+              <div className="size-5 rounded bg-muted" />
+              <div className="h-3.5 w-24 rounded bg-muted" />
+            </div>
+            <div className="flex items-center gap-2.5 px-1.5 py-1">
+              <div className="size-5 rounded bg-muted" />
+              <div className="h-3.5 w-28 rounded bg-muted" />
+            </div>
+          </div>
+        </div>
+        <div className="space-y-2 pt-2">
+          <div className="h-3 w-16 rounded bg-muted" />
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center gap-2.5 px-1.5 py-1">
+              <div className="size-5 rounded bg-muted" />
+              <div className="h-3.5 w-20 rounded bg-muted" />
+            </div>
+            <div className="flex items-center gap-2.5 px-1.5 py-1">
+              <div className="size-5 rounded bg-muted" />
+              <div className="h-3.5 w-32 rounded bg-muted" />
+            </div>
+            <div className="flex items-center gap-2.5 px-1.5 py-1">
+              <div className="size-5 rounded bg-muted" />
+              <div className="h-3.5 w-24 rounded bg-muted" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </Section>
+  )
+}
+
 export default function Palette() {
+  const status = useStatus()
+  const isConnected = status === "connected"
+
   const { getNodes, getViewport, addNodes } = useReactFlow<StepNodeType>()
   const { isNodeLocked, redirectToPricing } = useProPlan()
 
   const width = useStore((s) => s.width)
   const height = useStore((s) => s.height)
+
+  if (!isConnected) {
+    return <PaletteSkeleton />
+  }
+
   const add = (type: NodeType) => {
     const def: NodeDefinition | undefined = nodeRegistry[type]
     if (!def) return

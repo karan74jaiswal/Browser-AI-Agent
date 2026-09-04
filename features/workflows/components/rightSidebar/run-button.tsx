@@ -11,8 +11,11 @@ import { validateGraph } from "../../lib"
 import { StepNodeType } from "../../nodes/node-registry"
 import { useWorkflowRuns } from "../workflow-runs-provider"
 import { useCredentials } from "@/features/credentials/components/credentials-provider"
+import { useStatus } from "@liveblocks/react"
 
 export default function RunButton({ workflowId }: { workflowId: string }) {
+  const status = useStatus()
+  const isConnected = status === "connected"
   const { getNodes, getEdges } = useReactFlow<StepNodeType>()
   const { latestRun, isLive, cancelingRunId, cancelRun } = useWorkflowRuns()
   const { availableSecretKeys } = useCredentials()
@@ -87,7 +90,9 @@ export default function RunButton({ workflowId }: { workflowId: string }) {
       size="sm"
       variant="secondary"
       onClick={handleRun}
+      disabled={!isConnected}
       className="gap-1.5"
+      title={!isConnected ? "Connecting to canvas..." : undefined}
     >
       <Play className="size-3.5 fill-primary" />
       <span>Run</span>

@@ -57,9 +57,22 @@ export function CredentialsProvider({
     }
   }, [orgId])
 
-  // Load / reload whenever orgId changes or on initial mount
+  // Sync state if initialCredentials prop changes during render without cascading effects
+  const [prevInitialCredentials, setPrevInitialCredentials] =
+    React.useState(initialCredentials)
+  if (prevInitialCredentials !== initialCredentials) {
+    setPrevInitialCredentials(initialCredentials)
+    setCredentials(initialCredentials)
+  }
+
+  const prevOrgIdRef = React.useRef(orgId)
+
+  // Reload whenever orgId changes on client, avoiding redundant fetch on initial mount
   React.useEffect(() => {
-    refreshCredentials()
+    if (prevOrgIdRef.current !== orgId) {
+      prevOrgIdRef.current = orgId
+      void refreshCredentials()
+    }
   }, [orgId, refreshCredentials])
 
   const addCredentialToState = React.useCallback((cred: SafeCredential) => {

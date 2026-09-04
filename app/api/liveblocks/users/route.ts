@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   const response = await client.users.getUserList({
     userId: userIds,
     organizationId: [orgId],
-    limit: userId.length,
+    limit: userIds.length,
   })
 
   const userMap = new Map(response.data.map((user) => [user.id, user]))
