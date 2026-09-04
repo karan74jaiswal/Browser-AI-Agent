@@ -36,25 +36,26 @@ export default async function Page({ params }: PageProps) {
     notFound()
   }
 
-  const publicAccessToken = await auth.createPublicToken({
-    scopes: {
-      read: {
-        tags: [`workflow:${workflow.id}`],
+  const [publicAccessToken] = await Promise.all([
+    auth.createPublicToken({
+      scopes: {
+        read: {
+          tags: [`workflow:${workflow.id}`],
+        },
       },
-    },
-    expirationTime: "1h",
-  })
-
-  await liveblocks.getOrCreateRoom(workflow.id, {
-    organizationId: workflow.orgId,
-    defaultAccesses: [],
-    groupsAccesses: {
-      [workflow.orgId]: ["room:write"],
-    },
-    metadata: {
-      title: workflow.name,
-    },
-  })
+      expirationTime: "1h",
+    }),
+    liveblocks.getOrCreateRoom(workflow.id, {
+      organizationId: workflow.orgId,
+      defaultAccesses: [],
+      groupsAccesses: {
+        [workflow.orgId]: ["room:write"],
+      },
+      metadata: {
+        title: workflow.name,
+      },
+    }),
+  ])
 
   return (
     <Room roomId={workflow.id}>

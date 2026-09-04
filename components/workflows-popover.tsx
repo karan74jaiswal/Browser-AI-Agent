@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { PlusIcon, Upload, WorkflowIcon } from "lucide-react"
 
-import type { Workflow } from "@/lib/db"
+import type { WorkflowSummary } from "@/lib/db"
 import { cn } from "@/lib/utils"
 import {
   Popover,
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sidebar"
 
 interface WorkflowsPopoverProps {
-  workflows: Workflow[]
+  workflows: WorkflowSummary[]
   activeWorkflowId?: string
   showWorkflowsList?: boolean
   onSelectWorkflow?: (id: string) => void

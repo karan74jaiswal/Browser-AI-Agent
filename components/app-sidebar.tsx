@@ -6,7 +6,7 @@ import { SidebarNavFooter } from "@/components/sidebar-nav-footer"
 import { SidebarWorkflows } from "@/features/workflows/components/sidebar-workflows"
 import { SidebarWorkflowsSkeleton } from "@/features/workflows/components/sidebar-workflows-skeleton"
 import { createWorkflowAction } from "@/features/workflows/actions"
-import { listWorkflows } from "@/features/workflows/data"
+import { listWorkflowsSummary } from "@/features/workflows/data"
 import {
   Sidebar,
   SidebarContent,
@@ -17,7 +17,7 @@ import {
 
 async function SidebarWorkflowsContent() {
   const { orgId } = await auth()
-  const workflows = orgId ? await listWorkflows(orgId) : []
+  const workflows = orgId ? await listWorkflowsSummary(orgId) : []
 
   return (
     <SidebarWorkflows

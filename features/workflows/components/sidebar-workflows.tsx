@@ -7,6 +7,7 @@ import {
   Download,
   LayoutDashboard,
   LayoutTemplate,
+  Loader2,
   Pencil,
   PlusIcon,
   Trash2,
@@ -14,7 +15,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import type { Workflow } from "@/lib/db"
+import type { WorkflowSummary } from "@/lib/db"
 import { WorkflowsPopover } from "@/components/workflows-popover"
 import {
   SidebarGroup,
@@ -25,7 +26,10 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { createWorkflowAction as defaultCreateWorkflowAction } from "@/features/workflows/actions"
+import {
+  createWorkflowAction as defaultCreateWorkflowAction,
+  getWorkflowAction,
+} from "@/features/workflows/actions"
 import { downloadWorkflowJson } from "@/features/workflows/lib/workflow-export-import"
 import { CreateWorkflowDialog } from "./create-workflow-dialog"
 import { ImportWorkflowDialog } from "./import-workflow-dialog"
@@ -33,7 +37,7 @@ import { EditWorkflowDialog } from "./edit-workflow-dialog"
 import { DeleteWorkflowDialog } from "./delete-workflow-dialog"
 
 interface SidebarWorkflowsProps {
-  workflows: Workflow[]
+  workflows: WorkflowSummary[]
   createWorkflowAction?: (
     name: string
   ) => Promise<{ id: string } | null | void | unknown>
@@ -48,11 +52,13 @@ export function SidebarWorkflows({
   const isCollapsed = state === "collapsed" && !isMobile
   const [isCreateOpen, setIsCreateOpen] = React.useState(false)
   const [isImportOpen, setIsImportOpen] = React.useState(false)
-  const [editingWorkflow, setEditingWorkflow] = React.useState<Workflow | null>(
-    null
-  )
+  const [editingWorkflow, setEditingWorkflow] =
+    React.useState<WorkflowSummary | null>(null)
   const [deletingWorkflow, setDeletingWorkflow] =
-    React.useState<Workflow | null>(null)
+    React.useState<WorkflowSummary | null>(null)
+  const [exportingWorkflowId, setExportingWorkflowId] = React.useState<
+    string | null
+  >(null)
 
   const isWorkflowsRoute = Boolean(pathname?.startsWith("/workflows"))
   const activeWorkflowId =
@@ -60,12 +66,23 @@ export function SidebarWorkflows({
       ? pathname.split("/")[2]
       : undefined
 
-  const handleExport = (e: React.MouseEvent, workflow: Workflow) => {
+  const handleExport = async (e: React.MouseEvent, workflow: WorkflowSummary) => {
     e.preventDefault()
     e.stopPropagation()
-    const graph = workflow.graph || { nodes: [], edges: [] }
-    downloadWorkflowJson(workflow.name, graph)
-    toast.success(`Workflow "${workflow.name}" exported`)
+    if (exportingWorkflowId) return
+
+    setExportingWorkflowId(workflow.id)
+    try {
+      const fullWorkflow = await getWorkflowAction(workflow.id)
+      const graph = fullWorkflow?.graph || { nodes: [], edges: [] }
+      downloadWorkflowJson(workflow.name, graph)
+      toast.success(`Workflow "${workflow.name}" exported`)
+    } catch (err) {
+      console.error("Failed to export workflow:", err)
+      toast.error("Failed to export workflow")
+    } finally {
+      setExportingWorkflowId(null)
+    }
   }
 
   return (
@@ -219,10 +236,15 @@ export function SidebarWorkflows({
                       <button
                         type="button"
                         onClick={(e) => handleExport(e, workflow)}
+                        disabled={exportingWorkflowId === workflow.id}
                         title="Export workflow (JSON)"
-                        className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:opacity-50"
                       >
-                        <Download className="size-3.5" />
+                        {exportingWorkflowId === workflow.id ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Download className="size-3.5" />
+                        )}
                       </button>
                       <button
                         type="button"

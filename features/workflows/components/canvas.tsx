@@ -104,6 +104,14 @@ export function Canvas({ workflowId, initialGraph }: CanvasProps) {
       },
     })
 
+  const nodesRef = React.useRef(nodes)
+  const edgesRef = React.useRef(edges)
+
+  React.useEffect(() => {
+    nodesRef.current = nodes
+    edgesRef.current = edges
+  })
+
   const lastSavedJsonRef = React.useRef<string>("")
   const isSavingRef = React.useRef(false)
   const dragStopTimerRef = React.useRef<NodeJS.Timeout | null>(null)
@@ -156,9 +164,15 @@ export function Canvas({ workflowId, initialGraph }: CanvasProps) {
     [workflowId, sanitizeGraph]
   )
 
+  const lastStructuralFingerprintRef = React.useRef("")
   // Structural fingerprint tracking nodes, values, and edge topology (ignores x/y position dragging)
   const structuralFingerprint = React.useMemo(() => {
     if (!nodes || !edges) return ""
+
+    if (nodes.some((n) => n.dragging)) {
+      // eslint-disable-next-line react-hooks/refs
+      return lastStructuralFingerprintRef.current // skip the full scan mid-drag
+    }
     const nodeParts = nodes
       .map(
         (n) =>
@@ -177,7 +191,10 @@ export function Canvas({ workflowId, initialGraph }: CanvasProps) {
       )
       .sort()
       .join("|")
-    return `${nodeParts}##${edgeParts}`
+    const fp = `${nodeParts}##${edgeParts}`
+    // eslint-disable-next-line react-hooks/refs
+    lastStructuralFingerprintRef.current = fp
+    return fp
   }, [nodes, edges])
 
   // 1. Auto-save on structural and configuration changes (1000ms debounce)
@@ -185,11 +202,12 @@ export function Canvas({ workflowId, initialGraph }: CanvasProps) {
     if (!workflowId || !structuralFingerprint) return
 
     const timer = setTimeout(() => {
-      persistGraph(nodes, edges)
+      persistGraph(nodesRef.current, edgesRef.current)
     }, 1000)
 
     return () => clearTimeout(timer)
-  }, [structuralFingerprint, persistGraph, nodes, edges, workflowId])
+    // eslint-disable-next-line react-hooks/refs
+  }, [structuralFingerprint, persistGraph, workflowId])
 
   // 2. Auto-save node layout positions only when dragging has stopped
   const handleDragStop = React.useCallback(() => {
@@ -197,9 +215,9 @@ export function Canvas({ workflowId, initialGraph }: CanvasProps) {
       clearTimeout(dragStopTimerRef.current)
     }
     dragStopTimerRef.current = setTimeout(() => {
-      persistGraph(nodes, edges)
+      persistGraph(nodesRef.current, edgesRef.current)
     }, 2500)
-  }, [persistGraph, nodes, edges])
+  }, [persistGraph])
 
   // Structural fingerprint of switch node routing rules to avoid running edge pruning on node coordinate dragging
   const switchNodesFingerprint = React.useMemo(() => {
@@ -215,8 +233,9 @@ export function Canvas({ workflowId, initialGraph }: CanvasProps) {
 
   // Auto-prune orphaned edges on switch nodes whose handles no longer exist
   React.useEffect(() => {
-    if (!nodes || !edges) return
-    const nodeMap = new Map(nodes.map((n) => [n.id, n]))
+    const currentNodes = nodesRef.current
+    if (!currentNodes || !edges) return
+    const nodeMap = new Map(currentNodes.map((n) => [n.id, n]))
     const orphanedEdges = edges.filter((edge) => {
       const sourceNode = nodeMap.get(edge.source)
       if (!sourceNode || sourceNode.data.type !== "switch") return false
@@ -253,7 +272,7 @@ export function Canvas({ workflowId, initialGraph }: CanvasProps) {
     if (orphanedEdges.length > 0) {
       onDelete({ edges: orphanedEdges, nodes: [] })
     }
-  }, [switchNodesFingerprint, edges, onDelete, nodes])
+  }, [switchNodesFingerprint, edges, onDelete])
 
   const colorMode: ColorMode = React.useMemo(() => {
     if (!isMounted) return "light"

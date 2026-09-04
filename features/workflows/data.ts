@@ -11,6 +11,20 @@ export function listWorkflows(orgId: string) {
     .orderBy(desc(workflows.createdAt))
 }
 
+export function listWorkflowsSummary(orgId: string) {
+  return db
+    .select({
+      id: workflows.id,
+      orgId: workflows.orgId,
+      name: workflows.name,
+      createdAt: workflows.createdAt,
+      updatedAt: workflows.updatedAt,
+    })
+    .from(workflows)
+    .where(eq(workflows.orgId, orgId))
+    .orderBy(desc(workflows.createdAt))
+}
+
 export async function countWorkflows(orgId: string): Promise<number> {
   const [result] = await db
     .select({ count: count() })

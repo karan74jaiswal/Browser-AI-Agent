@@ -36,6 +36,7 @@ export const workflows = pgTable(
 
 export type Workflow = typeof workflows.$inferSelect
 export type NewWorkflow = typeof workflows.$inferInsert
+export type WorkflowSummary = Omit<Workflow, "graph">
 
 export const credentials = pgTable(
   "credentials",

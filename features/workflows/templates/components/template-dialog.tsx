@@ -35,7 +35,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { nodeRegistry, type NodeType, type StepNodeType } from "@/features/workflows/nodes/node-registry"
+import {
+  nodeRegistry,
+  type NodeType,
+  type StepNodeType,
+} from "@/features/workflows/nodes/node-registry"
 import { NodeIcon } from "@/features/workflows/components/node-icon"
 import { TEMPLATE_CATEGORIES, type WorkflowTemplate } from "../types"
 import { cloneWorkflowFromTemplateAction } from "../actions"
@@ -393,10 +397,13 @@ function formatPreviewDetails(
   const details: { label: string; value: string }[] = []
 
   const cleanTokens = (str: string) => {
-    return str.replace(/\{\{\s*([a-zA-Z0-9_-]+)\.([^}\s]+)\s*\}\}/g, (_, node, path) => {
-      const cleanPath = path.replace(/_/g, " ")
-      return `[${cleanPath}]`
-    })
+    return str.replace(
+      /\{\{\s*([a-zA-Z0-9_-]+)\.([^}\s]+)\s*\}\}/g,
+      (_, node, path) => {
+        const cleanPath = path.replace(/_/g, " ")
+        return `[${cleanPath}]`
+      }
+    )
   }
 
   if (nodeType === "stripe-trigger") {
@@ -432,7 +439,10 @@ function formatPreviewDetails(
   } else if (nodeType === "switch") {
     details.push({
       label: "Router Mode",
-      value: values.mode === "value_match" ? "Value match" : "Rule-based multi-branch",
+      value:
+        values.mode === "value_match"
+          ? "Value match"
+          : "Rule-based multi-branch",
     })
     try {
       const rules = JSON.parse(values.rules || "[]")
@@ -540,6 +550,7 @@ export function TemplateDialog({
   // Track active template across renders so exit animations complete cleanly
   // When a new non-null template is clicked, it immediately renders fresh data
   const activeTemplateRef = React.useRef<WorkflowTemplate | null>(template)
+
   if (template) {
     activeTemplateRef.current = template
   }
@@ -572,7 +583,9 @@ export function TemplateDialog({
     if (!currentTemplate) return
 
     if (!isSignedIn) {
-      router.push(`/sign-in?redirect_url=/templates?clone=${currentTemplate.id}`)
+      router.push(
+        `/sign-in?redirect_url=/templates?clone=${currentTemplate.id}`
+      )
       return
     }
 
@@ -605,9 +618,9 @@ export function TemplateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl lg:max-w-5xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl border border-border bg-card dark:bg-[#121214] shadow-2xl duration-200">
+      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-border bg-card p-0 shadow-2xl duration-200 sm:max-w-4xl lg:max-w-5xl dark:bg-[#121214]">
         {/* Modal Header */}
-        <DialogHeader className="p-5 md:p-6 pb-4 border-b border-border/70 bg-muted/25 shrink-0">
+        <DialogHeader className="shrink-0 border-b border-border/70 bg-muted/25 p-5 pb-4 md:p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3.5">
               <div
@@ -619,23 +632,23 @@ export function TemplateDialog({
                 <BrandIcon className="size-6" />
               </div>
               <div className="flex flex-col gap-1 text-left">
-                <DialogTitle className="text-lg md:text-xl font-bold tracking-tight text-foreground">
+                <DialogTitle className="text-lg font-bold tracking-tight text-foreground md:text-xl">
                   {currentTemplate.title}
                 </DialogTitle>
-                <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="flex flex-wrap items-center gap-2.5">
                   {categoryMetadata && (
                     <Badge
                       variant="secondary"
-                      className="text-[11px] font-medium bg-muted text-foreground/80 px-2 py-0.5"
+                      className="bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground/80"
                     >
                       {categoryMetadata.label}
                     </Badge>
                   )}
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
                     <Clock className="size-3 text-muted-foreground" />
                     Est. {currentTemplate.estimatedRunTime}
                   </span>
-                  <span className="text-muted-foreground text-xs">•</span>
+                  <span className="text-xs text-muted-foreground">•</span>
                   <span className="text-xs text-muted-foreground">
                     By {currentTemplate.author.name}
                   </span>
@@ -646,15 +659,15 @@ export function TemplateDialog({
         </DialogHeader>
 
         {/* 2-Column Split Body */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-12 overflow-hidden min-h-0">
+        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-12">
           {/* Left Column: Overview & Credentials */}
-          <div className="md:col-span-5 border-b md:border-b-0 md:border-r border-border/70 p-5 md:p-6 space-y-6 overflow-y-auto bg-muted/10">
+          <div className="space-y-6 overflow-y-auto border-b border-border/70 bg-muted/10 p-5 md:col-span-5 md:border-r md:border-b-0 md:p-6">
             {/* About this automation */}
             <div className="space-y-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 About This Automation
               </h4>
-              <p className="text-xs md:text-sm text-foreground/90 leading-relaxed">
+              <p className="text-xs leading-relaxed text-foreground/90 md:text-sm">
                 {currentTemplate.fullDescription}
               </p>
             </div>
@@ -663,17 +676,17 @@ export function TemplateDialog({
             {currentTemplate.highlights &&
               currentTemplate.highlights.length > 0 && (
                 <div className="space-y-2.5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                     Key Capabilities
                   </h4>
                   <div className="flex flex-col gap-2">
                     {currentTemplate.highlights.map((highlight, idx) => (
                       <div
                         key={idx}
-                        className="flex items-start gap-2.5 text-xs text-foreground/90 bg-muted/40 border border-border/60 rounded-lg p-2.5"
+                        className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/40 p-2.5 text-xs text-foreground/90"
                       >
-                        <CheckCircle2 className="size-4 text-emerald-500 shrink-0 mt-0.5" />
-                        <span className="font-medium leading-snug">
+                        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+                        <span className="leading-snug font-medium">
                           {highlight}
                         </span>
                       </div>
@@ -685,33 +698,33 @@ export function TemplateDialog({
             {/* Required Integrations */}
             {currentTemplate.requiredIntegrations.length > 0 && (
               <div className="space-y-2.5">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                   Required Integrations &amp; API Keys
                 </h4>
                 <div className="flex flex-col gap-2.5">
                   {currentTemplate.requiredIntegrations.map((integration) => (
                     <div
                       key={integration.key}
-                      className="flex flex-col gap-1.5 p-3 rounded-xl border border-border/80 bg-background text-xs shadow-2xs"
+                      className="flex flex-col gap-1.5 rounded-xl border border-border/80 bg-background p-3 text-xs shadow-2xs"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-foreground">
                             {integration.name}
                           </span>
-                          <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                             {integration.key}
                           </code>
                         </div>
                         <Badge
                           variant="outline"
-                          className="text-[10px] font-normal border-border bg-muted/30 text-muted-foreground"
+                          className="border-border bg-muted/30 text-[10px] font-normal text-muted-foreground"
                         >
                           {integration.optional ? "Optional" : "Required"}
                         </Badge>
                       </div>
                       {integration.description && (
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        <p className="text-[11px] leading-relaxed text-muted-foreground">
                           {integration.description}
                         </p>
                       )}
@@ -724,18 +737,19 @@ export function TemplateDialog({
 
           {/* Right Column: Workflow Step Pipeline Topology */}
           <div
-            className="md:col-span-7 p-5 md:p-6 space-y-4 overflow-y-auto bg-background/50 relative"
+            className="relative space-y-4 overflow-y-auto bg-background/50 p-5 md:col-span-7 md:p-6"
             style={{
-              backgroundImage: "radial-gradient(hsl(var(--foreground) / 0.12) 1px, transparent 1px)",
+              backgroundImage:
+                "radial-gradient(hsl(var(--foreground) / 0.12) 1px, transparent 1px)",
               backgroundSize: "20px 20px",
             }}
           >
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <h4 className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 <span className="size-1.5 rounded-full bg-emerald-500" />
                 <span>Workflow Topology Pipeline</span>
               </h4>
-              <span className="text-[11px] font-mono text-muted-foreground font-medium">
+              <span className="font-mono text-[11px] font-medium text-muted-foreground">
                 {nodes.length} Steps · {edges.length} Connections
               </span>
             </div>
@@ -752,7 +766,7 @@ export function TemplateDialog({
                   return (
                     <React.Fragment key={item.node.id}>
                       {/* Step Card with Handles */}
-                      <div className="relative flex flex-col gap-2 p-3.5 rounded-xl bg-card/90 dark:bg-[#161619] backdrop-blur-xs border border-border/80 shadow-xs group select-none">
+                      <div className="group relative flex flex-col gap-2 rounded-xl border border-border/80 bg-card/90 p-3.5 shadow-xs backdrop-blur-xs select-none dark:bg-[#161619]">
                         {/* Step Handle Notches */}
                         <div
                           style={{
@@ -761,7 +775,7 @@ export function TemplateDialog({
                             top: "50%",
                             transform: "translate(-100%, -50%)",
                           }}
-                          className="w-1.5 h-3 rounded-l-xs bg-border group-hover:bg-blue-500 transition-colors"
+                          className="h-3 w-1.5 rounded-l-xs bg-border transition-colors group-hover:bg-blue-500"
                         />
                         <div
                           style={{
@@ -770,36 +784,42 @@ export function TemplateDialog({
                             top: "50%",
                             transform: "translate(100%, -50%)",
                           }}
-                          className="w-1.5 h-3 rounded-r-xs bg-border group-hover:bg-blue-500 transition-colors"
+                          className="h-3 w-1.5 rounded-r-xs bg-border transition-colors group-hover:bg-blue-500"
                         />
 
                         <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-bold text-muted-foreground font-mono">
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-muted font-mono text-xs font-bold text-muted-foreground">
                               {item.stepNumber}
                             </span>
-                            <NodeIcon type={nodeType} className="size-6 shrink-0" />
-                            <span className="text-xs md:text-sm font-semibold text-foreground truncate">
+                            <NodeIcon
+                              type={nodeType}
+                              className="size-6 shrink-0"
+                            />
+                            <span className="truncate text-xs font-semibold text-foreground md:text-sm">
                               {title}
                             </span>
                           </div>
 
                           <Badge
                             variant="secondary"
-                            className="text-[10px] font-medium shrink-0 bg-muted text-muted-foreground font-mono"
+                            className="shrink-0 bg-muted font-mono text-[10px] font-medium text-muted-foreground"
                           >
                             {def?.label || nodeType}
                           </Badge>
                         </div>
 
                         {details.length > 0 && (
-                          <div className="grid grid-cols-1 gap-1 pl-8 text-[11px] font-mono">
+                          <div className="grid grid-cols-1 gap-1 pl-8 font-mono text-[11px]">
                             {details.map((d, dIdx) => (
-                              <div key={dIdx} className="flex items-baseline gap-2">
-                                <span className="text-muted-foreground font-medium shrink-0 min-w-[75px]">
+                              <div
+                                key={dIdx}
+                                className="flex items-baseline gap-2"
+                              >
+                                <span className="min-w-[75px] shrink-0 font-medium text-muted-foreground">
                                   {d.label}:
                                 </span>
-                                <span className="text-foreground/90 break-all line-clamp-2">
+                                <span className="line-clamp-2 break-all text-foreground/90">
                                   {d.value}
                                 </span>
                               </div>
@@ -811,7 +831,7 @@ export function TemplateDialog({
                       {/* Downward connector */}
                       {idx < pipelineItems.length - 1 && (
                         <div className="flex items-center justify-center py-0.5">
-                          <div className="flex items-center justify-center size-5 rounded-full bg-card text-muted-foreground border border-border/80 shadow-2xs">
+                          <div className="flex size-5 items-center justify-center rounded-full border border-border/80 bg-card text-muted-foreground shadow-2xs">
                             <ArrowDown className="size-3 text-blue-500" />
                           </div>
                         </div>
@@ -826,25 +846,31 @@ export function TemplateDialog({
                 const parentTitle =
                   item.parentNode.data?.title || parentDef?.label || "Router"
                 const parentValues = item.parentNode.data?.values || {}
-                const parentDetails = formatPreviewDetails(parentType, parentValues)
+                const parentDetails = formatPreviewDetails(
+                  parentType,
+                  parentValues
+                )
 
                 return (
                   <React.Fragment key={item.parentNode.id}>
                     {/* Branching Router Step Card */}
-                    <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-card border border-primary/30 shadow-2xs">
+                    <div className="flex flex-col gap-2 rounded-xl border border-primary/30 bg-card p-3.5 shadow-2xs">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold font-mono">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-xs font-bold text-primary">
                             {item.stepNumber}
                           </span>
-                          <NodeIcon type={parentType} className="size-6 shrink-0" />
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-xs md:text-sm font-semibold text-foreground truncate">
+                          <NodeIcon
+                            type={parentType}
+                            className="size-6 shrink-0"
+                          />
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="truncate text-xs font-semibold text-foreground md:text-sm">
                               {parentTitle}
                             </span>
                             <Badge
                               variant="outline"
-                              className="text-[10px] font-medium border-primary/40 bg-primary/10 text-primary gap-1 px-1.5 py-0"
+                              className="gap-1 border-primary/40 bg-primary/10 px-1.5 py-0 text-[10px] font-medium text-primary"
                             >
                               <Split className="size-2.5" />
                               {item.branches.length} Routes
@@ -854,7 +880,7 @@ export function TemplateDialog({
 
                         <Badge
                           variant="secondary"
-                          className="text-[10px] font-medium shrink-0 bg-muted text-muted-foreground"
+                          className="shrink-0 bg-muted text-[10px] font-medium text-muted-foreground"
                         >
                           {parentDef?.label || parentType}
                         </Badge>
@@ -863,11 +889,14 @@ export function TemplateDialog({
                       {parentDetails.length > 0 && (
                         <div className="grid grid-cols-1 gap-1 pl-8 text-[11px]">
                           {parentDetails.map((d, dIdx) => (
-                            <div key={dIdx} className="flex items-baseline gap-2">
-                              <span className="text-muted-foreground font-medium shrink-0 min-w-[75px]">
+                            <div
+                              key={dIdx}
+                              className="flex items-baseline gap-2"
+                            >
+                              <span className="min-w-[75px] shrink-0 font-medium text-muted-foreground">
                                 {d.label}:
                               </span>
-                              <span className="text-foreground/90 font-mono break-all line-clamp-2">
+                              <span className="line-clamp-2 font-mono break-all text-foreground/90">
                                 {d.value}
                               </span>
                             </div>
@@ -877,8 +906,8 @@ export function TemplateDialog({
                     </div>
 
                     {/* Multi-Branch Visual Container */}
-                    <div className="relative pl-3 md:pl-4 border-l-2 border-dashed border-border/80 my-1 space-y-3">
-                      <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">
+                    <div className="relative my-1 space-y-3 border-l-2 border-dashed border-border/80 pl-3 md:pl-4">
+                      <div className="flex items-center gap-2 pl-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                         <GitFork className="size-3.5 text-primary" />
                         <span>
                           {item.branchType === "switch"
@@ -896,20 +925,20 @@ export function TemplateDialog({
                         {item.branches.map((branch, bIdx) => (
                           <div
                             key={bIdx}
-                            className="flex flex-col gap-2 p-3 rounded-xl border border-border/80 bg-muted/25"
+                            className="flex flex-col gap-2 rounded-xl border border-border/80 bg-muted/25 p-3"
                           >
                             {/* Branch Route Header Badge */}
                             <div className="flex items-center justify-between gap-2">
                               <Badge
                                 variant="outline"
                                 className={cn(
-                                  "text-[10px] font-semibold px-2 py-0.5 border",
+                                  "border px-2 py-0.5 text-[10px] font-semibold",
                                   branch.badgeColor
                                 )}
                               >
                                 {branch.label}
                               </Badge>
-                              <span className="text-[10px] font-mono text-muted-foreground">
+                              <span className="font-mono text-[10px] text-muted-foreground">
                                 Route #{bIdx + 1}
                               </span>
                             </div>
@@ -930,21 +959,21 @@ export function TemplateDialog({
                                 return (
                                   <div
                                     key={bNode.id}
-                                    className="flex flex-col gap-1.5 p-2.5 rounded-lg bg-card border border-border/70 text-xs shadow-2xs"
+                                    className="flex flex-col gap-1.5 rounded-lg border border-border/70 bg-card p-2.5 text-xs shadow-2xs"
                                   >
                                     <div className="flex items-center justify-between gap-2">
-                                      <div className="flex items-center gap-2 min-w-0">
+                                      <div className="flex min-w-0 items-center gap-2">
                                         <NodeIcon
                                           type={bType}
                                           className="size-5 shrink-0"
                                         />
-                                        <span className="font-semibold text-foreground truncate">
+                                        <span className="truncate font-semibold text-foreground">
                                           {bTitle}
                                         </span>
                                       </div>
                                       <Badge
                                         variant="secondary"
-                                        className="text-[9px] font-normal px-1.5 py-0"
+                                        className="px-1.5 py-0 text-[9px] font-normal"
                                       >
                                         {bDef?.label || bType}
                                       </Badge>
@@ -957,10 +986,10 @@ export function TemplateDialog({
                                             key={bdIdx}
                                             className="flex items-baseline gap-1.5"
                                           >
-                                            <span className="text-muted-foreground font-medium shrink-0">
+                                            <span className="shrink-0 font-medium text-muted-foreground">
                                               {bd.label}:
                                             </span>
-                                            <span className="text-foreground/90 font-mono break-all line-clamp-1">
+                                            <span className="line-clamp-1 font-mono break-all text-foreground/90">
                                               {bd.value}
                                             </span>
                                           </div>
@@ -983,13 +1012,13 @@ export function TemplateDialog({
         </div>
 
         {/* Modal Footer with Clean Spacing & Non-Sticking Margins */}
-        <div className="flex flex-row items-center justify-between gap-3 p-4 px-6 border-t border-border/70 bg-muted/20 shrink-0">
+        <div className="flex shrink-0 flex-row items-center justify-between gap-3 border-t border-border/70 bg-muted/20 p-4 px-6">
           <Button
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isCloning}
-            className="h-9 px-4 text-xs cursor-pointer"
+            className="h-9 cursor-pointer px-4 text-xs"
           >
             Cancel
           </Button>
@@ -998,7 +1027,7 @@ export function TemplateDialog({
             type="button"
             onClick={handleUseTemplate}
             disabled={isCloning}
-            className="h-9 px-5 text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
+            className="h-9 cursor-pointer gap-1.5 px-5 text-xs font-semibold shadow-xs"
           >
             {isCloning ? (
               <>
