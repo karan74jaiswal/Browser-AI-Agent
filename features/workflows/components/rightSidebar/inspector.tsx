@@ -9,31 +9,26 @@ import {
   Sparkles,
   Workflow,
 } from "lucide-react"
-import { Label } from "@/components/ui/label"
 import Section from "./section"
-import { useState, useRef, useMemo } from "react"
+import { useState, useRef, useMemo, Suspense } from "react"
 import { toast } from "sonner"
 import { useUpstreamConnections } from "../../hooks"
-import { extractAllTokenReferences, ConditionCriterion } from "../../lib"
+import { extractAllTokenReferences } from "../../lib"
 import {
   StepNodeType,
   NodeType,
   NodeDefinition,
   systemNodeRegistry as nodeRegistry,
+  getSystemNodeModule,
 } from "@/features/workflows/system"
+import {
+  getSystemNodeInspector,
+  DefaultNodeInspector,
+} from "@/features/workflows/system/inspectors"
 import { NodeIcon } from "../node-icon"
 import { TokenInputHandle } from "../token-input"
 import { EditableNodeTitle } from "../editable-node-title"
 import { useCredentials } from "@/features/credentials/components/credentials-provider"
-import DiscordInspector from "./discord-inspector"
-import FieldInput from "./field-input"
-import GoogleFormTriggerInspector from "./google-form-trigger-inspector"
-import IfInspector from "./if-inspector"
-import SlackInspector from "./slack-inspector"
-import StripeTriggerInspector from "./stripe-trigger-inspector"
-import SwitchInspector from "./switch-inspector"
-import MergeInspector from "./merge-inspector"
-import LoopInspector from "./loop-inspector"
 
 export default function Inspector({
   node,
@@ -143,9 +138,10 @@ export default function Inspector({
 
   const { type, title, values } = node.data
   const def: NodeDefinition = nodeRegistry[type]
-  const insertableFields = def.fields.filter(
+  const mod = getSystemNodeModule(type)
+  const insertableFields = def?.fields?.filter(
     (f) => !f.options || f.options.length === 0
-  )
+  ) ?? []
 
   const handleRelink = (targetNodeId: string, targetTitle: string) => {
     if (!node) return
@@ -178,7 +174,7 @@ export default function Inspector({
   }
 
   const handleInsertToken = (token: string) => {
-    // 1. If an active input field is focused (standard field or If condition), insert directly into it
+    // 1. If an active input field is focused (standard field or custom condition), insert directly into it
     if (activeFieldKey) {
       const handle = inputRefs.current.get(activeFieldKey)
       if (handle) {
@@ -207,94 +203,29 @@ export default function Inspector({
       return
     }
 
-    // 3. Fallback for If node: insert into first condition's left field if none focused
-    if (type === "if") {
-      try {
-        const conditions: ConditionCriterion[] = JSON.parse(
-          values.conditions || "[]"
-        )
-        if (conditions.length > 0) {
-          const first = conditions[0]
-          const fieldKey = `condition-${first.id}-left`
-          setActiveFieldKey(fieldKey)
-          const handle = inputRefs.current.get(fieldKey)
-          if (handle) {
-            handle.insertToken(token)
-          } else {
-            const next = [
-              { ...first, left: first.left ? `${first.left} ${token}` : token },
-              ...conditions.slice(1),
-            ]
-            updateNodeData(node.id, {
-              values: { ...values, conditions: JSON.stringify(next) },
-            })
-          }
-        }
-      } catch {}
-      return
-    }
-
-    // 4. Fallback for Loop node: insert into items or condition
-    if (type === "loop") {
-      const mode = values.mode || "for_each"
-      if (mode === "while") {
-        try {
-          const conditions: ConditionCriterion[] = JSON.parse(
-            values.conditions || "[]"
-          )
-          if (conditions.length > 0) {
-            const first = conditions[0]
-            setActiveFieldKey("conditions")
-            const handle = inputRefs.current.get("conditions")
-            if (handle) {
-              handle.insertToken(token)
-            } else {
-              const next = [
-                {
-                  ...first,
-                  left: first.left ? `${first.left} ${token}` : token,
-                },
-                ...conditions.slice(1),
-              ]
-              updateNodeData(node.id, {
-                values: { ...values, conditions: JSON.stringify(next) },
-              })
-            }
-          }
-        } catch {}
-      } else {
-        setActiveFieldKey("items")
-        const handle = inputRefs.current.get("items")
-        if (handle) {
-          handle.insertToken(token)
-        } else {
-          const currentVal = values.items ?? ""
-          const newVal = currentVal ? `${currentVal} ${token}` : token
-          updateNodeData(node.id, {
-            values: { ...values, items: newVal },
-          })
-        }
-      }
+    // 3. Fallback for custom nodes with dedicated token fallback handler
+    if (mod?.onInsertTokenFallback) {
+      mod.onInsertTokenFallback(
+        node,
+        token,
+        updateNodeData,
+        setActiveFieldKey,
+        (key) => inputRefs.current.get(key)
+      )
       return
     }
   }
 
   const handleInsertSecret = (secretName: string) => {
-    if (type === "js-code") {
-      handleInsertToken(`process.env.${secretName}`)
-    } else if (type === "python-code") {
-      handleInsertToken(`os.environ["${secretName}"]`)
-    } else {
-      handleInsertToken(`{{ secrets.${secretName} }}`)
-    }
+    const formatted = mod?.formatSecretToken
+      ? mod.formatSecretToken(secretName)
+      : `{{ secrets.${secretName} }}`
+    handleInsertToken(formatted)
   }
 
   const hasConnections =
     connections.length > 0 &&
-    (insertableFields.length > 0 ||
-      type === "if" ||
-      type === "switch" ||
-      type === "loop")
+    (insertableFields.length > 0 || !!mod?.acceptsTokens)
 
   const connectionsFooter =
     hasConnections || credentials.length > 0 ? (
@@ -357,13 +288,11 @@ export default function Inspector({
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleInsertSecret(cred.name)}
                   className="flex cursor-pointer items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-xs text-foreground shadow-2xs transition-all hover:border-amber-500/50 hover:bg-amber-500/10 active:scale-95"
-                  title={
-                    type === "js-code"
-                      ? `Insert process.env.${cred.name}`
-                      : type === "python-code"
-                        ? `Insert os.environ["${cred.name}"]`
-                        : `Insert {{ secrets.${cred.name} }}`
-                  }
+                  title={`Insert ${
+                    mod?.formatSecretToken
+                      ? mod.formatSecretToken(cred.name)
+                      : `{{ secrets.${cred.name} }}`
+                  }`}
                 >
                   <Lock className="size-3 shrink-0 text-amber-500" />
                   <span className="max-w-36 truncate font-mono text-[11px] font-medium">
@@ -486,107 +415,32 @@ export default function Inspector({
             </div>
           </div>
         )}
-        {def.fields.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No properties</p>
-        ) : (
-          def.fields.map((field) => {
-            const isInsertable = !field.options || field.options.length === 0
-            return (
-              <div key={field.key} className="flex flex-col gap-1.5">
-                <Label htmlFor={field.key} className="text-xs">
-                  {field.label}
-                  {field.required && (
-                    <span className="text-destructive">*</span>
-                  )}
-                </Label>
-                <FieldInput
-                  field={field}
-                  value={values[field.key] ?? ""}
-                  nodeId={node.id}
-                  inputRef={
-                    isInsertable
-                      ? (handle) => {
-                          if (handle) {
-                            inputRefs.current.set(field.key, handle)
-                          } else {
-                            inputRefs.current.delete(field.key)
-                          }
-                        }
-                      : undefined
+        {(() => {
+          const InspectorComponent =
+            getSystemNodeInspector(type) ?? DefaultNodeInspector
+          return (
+            <Suspense
+              fallback={
+                <div className="flex flex-col gap-2 p-2 text-xs text-muted-foreground animate-pulse">
+                  Loading inspector...
+                </div>
+              }
+            >
+              <InspectorComponent
+                node={node}
+                workflowId={workflowId}
+                onFocusField={setActiveFieldKey}
+                registerInputRef={(key, handle) => {
+                  if (handle) {
+                    inputRefs.current.set(key, handle)
+                  } else {
+                    inputRefs.current.delete(key)
                   }
-                  onFocus={
-                    isInsertable
-                      ? () => setActiveFieldKey(field.key)
-                      : undefined
-                  }
-                  onChange={(value) => {
-                    if (isInsertable) {
-                      setActiveFieldKey(field.key)
-                    }
-                    updateNodeData(node.id, {
-                      values: { ...values, [field.key]: value },
-                    })
-                  }}
-                />
-              </div>
-            )
-          })
-        )}
-
-        {type === "google-form-trigger" && (
-          <GoogleFormTriggerInspector node={node} workflowId={workflowId} />
-        )}
-
-        {type === "stripe-trigger" && (
-          <StripeTriggerInspector node={node} workflowId={workflowId} />
-        )}
-
-        {type === "discord" && <DiscordInspector />}
-
-        {type === "slack" && <SlackInspector />}
-
-        {type === "if" && (
-          <IfInspector
-            node={node}
-            onFocusField={setActiveFieldKey}
-            registerInputRef={(key, handle) => {
-              if (handle) {
-                inputRefs.current.set(key, handle)
-              } else {
-                inputRefs.current.delete(key)
-              }
-            }}
-          />
-        )}
-
-        {type === "switch" && (
-          <SwitchInspector
-            node={node}
-            onFocusField={setActiveFieldKey}
-            registerInputRef={(key, handle) => {
-              if (handle) {
-                inputRefs.current.set(key, handle)
-              } else {
-                inputRefs.current.delete(key)
-              }
-            }}
-          />
-        )}
-
-        {type === "merge" && <MergeInspector />}
-        {type === "loop" && (
-          <LoopInspector
-            node={node}
-            onFocusField={setActiveFieldKey}
-            registerInputRef={(key, handle) => {
-              if (handle) {
-                inputRefs.current.set(key, handle)
-              } else {
-                inputRefs.current.delete(key)
-              }
-            }}
-          />
-        )}
+                }}
+              />
+            </Suspense>
+          )
+        })()}
       </div>
     </Section>
   )

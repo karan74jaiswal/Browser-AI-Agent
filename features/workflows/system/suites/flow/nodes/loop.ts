@@ -1,5 +1,6 @@
 import { Repeat } from "lucide-react"
 import type { ActionNodeModule } from "../../../types/module"
+import type { ConditionCriterion } from "@/features/workflows/lib/evaluate-condition"
 import { LoopNodeHandles } from "../handles/loop-handle"
 
 export const loopNodeModule: ActionNodeModule<"loop"> = {
@@ -32,8 +33,56 @@ export const loopNodeModule: ActionNodeModule<"loop"> = {
     loopHandleId: "loop",
   },
   handleComponent: LoopNodeHandles,
-  loadCustomInspector: () =>
-    import("@/features/workflows/components/rightSidebar/loop-inspector"),
+  loadCustomInspector: () => import("../inspectors/loop-inspector"),
+  acceptsTokens: true,
+  onInsertTokenFallback: (
+    node,
+    token,
+    updateNodeData,
+    setActiveFieldKey,
+    getInputHandle
+  ) => {
+    const values = node.data.values || {}
+    const mode = values.mode || "for_each"
+    if (mode === "while") {
+      try {
+        const conditions: ConditionCriterion[] = JSON.parse(
+          values.conditions || "[]"
+        )
+        if (conditions.length > 0) {
+          const first = conditions[0]
+          setActiveFieldKey?.("conditions")
+          const handle = getInputHandle?.("conditions")
+          if (handle) {
+            handle.insertToken(token)
+          } else {
+            const next = [
+              {
+                ...first,
+                left: first.left ? `${first.left} ${token}` : token,
+              },
+              ...conditions.slice(1),
+            ]
+            updateNodeData(node.id, {
+              values: { ...values, conditions: JSON.stringify(next) },
+            })
+          }
+        }
+      } catch {}
+    } else {
+      setActiveFieldKey?.("items")
+      const handle = getInputHandle?.("items")
+      if (handle) {
+        handle.insertToken(token)
+      } else {
+        const currentVal = values.items ?? ""
+        const newVal = currentVal ? `${currentVal} ${token}` : token
+        updateNodeData(node.id, {
+          values: { ...values, items: newVal },
+        })
+      }
+    }
+  },
   getInitialValues: () => ({
     mode: "for_each",
     items: "",

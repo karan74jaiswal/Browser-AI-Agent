@@ -59,7 +59,7 @@ export const stripeTriggerNodeModule: TriggerNodeModule<"stripe-trigger"> = {
   iconSvgPath: `<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>`,
   handleTopology: { type: "standard" },
   loadCustomInspector: () =>
-    import("@/features/workflows/components/rightSidebar/stripe-trigger-inspector"),
+    import("../inspectors/stripe-trigger-inspector"),
   getInitialValues: () => ({
     eventType: "payment_intent.succeeded",
     secret: `whsec_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,

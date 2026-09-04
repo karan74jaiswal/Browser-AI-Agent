@@ -19,10 +19,37 @@ import { type StepNodeType } from "@/features/workflows/system"
 import { downloadWorkflowJson } from "@/features/workflows/lib/workflow-export-import"
 import type { WorkflowGraph } from "@/lib/db"
 import { useStatus } from "@liveblocks/react"
+import dynamic from "next/dynamic"
+import Section from "./section"
 
-import Inspector from "./inspector"
 import Palette from "./palette"
 import RunButton from "./run-button"
+
+export function InspectorSkeleton() {
+  return (
+    <Section title="Editor">
+      <div className="space-y-4 px-3 py-3 animate-pulse">
+        <div className="flex items-center gap-2">
+          <div className="size-5 rounded bg-muted" />
+          <div className="h-4 w-28 rounded bg-muted" />
+        </div>
+        <div className="space-y-2 pt-2">
+          <div className="h-3 w-16 rounded bg-muted" />
+          <div className="h-8 w-full rounded bg-muted" />
+        </div>
+        <div className="space-y-2 pt-2">
+          <div className="h-3 w-20 rounded bg-muted" />
+          <div className="h-8 w-full rounded bg-muted" />
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+const Inspector = dynamic(() => import("./inspector"), {
+  loading: () => <InspectorSkeleton />,
+  ssr: false,
+})
 
 // ---------------------------------------------------------------------------
 // Header — workflow-level actions shown above the tabs.

@@ -7,16 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
-import { generateGoogleFormScript } from "../../lib"
+import { generateGoogleFormScript } from "@/features/workflows/lib/google-form-script"
 import { type StepNodeType } from "@/features/workflows/system"
+import { DefaultNodeInspector } from "@/features/workflows/system/inspectors/default-inspector"
+import type { NodeInspectorProps } from "@/features/workflows/system/types/inspectors"
 
-export default function GoogleFormTriggerInspector({
-  node,
-  workflowId,
-}: {
-  node: StepNodeType
-  workflowId: string
-}) {
+export function GoogleFormTriggerInspector(props: NodeInspectorProps) {
+  const { node, workflowId } = props
   const { orgId } = useAuth()
   const { updateNodeData } = useReactFlow<StepNodeType>()
   const [copiedUrl, setCopiedUrl] = useState(false)
@@ -72,7 +69,9 @@ export default function GoogleFormTriggerInspector({
   }
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border pt-3">
+    <div className="flex flex-col gap-3">
+      <DefaultNodeInspector {...props} />
+      <div className="flex flex-col gap-3 border-t border-border pt-3">
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs font-medium">Webhook URL</Label>
         <div className="flex items-center gap-1.5">
@@ -150,5 +149,9 @@ export default function GoogleFormTriggerInspector({
         </ol>
       </div>
     </div>
+  </div>
   )
 }
+
+export default GoogleFormTriggerInspector
+

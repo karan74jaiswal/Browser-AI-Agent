@@ -5,4 +5,4 @@ export * from "./module"
 export * from "./suite"
 export * from "./runtime"
 export * from "./flow"
-
+export * from "./inspectors"

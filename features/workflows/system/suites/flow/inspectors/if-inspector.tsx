@@ -18,9 +18,15 @@ import {
   ConditionCriterion,
   ConditionOperator,
   LogicalCombinator,
-} from "../../lib"
-import { type StepNodeType } from "@/features/workflows/system"
-import { TokenInputHandle, TokenInput } from "../token-input"
+} from "@/features/workflows/lib"
+import {
+  type StepNodeType,
+  type NodeInspectorProps,
+} from "@/features/workflows/system"
+import {
+  TokenInputHandle,
+  TokenInput,
+} from "@/features/workflows/components/token-input"
 
 const FRIENDLY_OPERATORS: { label: string; value: ConditionOperator }[] = [
   { label: "is equal to", value: "equals" },
@@ -39,15 +45,11 @@ const FRIENDLY_OPERATORS: { label: string; value: ConditionOperator }[] = [
   { label: "does not match regex", value: "not_regex_match" },
 ]
 
-export default function IfInspector({
+export function IfInspector({
   node,
   onFocusField,
   registerInputRef,
-}: {
-  node: StepNodeType
-  onFocusField?: (key: string) => void
-  registerInputRef?: (key: string, handle: TokenInputHandle | null) => void
-}) {
+}: NodeInspectorProps) {
   const { updateNodeData } = useReactFlow<StepNodeType>()
 
   const combinator =
@@ -354,3 +356,6 @@ export default function IfInspector({
     </div>
   )
 }
+
+export default IfInspector
+

@@ -60,11 +60,9 @@ export const mergeNodeModule: ActionNodeModule<"merge"> = {
   icon: GitMerge,
   iconSvgPath: `<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M6 9v3a6 6 0 0 0 6 6h3"/>`,
   handleTopology: { type: "standard" },
-  loadCustomInspector: () =>
-    import("@/features/workflows/components/rightSidebar/merge-inspector"),
+  loadCustomInspector: () => import("../inspectors/merge-inspector"),
   getInitialValues: () => ({
     mode: "combine",
     onBranchFailure: "continue",
   }),
 }
-

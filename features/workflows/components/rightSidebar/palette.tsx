@@ -7,7 +7,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
-import { useReactFlow, useStore } from "@xyflow/react"
+import { useReactFlow, useStoreApi } from "@xyflow/react"
 import { useStatus } from "@liveblocks/react"
 import Section from "./section"
 import { Lock } from "lucide-react"
@@ -65,10 +65,8 @@ export default function Palette() {
   const isConnected = status === "connected"
 
   const { getNodes, getViewport, addNodes } = useReactFlow<StepNodeType>()
+  const store = useStoreApi()
   const { isNodeLocked, redirectToPricing } = useProPlan()
-
-  const width = useStore((s) => s.width)
-  const height = useStore((s) => s.height)
 
   if (!isConnected) {
     return <PaletteSkeleton />
@@ -99,6 +97,7 @@ export default function Palette() {
     const title = `${def.label} ${count + 1}`
 
     const { x, y, zoom } = getViewport()
+    const { width, height } = store.getState()
 
     const position = {
       x: (width / 2 - x) / zoom,

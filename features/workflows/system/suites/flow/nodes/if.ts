@@ -1,5 +1,6 @@
 import { GitBranch } from "lucide-react"
 import type { ActionNodeModule } from "../../../types/module"
+import type { ConditionCriterion } from "@/features/workflows/lib/evaluate-condition"
 import { IfNodeHandles } from "../handles/if-handle"
 
 export const ifNodeModule: ActionNodeModule<"if"> = {
@@ -25,8 +26,38 @@ export const ifNodeModule: ActionNodeModule<"if"> = {
     falseHandleId: "false",
   },
   handleComponent: IfNodeHandles,
-  loadCustomInspector: () =>
-    import("@/features/workflows/components/rightSidebar/if-inspector"),
+  loadCustomInspector: () => import("../inspectors/if-inspector"),
+  acceptsTokens: true,
+  onInsertTokenFallback: (
+    node,
+    token,
+    updateNodeData,
+    setActiveFieldKey,
+    getInputHandle
+  ) => {
+    try {
+      const conditions: ConditionCriterion[] = JSON.parse(
+        node.data.values?.conditions || "[]"
+      )
+      if (conditions.length > 0) {
+        const first = conditions[0]
+        const fieldKey = `condition-${first.id}-left`
+        setActiveFieldKey?.(fieldKey)
+        const handle = getInputHandle?.(fieldKey)
+        if (handle) {
+          handle.insertToken(token)
+        } else {
+          const next = [
+            { ...first, left: first.left ? `${first.left} ${token}` : token },
+            ...conditions.slice(1),
+          ]
+          updateNodeData(node.id, {
+            values: { ...node.data.values, conditions: JSON.stringify(next) },
+          })
+        }
+      }
+    } catch {}
+  },
   getInitialValues: () => ({
     combinator: "and",
     conditions: JSON.stringify([

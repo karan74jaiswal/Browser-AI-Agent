@@ -25,8 +25,8 @@ export const switchNodeModule: ActionNodeModule<"switch"> = {
     getHandles: getSwitchOutputs,
   },
   handleComponent: SwitchNodeHandles,
-  loadCustomInspector: () =>
-    import("@/features/workflows/components/rightSidebar/switch-inspector"),
+  loadCustomInspector: () => import("../inspectors/switch-inspector"),
+  acceptsTokens: true,
   getInitialValues: () => ({
     mode: "rules",
     fallbackEnabled: "true",

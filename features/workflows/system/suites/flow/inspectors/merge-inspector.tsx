@@ -1,10 +1,14 @@
 "use client"
 
 import { GitMerge, Layers, ListFilter, Zap } from "lucide-react"
+import { DefaultNodeInspector } from "@/features/workflows/system/inspectors/default-inspector"
+import type { NodeInspectorProps } from "@/features/workflows/system/types/inspectors"
 
-export default function MergeInspector() {
+export function MergeInspector(props: NodeInspectorProps) {
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-2.5 text-xs text-muted-foreground">
+    <div className="flex flex-col gap-3">
+      <DefaultNodeInspector {...props} />
+      <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-2.5 text-xs text-muted-foreground">
       <div className="flex items-center gap-1.5 font-medium text-foreground">
         <GitMerge className="size-3.5 text-indigo-500" />
         <span>Merge Modes Guide</span>
@@ -61,5 +65,8 @@ export default function MergeInspector() {
         </div>
       </div>
     </div>
+  </div>
   )
 }
+
+export default MergeInspector

@@ -25,14 +25,18 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
-import { ConditionCriterion, ConditionOperator } from "../../lib"
+import { ConditionCriterion, ConditionOperator } from "@/features/workflows/lib"
 import {
   StepNodeType,
   type LoopMode,
   type WhileRuleMode,
   type LoopFailurePolicy,
+  type NodeInspectorProps,
 } from "@/features/workflows/system"
-import { TokenInput, TokenInputHandle } from "../token-input"
+import {
+  TokenInput,
+  TokenInputHandle,
+} from "@/features/workflows/components/token-input"
 
 const FRIENDLY_OPERATORS: { label: string; value: ConditionOperator }[] = [
   { label: "is equal to", value: "equals" },
@@ -45,15 +49,11 @@ const FRIENDLY_OPERATORS: { label: string; value: ConditionOperator }[] = [
   { label: "is less than (<)", value: "less_than" },
 ]
 
-export default function LoopInspector({
+export function LoopInspector({
   node,
   onFocusField,
   registerInputRef,
-}: {
-  node: StepNodeType
-  onFocusField?: (key: string) => void
-  registerInputRef?: (key: string, handle: TokenInputHandle | null) => void
-}) {
+}: NodeInspectorProps) {
   const { updateNodeData } = useReactFlow<StepNodeType>()
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -506,3 +506,6 @@ export default function LoopInspector({
     </div>
   )
 }
+
+export default LoopInspector
+

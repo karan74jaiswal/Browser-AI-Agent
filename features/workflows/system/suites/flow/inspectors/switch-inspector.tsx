@@ -18,13 +18,17 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
-import { ConditionCriterion, ConditionOperator } from "../../lib"
+import { ConditionCriterion, ConditionOperator } from "@/features/workflows/lib"
 import {
   StepNodeType,
   type SwitchRouteRule,
   type SwitchValueCase,
+  type NodeInspectorProps,
 } from "@/features/workflows/system"
-import { TokenInput, TokenInputHandle } from "../token-input"
+import {
+  TokenInput,
+  TokenInputHandle,
+} from "@/features/workflows/components/token-input"
 
 const FRIENDLY_OPERATORS: { label: string; value: ConditionOperator }[] = [
   { label: "is equal to", value: "equals" },
@@ -43,15 +47,11 @@ const FRIENDLY_OPERATORS: { label: string; value: ConditionOperator }[] = [
   { label: "does not match regex", value: "not_regex_match" },
 ]
 
-export default function SwitchInspector({
+export function SwitchInspector({
   node,
   onFocusField,
   registerInputRef,
-}: {
-  node: StepNodeType
-  onFocusField?: (key: string) => void
-  registerInputRef?: (key: string, handle: TokenInputHandle | null) => void
-}) {
+}: NodeInspectorProps) {
   const { updateNodeData } = useReactFlow<StepNodeType>()
   const updateNodeInternals = useUpdateNodeInternals()
 
@@ -800,3 +800,6 @@ export default function SwitchInspector({
     </div>
   )
 }
+
+export default SwitchInspector
+
