@@ -13,6 +13,7 @@
   <a href="#-nodus-vs-traditional-platforms">Comparison</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
   <a href="#-encrypted-credential-vault">Credential Vault</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
   <a href="#-workflow-node-ecosystem">Node Ecosystem</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
+  <a href="#-hierarchical-command-palette--zero-node-memory-footprint">Command Palette</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
   <a href="#-system-architecture">Architecture</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
   <a href="#-technical--engineering-innovations">Engineering</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
   <a href="#-quick-start">Quick Start</a>
@@ -74,6 +75,7 @@ mindmap
     Visual DAG Engine (n8n)
       Multi-branch Parallel Forks
       Diamond Convergence (Merge/Join)
+      Loop & Iteration Control (forEach/while/until)
       Winner-Takes-All Branch Pruning
       Multi-Condition If/Else & Switch
     Cloud Code & Sandbox Execution (E2B)
@@ -114,6 +116,7 @@ mindmap
 | **Handling Sites Without APIs** | ❌ | ❌ | ⚠️ Brittle selectors | 🟢 **Yes (Natural Language & Vision)** |
 | **Video Session Replays of Runs** | ❌ | ❌ | ❌ | 🟢 **Yes (Browserbase HLS Replays)** |
 | **Multi-Branch DAG & Sibling Pruning** | ⚠️ Limited | ✅ | ⚠️ Code only | 🟢 **Yes (Topological DAG Engine)** |
+| **Looping & Iteration Control** | ⚠️ Limited | ✅ | ⚠️ Code only | 🟢 **Yes (Loop Primitive with 4 Modes)** |
 | **Workflow Portability (JSON Export/Import)**| ⚠️ Proprietary | ✅ | ❌ | 🟢 **Yes (Validated Zod Schema)** |
 | **Durable Long-Running Cloud Tasks** | ⚠️ Timeout caps | ⚠️ Self-hosted | ⚠️ DIY Infra | 🟢 **Yes (Trigger.dev v4 Workers)** |
 
@@ -148,46 +151,71 @@ flowchart LR
 
 ## 🧩 Workflow Node Ecosystem
 
-Nodus includes 19 production-ready nodes organized into modular categories:
+Nodus features **20 production-ready nodes** arranged in a clean, decoupled **3-Suite Modular Taxonomy**:
 
-### 1. Trigger Nodes (Webhook & Schedule Ingestion)
+```
+features/workflows/system/suites/
+├── flow/                             # Graph topology, branching, loops, and control flow primitives
+├── core/                             # Compute sandboxes and network execution primitives
+└── apps/                             # Third-party integrations and browser agent tools
+```
+
+### 1. Flow Suite (Graph Topology & Control Flow)
 | Node | Type | Kind | Description | Key Outputs |
 | :--- | :--- | :--- | :--- | :--- |
-| **Start** | `start` | `trigger` | Manual or scheduled trigger to initiate workflow runs. | `timestamp` |
-| **Stripe Webhook** | `stripe-trigger` | `trigger` | Listens for real-time Stripe billing events (`payment_intent.succeeded`, `subscription.created`). | `event`, `customerId`, `amount`, `currency` |
-| **Google Forms Webhook** | `google-form-trigger` | `trigger` | Receives live Google Forms submissions via webhook payloads. | `responses`, `email`, `timestamp` |
+| **Start** | `start` | `trigger` | Workflow entrypoint for manual canvas runs, scheduled triggers, and webhooks. | `timestamp` |
+| **If / Else** | `if` | `action` | Evaluates multi-condition rule sets (`AND`/`OR`, regex, numeric comparisons, null checks) and routes to `True` or `False` branch handles. | `result`, `branch`, `reason` |
+| **Switch** | `switch` | `action` | Multi-handle router directing execution across custom case branches or a default fallback branch. | `routeIndex`, `matchedValue` |
+| **Loop** | `loop` | `action` | Iterates across lists or repeats execution in `for_each`, `count`, `while`, or `until` modes with dedicated `loop-body` and `done` output handles. | `item`, `index`, `iteration`, `isLast`, `totalItems` |
+| **Merge / Join** | `merge` | `action` | Synchronizes parallel branch convergence supporting `first` (winner-takes-all pass-through), `combine` (map results), and `array` (flatten) modes. | `mergedData`, `branchCount`, `winner` |
+| **Wait / Delay** | `wait` | `action` | Suspends execution durably for a specified duration in seconds before resuming. | `waitedSeconds`, `resumedAt` |
+| **Throw Error** | `throw-error` | `action` | Intentionally halts workflow execution with a custom error message for dead-letter handling. | `errorMessage`, `failedAt` |
 
-### 2. Multi-Language Code Execution Nodes (E2B Sandboxes)
+### 2. Core Suite (Code Sandboxes & Network Primitives)
 | Node | Type | Kind | Description | Key Outputs |
 | :--- | :--- | :--- | :--- | :--- |
 | **JavaScript** | `js-code` | `action` | Executes JavaScript / TypeScript in an isolated E2B cloud sandbox. Features live AST infinite loop detection, smart async IIFE wrapping, and token interpolation. | `result`, `stdout`, `stderr` |
 | **Python** | `python-code` | `action` | Executes Python 3 in an isolated E2B cloud sandbox with math, data transformation, and scripting capabilities. | `result`, `stdout`, `stderr` |
-
-### 3. Control Flow & Logic Nodes (n8n-Grade Flow Management)
-| Node | Type | Kind | Description | Key Outputs |
-| :--- | :--- | :--- | :--- | :--- |
-| **If / Else** | `if` | `action` | Evaluates multi-condition rule sets (`AND`/`OR`, regex, numeric comparisons, null checks) and splits into `True` / `False` branches. | `result`, `matchedRule` |
-| **Switch** | `switch` | `action` | Multi-handle router directing execution across custom case branches or a default fallback branch. | `routeIndex`, `matchedValue` |
-| **Merge / Join** | `merge` | `action` | Synchronizes parallel branch convergence supporting `first` (winner-takes-all), `combine` (map results), and `array` (flatten) modes. | `mergedData`, `branchCount`, `winner` |
-| **Wait / Delay** | `wait` | `action` | Suspends execution durably for a specified duration in seconds before resuming. | `waitedSeconds`, `resumedAt` |
-| **Throw Error** | `throw-error` | `action` | Intentionally halts workflow execution with a custom error message for dead-letter handling. | `errorMessage`, `failedAt` |
-
-### 4. Autonomous AI & Cloud Browser Nodes
-| Node | Type | Kind | Description | Key Outputs |
-| :--- | :--- | :--- | :--- | :--- |
-| **Open URL** | `open-url` | `action` | Navigates the isolated cloud browser session to a destination URL. | `url`, `pageTitle`, `status` |
-| **Act** | `act` | `action` | Executes natural-language actions (*"Click the Sign In button"*, *"Type %password% into input"*). | `success`, `message`, `currentUrl` |
-| **Extract** | `extract` | `action` | Extracts structured data from web pages using natural language and strict Zod JSON schemas. | `extraction`, `itemCount` |
-| **Observe** | `observe` | `action` | Discovers interactive elements matching a description and returns candidate selectors. | `matches`, `selector`, `description` |
-| **Agent** | `agent` | `action` | Autonomous multi-step agent that plans and executes complex end-to-end web tasks. | `success`, `message`, `completedSteps` |
-
-### 5. Integration & Communication Nodes (Zapier Connectivity)
-| Node | Type | Kind | Description | Key Outputs |
-| :--- | :--- | :--- | :--- | :--- |
 | **HTTP Request** | `http-request` | `action` | Performs REST API requests (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`) with custom headers, query params, and JSON payloads. | `status`, `data`, `headers` |
-| **Send Email** | `send-email` | `action` | Delivers transactional HTML emails via Resend with vault API key resolution. | `emailId`, `status` |
-| **Discord Webhook** | `discord` | `action` | Sends rich formatted messages and alerts directly to Discord channels. | `status`, `messageId` |
-| **Slack Webhook** | `slack` | `action` | Sends notification messages and structured payloads to Slack channels. | `status`, `ok` |
+
+### 3. Apps Suite (Third-Party Integrations & Cloud Browser Automation)
+| Category | Node | Type | Kind | Description | Key Outputs |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Browserbase** | **Open URL** | `open-url` | `action` | Navigates the cloud browser session to a destination URL. | `url`, `pageTitle`, `status` |
+| **Browserbase** | **Act** | `act` | `action` | Executes natural-language actions (*"Click the Sign In button"*, *"Type %password% into input"*). | `success`, `message`, `currentUrl` |
+| **Browserbase** | **Extract** | `extract` | `action` | Extracts structured data from web pages using natural language and strict Zod JSON schemas. | `extraction`, `itemCount` |
+| **Browserbase** | **Observe** | `observe` | `action` | Discovers interactive elements matching a description and returns candidate selectors. | `matches`, `selector`, `description` |
+| **Browserbase** | **Agent** | `agent` | `action` | Autonomous multi-step agent that plans and executes complex end-to-end web tasks. | `success`, `message`, `completedSteps` |
+| **Stripe** | **Stripe Webhook** | `stripe-trigger` | `trigger` | Listens for real-time Stripe billing events (`payment_intent.succeeded`, `subscription.created`). | `event`, `customerId`, `amount`, `currency` |
+| **Google Forms**| **Google Forms Webhook**| `google-form-trigger` | `trigger` | Receives live Google Forms submissions via webhook payloads. | `responses`, `email`, `timestamp` |
+| **Resend** | **Send Email** | `send-email` | `action` | Delivers transactional HTML emails via Resend with vault API key resolution. | `emailId`, `status` |
+| **Slack** | **Slack Webhook** | `slack` | `action` | Sends notification messages and structured payloads to Slack channels. | `messageContent`, `success` |
+| **Discord** | **Discord Webhook** | `discord` | `action` | Sends rich formatted messages and alerts directly to Discord channels. | `content`, `success` |
+
+---
+
+## 🗂️ Hierarchical Command Palette & Zero-Node Memory Footprint
+
+To scale to thousands of integrations without client memory degradation, Nodus uses a **Hierarchical Command Palette Drawer** with on-demand chunk loading:
+
+```mermaid
+flowchart TD
+    Root["Right Sidebar: Palette"] -->|Click Flow or Core| Direct["Direct Suite View (Flow / Core)"]
+    Root -->|Click Apps| AppsList["Apps Category Directory"]
+    AppsList -->|Click App (e.g. Stripe, Slack)| Category["Category View (e.g. Stripe)"]
+    
+    Direct --> TriggersDirect["Accordion: Triggers"]
+    Direct --> ActionsDirect["Accordion: Actions"]
+    
+    Category --> TriggersApp["Accordion: Triggers"]
+    Category --> ActionsApp["Accordion: Actions"]
+```
+
+### Key Innovations:
+- **Zero-Node Initial Memory**: When browsing suites or app categories, **0 node manifests or executors** are loaded into heap memory. Only pure metadata (IDs, brand icons, and count badges) is initially present.
+- **On-Demand Dynamic Imports**: Clicking into an active suite or category triggers dynamic `import()` loaders (`loadPaletteNodeGroup`) cached in a module map.
+- **Code-Split Sidebar Inspector**: The node property inspector is loaded dynamically with `next/dynamic` and skeleton fallbacks, keeping token input libraries completely unloaded during canvas navigation.
+- **Store Hook Decoupling**: Canvas dimensions are read non-reactively via `useStoreApi().getState()` during node placement, eliminating re-renders when the sidebar is resized.
 
 ---
 
@@ -197,6 +225,7 @@ Nodus includes 19 production-ready nodes organized into modular categories:
 flowchart TD
     subgraph Client["Frontend Layer (Next.js 16 + React 19)"]
         UI["Visual Canvas (React Flow)"]
+        Palette["Hierarchical Command Palette Drawer"]
         Inspector["Right Sidebar Inspector & CodeMirror 6"]
         LB_Client["Liveblocks Real-Time Client"]
         Console["Live Run Console & Video Replay"]
@@ -316,45 +345,45 @@ cp .env.example .env.local
 
 Ensure all keys are provided in `.env.local`:
 ```env
-# App URL (Used for webhook destination URLs)
+# App Public URL (Used for webhook destination URLs & callbacks)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# Clerk Authentication & Billing
+# Clerk Authentication & Organization Billing
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
-NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/workflows
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/workflows
 
 # Neon Serverless Postgres Database
-DATABASE_URL=postgres://...
-DATABASE_URL_UNPOOLED=postgres://...
+DATABASE_URL=postgres://user:password@ep-xyz-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL_UNPOOLED=postgres://user:password@ep-xyz.us-east-2.aws.neon.tech/neondb?sslmode=require
 
-# Credential Vault Secret Key (32-byte hex for AES-256-GCM)
-CREDENTIAL_VAULT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-
-# Trigger.dev Background Worker
+# Trigger.dev Background Execution Task Runner
 TRIGGER_SECRET_KEY=tr_dev_...
+
+# Organization Credential Vault (AES-256-GCM 32-byte master key - generate via `openssl rand -hex 32`)
+VAULT_MASTER_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
 # E2B Cloud Code Sandbox (JavaScript & Python)
 E2B_API_KEY=e2b_...
 
-# Liveblocks Real-Time Collaboration
+# Liveblocks Real-Time Multiplayer Collaboration
 NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY=pk_liveblocks_...
 LIVEBLOCKS_SECRET_KEY=sk_liveblocks_...
 
-# Browserbase Cloud Browsers & Replays
+# Browserbase Cloud Browsers & Observability
 BROWSERBASE_API_KEY=bb_...
 BROWSERBASE_PROJECT_ID=...
 
-# Gemini AI (Powers Stagehand Browser Automation)
+# Gemini AI (Powers Stagehand v4 Autonomous Browser Agents)
 GEMINI_API_KEY=AIzaSy...
 
-# Resend Email Integration
+# Resend Transactional Email
 RESEND_API_KEY=re_...
 
-# Sentry Monitoring (Optional)
+# Sentry Monitoring & Error Reporting (Optional)
 NEXT_PUBLIC_SENTRY_DSN=https://...
 SENTRY_DSN=https://...
 SENTRY_AUTH_TOKEN=...
@@ -369,7 +398,7 @@ npm run db:push
 
 ### 4. Start the Trigger.dev Task Runner
 ```bash
-npx trigger.dev dev
+npm run trigger:dev
 ```
 
 ### 5. Start the Web App
@@ -386,12 +415,13 @@ Navigate to [http://localhost:3000](http://localhost:3000) and build your first 
 - [x] **Stagehand v4 AI Browser Actions & Autonomous Agent**
 - [x] **Browserbase Video Session Replays**
 - [x] **Control Flow Suite (`If/Else`, `Switch`, `Merge/Join`, `Wait`, `Throw Error`)**
+- [x] **Loop & Batch Iteration Nodes (`forEach`, `count`, `while`, `until`)**
 - [x] **Multi-Language Cloud Code Sandboxes (`JavaScript`, `Python` via E2B)**
 - [x] **Real-Time Static Infinite Loop Detection & CodeMirror 6 Editor**
+- [x] **Hierarchical Command Palette Drawer with Zero-Node Memory Footprint**
 - [x] **Universal JSON Workflow Import / Export Engine**
 - [x] **Credential Vault (AES-256-GCM Encrypted Secret Manager)**
 - [x] **Performance-Optimized Granular Execution Store (`useSyncExternalStore`)**
-- [ ] **Loop & Batch Iteration Nodes (`forEach`, `while`)**
 - [ ] **Multi-Agent Orchestration Teams (Supervisor + Specialized Subagents)**
 - [ ] **Pre-built Connector Marketplace (Notion, GitHub, PostgreSQL, Linear)**
 
@@ -400,8 +430,11 @@ Navigate to [http://localhost:3000](http://localhost:3000) and build your first 
 ## 🧪 Verification & Test Suite
 
 ```bash
-# Run all unit and integration tests (119+ tests passing)
+# Run all unit and integration tests (188 tests passing across 52 suites)
 npm test
+
+# Run system parity integrity verification test
+npx tsx --test features/workflows/system/parity.test.ts
 
 # Run TypeScript typecheck
 npm run typecheck
