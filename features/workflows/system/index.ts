@@ -4,6 +4,7 @@ export * from "./suites/flow"
 export * from "./suites/core"
 export * from "./suites/apps"
 export * from "./catalog"
+export * from "./catalog-metadata"
 export * from "./registry"
 export * from "./handles"
 

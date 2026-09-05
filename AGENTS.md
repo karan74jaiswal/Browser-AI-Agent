@@ -17,93 +17,317 @@ documented here:
 https://docs.browserbase.com/platform/browser/observability/session-replay
 The retrieval needs the secret API key, so it must be proxied server-side.
 
-# Adding a workflow node
+# Adding a Workflow Node (System Architecture Framework)
 
-Workflows distinguish between two kinds of nodes: **Action Nodes** (execute during a run) and **Trigger Nodes** (initiate runs from webhooks or events). Follow the exact step-by-step instructions below based on which kind you are adding.
+> **SOURCE OF TRUTH**: The entire workflow node architecture is defined in `features/workflows/system/`.
+> The execution engine, canvas, right sidebar, and inspector are **100% generic and registry-driven**.
+> When adding or modifying a node, you **NEVER** modify canvas components, execution runners, sidebars, or token inputs. Follow the exact step-by-step instructions below.
 
 ---
 
-## 1. Adding an Action Node (`kind: "action"`)
+## 1. Architectural Invariants & File Structure
 
-Action nodes perform an operation during workflow execution (e.g. `open-url`, `act`, `extract`, `observe`, `agent`, `send-email`, `http-request`).
+All nodes live inside the modular taxonomy in `features/workflows/system/suites/`:
+- **Flow Nodes** (`suites/flow/`): Graph topology, branching, loops, and control flow primitives (`start`, `if`, `switch`, `loop`, `merge`, `wait`, `throw-error`).
+- **Core Nodes** (`suites/core/`): Compute sandboxes and network primitives (`js-code`, `python-code`, `http-request`).
+- **App Nodes** (`suites/apps/categories/<category-id>/`): Third-party integrations and app tools (`browserbase`, `stripe`, `resend`, `google-form`, `slack`, `discord`, etc.).
 
-### Step 1: Create the Executor File (`features/workflows/nodes/<node-name>.ts`)
+### Directory Structure of a Node / Category:
+Each node or integration category is completely self-contained:
+```
+features/workflows/system/suites/apps/categories/<category-id>/
+├── icon.tsx                          # App brand icon component (Lucide or branded SVG)
+├── index.ts                          # Re-exports category node modules
+├── nodes/
+│   └── <node-name>.ts                # Node definition module (manifest, icon, initial values)
+├── executors/
+│   └── <node-name>.ts                # Pure backend execution logic (isolated from React)
+├── inspectors/                       # (OPTIONAL) Custom inspector if custom UI/docs needed
+│   └── <node-name>-inspector.tsx
+└── handles/                          # (OPTIONAL) Custom handles if non-standard topology needed
+    └── <node-name>-handle.tsx
+```
 
-- Export an async executor function (e.g., `export async function httpRequest({ ... })`).
-- Sanitize string inputs if URLs or tokens might contain zero-width spaces: `.trim().replace(/[\u200B\uFEFF\u00A0]/g, "")`.
-- Return a serializable object containing the output variables defined in the manifest.
-- Throw descriptive `Error` instances on failure (these are caught by the execution runner and recorded in the step log).
+---
 
-### Step 2: Register in `features/workflows/nodes/node-executors.ts`
+## 2. Adding an Action Node (`kind: "action"`)
 
-- Import the executor function.
-- Add the entry to `nodeExecutors`:
-  ```typescript
-  "my-action": async ({ values, getStagehand }) =>
-    myAction({
-      /* map values */
-    }),
-  ```
-- The `satisfies Record<ActionNodeType, NodeExecutor>` contract enforces compile-time safety: forgetting to register an action node will cause TypeScript compilation to fail.
+Follow these exact 7 steps to add a new Action Node (e.g. `slack`, `resend`, `http-request`).
 
-### Step 3: Register Manifest in `features/workflows/nodes/node-registry.ts`
+### Step 1: Register Taxonomy Types
+1. Open `features/workflows/system/types/taxonomy.ts`:
+   - If adding to an **existing App category**, add the node ID to `AppNodeId`:
+     ```typescript
+     export type AppNodeId =
+       | ...
+       | "my-action"
+     ```
+   - If adding a **new App category**, also add the category ID to `AppCategoryId`:
+     ```typescript
+     export type AppCategoryId =
+       | ...
+       | "my-app"
+     ```
+   - If adding a **Core node**, add to `CoreNodeId`.
+2. Open `features/workflows/system/types/runtime.ts`:
+   - Add the node ID string to the `ActionNodeType` type union:
+     ```typescript
+     export type ActionNodeType = {
+       [K in NodeType]: K extends
+         | ...
+         | "my-action"
+         ? K
+         : never
+     }[NodeType]
+     ```
 
-- Import the relevant Lucide icon from `lucide-react`.
-- Add an entry to `nodeRegistry` with:
-  - `type`: string key matching the executor name (e.g. `"my-action"`).
+### Step 2: Create the Executor Function
+Create `features/workflows/system/suites/apps/categories/<category-id>/executors/<node-name>.ts`:
+- Export an async function taking a typed arguments object.
+- Sanitize string inputs (strip zero-width spaces: `.trim().replace(/[\u200B\uFEFF\u00A0]/g, "")`).
+- Retrieve API keys and tokens from the organization's encrypted vault (`secrets.MY_API_KEY`). **Never** read `process.env` in executors!
+- Throw descriptive `Error` instances on failure (the Trigger.dev runner catches these, logs step failure, and highlights the canvas node in red).
+- Return a serializable JSON object matching the outputs defined in the manifest.
+
+**Reference Example (`executors/slack.ts`)**:
+```typescript
+export async function sendSlackMessage({
+  webhookUrl,
+  content,
+  username,
+}: {
+  webhookUrl: string
+  content: string
+  username?: string
+}) {
+  if (!webhookUrl || !webhookUrl.trim()) {
+    throw new Error("Slack node: Webhook URL is required")
+  }
+  if (!content || !content.trim()) {
+    throw new Error("Slack node: Message content is required")
+  }
+
+  const cleanUrl = webhookUrl.trim().replace(/[\u200B\uFEFF\u00A0]/g, "")
+  const cleanContent = content.trim()
+
+  const response = await fetch(cleanUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: cleanContent }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "")
+    throw new Error(`Slack webhook failed with status ${response.status}: ${errorText.slice(0, 300)}`)
+  }
+
+  return {
+    success: true,
+    messageContent: cleanContent,
+  }
+}
+```
+
+### Step 3: Create the Node Module
+Create `features/workflows/system/suites/apps/categories/<category-id>/nodes/<node-name>.ts`:
+- Export a typed `ActionNodeModule<"my-action">`.
+- Set `manifest`:
+  - `id`: Unique node ID matching `ActionNodeType`.
+  - `suiteId`: `"apps"` (or `"core"` / `"flow"`).
+  - `categoryId`: Parent category ID (e.g. `"slack"`).
   - `kind`: `"action"`.
-  - `label`: Human-readable label (e.g. `"My Action"`).
-  - `icon`: Lucide icon component.
-  - `accent`: Tailwind background + text class (e.g. `"bg-teal-600 text-white"`).
-  - `fields`: Array of `NodeField` (`key`, `label`, `placeholder`, `multiline`, `required`, `defaultValue`, `options`). If `options` is supplied, the inspector automatically renders a shadcn `Select` dropdown.
-  - `outputs`: Array of `NodeOutput` (`path`, `label`) that downstream nodes can reference using tokens (e.g. `{{ My Action · Result }}`).
-  - `requiredPlan`: Optional plan gating (`"pro"` or `"enterprise"`).
+  - `label`: Human-readable name.
+  - `description`: Action summary.
+  - `accent`: Tailwind background + text class (e.g. `"bg-[#4A154B] text-white"`).
+  - `fields`: Array of `NodeField` (`key`, `label`, `placeholder`, `multiline`, `required`, `options`). If `options` is supplied, the inspector automatically renders a shadcn `Select` dropdown.
+  - `outputs`: Array of `NodeOutput` (`path`, `label`) that downstream nodes can reference using tokens (e.g. `{{ Slack · Message Content }}`).
+  - `requiredSecrets`: (Optional) Array of vault secret requirements (e.g. `[{ key: "SLACK_BOT_TOKEN", label: "Slack Token" }]`).
+- Set `icon`: React component or Lucide icon.
+- Set `iconSvgPath`: SVG `<path .../>` string for dynamic variable pills in `TokenInput`.
+- Set `handleTopology`: `{ type: "standard" }` (1 target on left, 1 source on right).
+- Set `getInitialValues`: Function returning default field values.
+- (Optional) `loadCustomInspector`: Lazy loader for a custom inspector (e.g. `() => import("../inspectors/my-inspector")`). If omitted, `DefaultNodeInspector` is used automatically!
 
-### Step 4: Register Icon SVG Path in `features/workflows/components/token-input.tsx`
+**Reference Example (`nodes/slack.ts`)**:
+```typescript
+import { SlackIcon } from "../icon"
+import type { ActionNodeModule } from "../../../../../types/module"
 
-- Add the node's SVG path to `nodeIconSvgPaths` so dynamic token pills in input fields display the branded icon badge.
+export const slackNodeModule: ActionNodeModule<"slack"> = {
+  manifest: {
+    id: "slack",
+    suiteId: "apps",
+    categoryId: "slack",
+    kind: "action",
+    label: "Slack",
+    description: "Sends automated messages to a Slack channel",
+    accent: "bg-[#4A154B] text-white",
+    fields: [
+      {
+        key: "webhookUrl",
+        label: "Webhook URL",
+        placeholder: "https://hooks.slack.com/services/...",
+        required: true,
+      },
+      {
+        key: "content",
+        label: "Message Content",
+        placeholder: "Summary: {{ Extract · Result }}",
+        multiline: true,
+        required: true,
+      },
+    ],
+    outputs: [
+      { path: "messageContent", label: "Message Content" },
+      { path: "success", label: "Success" },
+    ],
+  },
+  icon: SlackIcon,
+  iconSvgPath: `<path d="..." fill="#36C5F0"/>`,
+  handleTopology: { type: "standard" },
+  getInitialValues: () => ({
+    webhookUrl: "",
+    content: "",
+  }),
+}
+```
+
+### Step 4: Register in `systemNodeExecutors`
+Open `features/workflows/system/executors/index.ts`:
+1. Import the executor function.
+2. Add the entry to `systemNodeExecutors`:
+   ```typescript
+   "my-action": async ({ values, secrets, getStagehand }) =>
+     myAction({
+       webhookUrl: values.webhookUrl,
+       content: values.content,
+       apiKey: secrets?.MY_API_KEY,
+     }),
+   ```
+3. The TypeScript compiler enforces `satisfies Record<ActionNodeType, NodeExecutor>`. Forgetting to register an action node will cause compilation to fail immediately.
+
+### Step 5: Export from Suite Index & Catalog
+1. In `features/workflows/system/suites/apps/categories/<category-id>/index.ts`:
+   - Export the node module and include it in `<category>Nodes`:
+     ```typescript
+     export const myCategoryNodes: readonly WorkflowNodeModule[] = [myActionNodeModule]
+     export { myActionNodeModule }
+     ```
+2. In `features/workflows/system/suites/apps/index.ts`:
+   - Export `<category>Nodes` and include in `appsNodes`.
+3. In `features/workflows/system/catalog.ts`:
+   - Add `<category>Nodes` to `systemPaletteCatalog` (under `directActions` or `categories[].actions`).
+
+### Step 6: Register in `catalog-metadata.ts`
+Open `features/workflows/system/catalog-metadata.ts`:
+- If adding a node to an existing category, increment `nodeCount` (e.g. `nodeCount: 2`).
+- If adding a **brand-new App category**:
+  1. Add category definition in `features/workflows/system/suites/definitions.ts` (`appCategoriesCatalogDefinitions`).
+  2. Add entry to `paletteCategoriesMetadata` in `catalog-metadata.ts`:
+     ```typescript
+     {
+       id: appCategoriesCatalogDefinitions["my-app"].id,
+       suiteId: "apps",
+       label: appCategoriesCatalogDefinitions["my-app"].label,
+       description: appCategoriesCatalogDefinitions["my-app"].description,
+       icon: appCategoriesCatalogDefinitions["my-app"].icon,
+       brandColor: appCategoriesCatalogDefinitions["my-app"].brandColor,
+       nodeCount: 1,
+     }
+     ```
+  3. Add entry to `paletteCategoryLoaders` in `catalog-metadata.ts`:
+     ```typescript
+     "my-app": async () => {
+       const m = await import("./suites/apps/categories/my-app")
+       return {
+         triggers: m.myAppNodes.filter((n) => n.manifest.kind === "trigger"),
+         actions: m.myAppNodes.filter((n) => n.manifest.kind === "action"),
+       }
+     },
+     ```
+
+### Step 7: Update Parity Test & Verify
+1. Open `features/workflows/system/parity.test.ts`:
+   - Add `"my-action"` to `EXPECTED_NODE_KEYS`.
+   - Increment `assert.equal(systemNodeKeys.length, <N>)`.
+2. Run tests and type check:
+   - `npx tsc --noEmit`
+   - `npm test`
 
 ---
 
-## 2. Adding a Trigger Node (`kind: "trigger"`)
+## 3. Adding a Trigger Node (`kind: "trigger"`)
 
-Trigger nodes initiate workflow runs (e.g. `start`, `google-form-trigger`, `stripe-trigger`).
+Trigger nodes initiate workflow executions from external events or webhooks (e.g. `start`, `stripe-trigger`, `google-form-trigger`).
 
-### Step 1: Register Manifest in `features/workflows/nodes/node-registry.ts`
+### Step 1: Register Taxonomy Types
+1. In `features/workflows/system/types/taxonomy.ts`, add the ID to `AppNodeId` (or `FlowNodeId`).
 
-- Add an entry to `nodeRegistry` with `kind: "trigger"`, `icon`, `accent`, `fields`, and `outputs`.
-
-### Step 2: Configure Inspector & Palette in `features/workflows/components/right-sidebar.tsx`
-
-- **Initial Values**: In `Palette.add()`, initialize default values or generated secrets (e.g., `whsec_${crypto.randomUUID()}`).
-- **Inspector Panel**: If the trigger requires webhook URLs or setup instructions, create a dedicated inspector component (e.g., `<StripeTriggerInspector>`, `<GoogleFormTriggerInspector>`) and render it in `Inspector` when `type === "<your-trigger>"`.
+### Step 2: Create the Trigger Node Module
+Create `features/workflows/system/suites/apps/categories/<category-id>/nodes/<node-name>.ts`:
+- Export a typed `TriggerNodeModule<"my-trigger">`.
+- Set `manifest`:
+  - `kind`: `"trigger"`
+  - `handleTopology`: `{ type: "source-only" }` (Triggers only output downstream data; no incoming target).
+  - `fields`: Include a `secret` field (for webhook verification) and instructions.
+  - `outputs`: Event payload fields (e.g. `eventType`, `payload`, `customerEmail`).
+- Implement `getInitialValues`: Return an object with an auto-generated webhook secret:
+  ```typescript
+  getInitialValues: () => ({
+    secret: `whsec_${crypto.randomUUID().slice(0, 16)}`,
+  })
+  ```
+- Implement `getTriggerFallback`: Return a mock JSON payload used during canvas test runs when no live webhook payload is supplied:
+  ```typescript
+  getTriggerFallback: (values) => ({
+    event: "mock_event",
+    data: { id: "test_123" },
+  })
+  ```
+- (Optional) Provide `loadCustomInspector`: To render setup instructions and copyable webhook URL.
 
 ### Step 3: Create Webhook Route (`app/api/webhooks/<provider>/route.ts`)
+1. Parse query parameters: `workflowId`, `orgId`, `secret`.
+2. Load workflow from database and verify secret matches `node.data.values.secret`.
+3. Normalize incoming payload to a strongly-typed schema.
+4. Dispatch the Trigger.dev task:
+   ```typescript
+   await tasks.trigger<typeof runWorkflowTask>(
+     "run-workflow",
+     { workflowId, orgId, triggerData: normalizedData },
+     { tags: [`workflow:${workflowId}`, `org:${orgId}`, `trigger:<provider>`] }
+   )
+   ```
 
-- Parse query parameters: `workflowId`, `orgId`, `secret`.
-- Verify workflow existence via `getWorkflow(orgId, workflowId)`.
-- Verify secret authentication token against `node.data.values.secret`.
-- Normalize incoming payload to a strongly typed schema.
-- Dispatch Trigger.dev task:
-  ```typescript
-  await tasks.trigger<typeof runWorkflowTask>(
-    "run-workflow",
-    { workflowId, orgId, triggerData: normalizedData },
-    { tags: [`workflow:${workflowId}`, `org:${orgId}`, `trigger:<provider>`] }
-  )
-  ```
-
-### Step 4: Add Trigger Handling in `features/workflows/tasks/run-workflow.ts`
-
-- In the execution loop, handle `node.data.type === "<your-trigger>"` by populating `results[id]` with `triggerData ?? { /* fallback mock data for canvas test runs */ }`.
-
-### Step 5: Register Icon SVG Path in `features/workflows/components/token-input.tsx`
-
-- Add the trigger's SVG path to `nodeIconSvgPaths`.
+### Step 4: Export and Register
+1. Export in category `index.ts` and add to `<category>Nodes`.
+2. Register in `catalog.ts` and `catalog-metadata.ts`.
+3. Add to `EXPECTED_NODE_KEYS` in `parity.test.ts`.
 
 ---
 
-## 3. Secret & Credential Vault Management
+## 4. Custom Inspectors & Custom Handles (Optional Overrides)
+
+The system automatically provides default UI for 90% of nodes:
+- **Default Inspector**: If `loadCustomInspector` or `inspectorComponent` is omitted from `BaseNodeModule`, `DefaultNodeInspector` automatically renders all fields declared in `manifest.fields`.
+- **Default Handles**: If `handleComponent` is omitted, `DefaultNodeHandles` automatically places target handles on the left and source handles on the right.
+
+### When to Create a Custom Inspector
+Create a custom inspector only when you need custom instructions, live credential validation, or complex custom inputs (e.g. code editors, branch rules):
+- Create `inspectors/<node>-inspector.tsx` with `"use client"`.
+- Wrap `DefaultNodeInspector` or render custom components.
+- Export as default (`export default MyInspector`) and register via `loadCustomInspector: () => import("../inspectors/my-inspector")`.
+- **Reference Example**: [`SlackInspector`](features/workflows/system/suites/apps/categories/slack/inspectors/slack-inspector.tsx).
+
+### When to Create Custom Handles
+Create custom handles only when a node has non-standard routing (e.g. `if` has `true`/`false` outputs, `switch` has dynamic case handles, `loop` has `loop-body` and `done` outputs):
+- Create `handles/<node>-handle.tsx`.
+- Register via `handleComponent: MyHandleComponent` on the node module.
+- **Reference Example**: [`IfNodeHandles`](features/workflows/system/suites/flow/handles/if-handle.tsx).
+
+---
+
+## 5. Secret & Credential Vault Management
 
 Workflows support multi-tenant, encrypted secret storage via the **Credential Vault** (`AES-256-GCM`). Follow these standards when adding nodes that require API keys or external authentication:
 
@@ -118,23 +342,28 @@ Workflows support multi-tenant, encrypted secret storage via the **Credential Va
   }
   ```
 - **Do not** hardcode default API keys in `defaultValue`.
+- (Optional) Use `requiredSecrets` in manifest:
+  ```typescript
+  requiredSecrets: [
+    { key: "RESEND_API_KEY", label: "Resend API Key", description: "Required to dispatch transactional emails" }
+  ]
+  ```
 
 ### 2. Resolving Secrets in Executors
 - Upstream template variables (e.g. `{{ secrets.STRIPE_SECRET_KEY }}`) are automatically decrypted and interpolated by the runner before the executor is called.
-- The executor receives the decrypted plaintext string in `values[key]`.
+- Decrypted vault secrets are also passed in the `secrets` argument: `ctx.secrets?.RESEND_API_KEY`.
 - Always validate that the key is non-empty and throw a descriptive error when missing:
   ```typescript
-  const apiKey = (values.apiKey ?? "").trim().replace(/[\u200B\uFEFF\u00A0]/g, "")
+  const apiKey = (values.apiKey ?? secrets?.MY_API_KEY ?? "").trim().replace(/[\u200B\uFEFF\u00A0]/g, "")
   if (!apiKey) {
     throw new Error(
-      "Missing API key. Please insert a secret from your Credential Vault (e.g. {{ secrets.RESEND_API_KEY }})."
+      "Missing API key. Please insert a secret from your Credential Vault (e.g. {{ secrets.MY_API_KEY }})."
     )
   }
   ```
 
 ### 3. Automatic Environment Variable Injection in Sandboxes
-- When implementing or extending code execution sandboxes (like `js-code` or `python-code`), all decrypted organization vault secrets are automatically injected as sandbox environment variables (`process.env.KEY` in JS / `os.environ["KEY"]` in Python).
-- Sandbox code can access secrets both through direct template token replacement and native environment variable lookups.
+- In code execution sandboxes (`js-code` or `python-code`), all decrypted organization vault secrets are automatically injected as sandbox environment variables (`process.env.KEY` in JS / `os.environ["KEY"]` in Python).
 
 ### 4. Pre-Flight Validation Engine (`features/workflows/lib/validate-graph.ts`)
 - The pre-flight `validateGraph(graph, availableSecretKeys)` engine scans all input strings for `{{ secrets.KEY }}` tokens.
@@ -142,27 +371,22 @@ Workflows support multi-tenant, encrypted secret storage via the **Credential Va
 
 ---
 
-## 4. Architecture Rules & Guardrails
+## 6. Strict Guardrails & Anti-Patterns (What NOT to Do)
 
-- **Registry-driven**: The canvas step node (`step-node.tsx`) and the run loop (`run-workflow.ts`) are registry-driven. Never hardcode node-specific UI or execution logic inside the canvas components.
-- **Variable Interpolation**: Token inputs automatically support `{{ <nodeId>.<output-path> }}` and `{{ secrets.<KEY> }}` variable references. Downstream executors receive interpolated string values.
-- **Select Dropdowns**: Always use shadcn/ui components (`@/components/ui/select`), never native OS `<select>`/`<option>`.
-
----
-
-## 5. What NOT to Do (Anti-Patterns & Pitfalls)
-
-- ❌ **DO NOT fallback to server `process.env` in action executors**: Never write `process.env.RESEND_API_KEY` inside action executors (e.g. `send-email`). All third-party credentials must be provided via node values or the organization's encrypted vault (`{{ secrets.KEY }}`) to maintain multi-tenant organization isolation.
-- ❌ **DO NOT modify `step-node.tsx` or `canvas.tsx` for new action nodes**: The canvas node component is 100% generic and reads everything dynamically from `nodeRegistry`. Never hardcode `if (type === "my-action")` in canvas components.
-- ❌ **DO NOT touch `run-workflow.ts` for action nodes**: The Trigger.dev execution runner automatically looks up and invokes `nodeExecutors[node.data.type]`. You only ever add a branch to `run-workflow.ts` for **trigger** nodes (to handle `triggerData`).
-- ❌ **DO NOT create custom modal dialogs (`<Dialog>`) or form popups for node configuration**: Node properties are managed exclusively through the Right Sidebar Inspector. When you declare `fields` in `nodeRegistry`, the inspector automatically renders corresponding inputs and handles state persistence.
-- ❌ **DO NOT use native HTML `<select>` / `<option>` or `<NativeSelect>`**: Always use shadcn/ui Select (`@/components/ui/select`). Native OS dropdowns break dark mode, theme consistency, and custom styling.
-- ❌ **DO NOT perform manual token substitution inside action executors**: Upstream template variables (e.g. `{{ Step 1 · URL }}` and `{{ secrets.KEY }}`) are already resolved by the runner before your executor function is called. Executors always receive cleanly interpolated string values.
+- ❌ **DO NOT touch `run-workflow.ts` for action nodes**: The Trigger.dev execution runner automatically looks up and invokes `systemNodeExecutors[node.data.type]`. Adding an action node requires **zero** changes to `run-workflow.ts`.
+- ❌ **DO NOT modify `step-node.tsx` or `canvas.tsx`**: The canvas step node is 100% generic and reads everything dynamically from `nodeRegistry` and `getSystemNodeHandle`. Never hardcode `if (type === "my-action")` in canvas components.
+- ❌ **DO NOT modify `palette.tsx` or `right-sidebar.tsx`**: The Right Sidebar Command Palette reads pure metadata and dynamic chunk loaders from `catalog-metadata.ts`. Never hardcode node lists in the palette component.
+- ❌ **DO NOT edit `token-input.tsx` for new node icons**: Dynamic token pills obtain their icon SVG directly from `iconSvgPath` on the node module via `systemNodeIconSvgPaths` in `registry.ts`.
+- ❌ **DO NOT touch `AGENTS.md`**: `AGENTS.md` is a protected file.
+- ❌ **DO NOT fallback to server `process.env` in action executors**: Never write `process.env.RESEND_API_KEY` inside action executors. All third-party credentials must be provided via node values or the organization's encrypted vault (`{{ secrets.KEY }}` / `secrets?.KEY`) to maintain multi-tenant organization isolation.
+- ❌ **DO NOT create custom modal dialogs (`<Dialog>`) or form popups for node configuration**: Node properties are managed exclusively through the Right Sidebar Inspector (`DefaultNodeInspector` or a custom inspector declared on the module).
+- ❌ **DO NOT use native HTML `<select>` / `<option>` or `<NativeSelect>`**: Always use shadcn/ui Select (`@/components/ui/select`).
+- ❌ **DO NOT perform manual token substitution inside action executors**: Upstream template variables (e.g. `{{ Step 1 · URL }}` and `{{ secrets.KEY }}`) are already resolved by the runner before your executor function is called.
 - ❌ **DO NOT silently catch and swallow errors in executors**: Always let errors bubble up or throw descriptive `Error` instances (e.g. `throw new Error("HTTP 404: Not Found")`). This ensures Trigger.dev logs the failure, marks the step as failed, and renders the red failure boundary on the canvas.
-- ❌ **DO NOT bypass the `satisfies Record<ActionNodeType, NodeExecutor>` type contract**: Never use `as any` in `node-executors.ts`. The type contract guarantees every action node in `nodeRegistry` has a corresponding executor.
-- ❌ **DO NOT use ad-hoc `any` or untyped `Record<string, unknown>` for third-party SDK payloads**: Always import and use official SDK types (e.g. `Stripe.Event`, `Stripe.PaymentIntent`, etc.) to maintain type safety.
-- ❌ **DO NOT omit SVG paths in `token-input.tsx`**: Always add the node's SVG path in `nodeIconSvgPaths`. Forgetting this causes variable chips in downstream inputs to render without their branded icon badge.
+- ❌ **DO NOT bypass the `satisfies Record<ActionNodeType, NodeExecutor>` type contract**: Never use `as any` in `executors/index.ts`. The type contract guarantees every action node in `ActionNodeType` has a corresponding executor.
+- ❌ **DO NOT use ad-hoc `any` for third-party SDK payloads**: Always import and use official SDK types to maintain compile-time safety.
 - ❌ **DO NOT trigger background tasks directly from client components**: Always route webhook triggers and background task executions through secure server-side API routes (`/api/webhooks/...`) with proper authentication and organization scoping.
+
 
 # JSX text escaping
 
